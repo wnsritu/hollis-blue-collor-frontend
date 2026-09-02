@@ -12,7 +12,7 @@ const columns = [
   {
     title: "For Professionals",
     links: [
-      { label: "Become a Professional", to: "/provider/pricing" },
+      { label: "Become a Professional", to: "/register?role=provider" },
     ],
   },
   {

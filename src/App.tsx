@@ -18,6 +18,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import VerifyEmail from "./pages/VerifyEmail";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
@@ -48,6 +49,7 @@ import SupportDashboard from "./pages/support/SupportAgent";
 import SupportLayout from "./components/SupportLayout";
 import SupportRequestsPage from "./pages/admin/SupportRequest";
 import ProviderFeatured from "./pages/ProviderFeatured";
+import ProviderOnboarding from "./pages/ProviderOnboarding";
 import AdminFeaturedPricing from "./pages/admin/AdminFeaturedPricing";
 import ReportIssue from "./pages/ReportIssue";
 import HowItWorks from "./pages/HowItWorks";
@@ -138,6 +140,9 @@ const App = () => (
           />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<SignUp />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/verify-otp" element={<VerifyEmail />} />
+          <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
           <Route
             path="/how-it-works"
             element={

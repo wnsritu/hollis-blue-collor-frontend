@@ -49,7 +49,7 @@ export function HowItWorks() {
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link to="/register">Join as a Professional</Link>
+            <Link to="/register?role=provider">Join as a Professional</Link>
           </Button>
         </div>
       </section>

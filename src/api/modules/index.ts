@@ -20,8 +20,8 @@ export {
   timeSlotApi,
   coinApi,
   sponsoredApi,
-  uploadApi,
 } from "./admin.api";
+export { uploadApi } from "./upload.api";
 
 import { authApi } from "./auth.api";
 import { userApi } from "./user.api";
@@ -45,8 +45,8 @@ import {
   timeSlotApi,
   coinApi,
   sponsoredApi,
-  uploadApi,
 } from "./admin.api";
+import { uploadApi } from "./upload.api";
 
 /**
  * Single entry for all feature APIs.
@@ -54,8 +54,7 @@ import {
  * @example
  * import { api } from "@/api";
  * const { data } = await api.catalog.getTree();
- * await api.project.create({ ... });
- * await api.proposal.accept(id);
+ * await api.upload.uploadProviderDocument(file);
  */
 export const api = {
   auth: authApi,

@@ -18,6 +18,7 @@ import {
   verifyEmailOtp,
   verifyPhoneOtp,
 } from "@/services/auth.service";
+import { ROLES } from "@/constants/roles";
 import { GoogleLogin } from "@react-oauth/google";
 import OtpLogin from "./auth/OtpLogin";
 import Spinner from "./ui/spinner";
@@ -169,8 +170,8 @@ const AuthModal = ({
   const [showForgotModal, setShowForgotModal] = useState(false);
 
   const ROLE_MAP = {
-    customer: 3,
-    provider: 4,
+    customer: ROLES.CUSTOMER,
+    provider: ROLES.PROVIDER,
   };
 
   const roleId = ROLE_MAP[role];

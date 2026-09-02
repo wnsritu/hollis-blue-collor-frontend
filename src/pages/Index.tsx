@@ -382,7 +382,7 @@ export function Index() {
               <Stars rating={5} /> 1,148 professionals already on the platform
             </div>
             <Button asChild size="lg" variant="secondary" className="mt-6">
-              <Link to="/register">Join as a Professional</Link>
+              <Link to="/register?role=provider">Join as a Professional</Link>
             </Button>
           </div>
         </div>
