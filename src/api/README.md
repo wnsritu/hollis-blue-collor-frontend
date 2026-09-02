@@ -1,87 +1,103 @@
-# Frontend API Architecture
+# Frontend API Layer
 
-Production-ready API foundation for the Hollis Service Marketplace.
-**No pages/UI here** — static pages from the FE team should call into this layer.
+Clean, scalable API surface aligned with backend Postman (**M1–M3**).
 
-## Folder map
-
-```
-src/
-  config/env.ts              → env-based config (apiBaseUrl, assets, keys)
-  constants/
-    endpoints.ts             → all backend paths (DRY, single source)
-    roles.ts                 → role IDs synced with backend
-    storageKeys.ts           → localStorage keys
-  types/api/                 → TypeScript contracts (auth, project, proposal, …)
-  lib/api/
-    client.ts                → axios instance
-    interceptors.ts          → Bearer token + refresh-token retry
-    http.ts                  → get/post/put/patch/delete helpers (returns data)
-    errors.ts                → ApiError + normalize
-    queryKeys.ts             → React Query key factory
-  api/modules/               → feature API modules (preferred)
-  api/index.ts               → public barrel
-  api/*.api.ts               → legacy wrappers (existing pages still import these)
-  store/authStore.ts         → session state (no UI)
-  hooks/useAuth.ts           → useAuthSession + bootstrapApi
-  hooks/api/useRequestState.ts
-  utils/tokenStorage.ts
-  utils/mediaUrl.ts
-```
-
-## How to call APIs (new code)
+## Import (preferred)
 
 ```ts
-import { api, projectApi, ApiError, getErrorMessage } from "@/api";
+import { api, queryKeys, http, ApiError } from "@/api";
 import { ENDPOINTS, ROLES } from "@/constants";
-import { useRequestState } from "@/hooks/api";
-import { useAuthSession } from "@/hooks/useAuth";
-
-// Option A — namespaced
-await api.project.create({ ... });
-
-// Option B — direct module
-await projectApi.listMine();
-
-// Option C — with loading state helper
-const { run, isLoading, error, data } = useRequestState();
-await run(() => api.proposal.accept(id));
+import type { Project, CreateProjectPayload } from "@/types/api";
 ```
 
-## Auth
+## Layout
+
+```text
+src/
+  api/
+    modules/          ← feature API modules (source of truth)
+      auth.api.ts
+      catalog.api.ts
+      provider.api.ts
+      project.api.ts
+      matching.api.ts
+      proposal.api.ts
+      appointment.api.ts
+      chat.api.ts
+      …
+    index.ts          ← re-exports modules + lib client
+  constants/
+    endpoints.ts      ← all paths under /api/v1
+  types/api/          ← request/response TypeScript types
+  lib/api/
+    http.ts           ← typed get/post/put/patch/delete
+    client.ts         ← axios instance
+    interceptors.ts   ← auth / refresh
+    queryKeys.ts      ← React Query keys
+```
+
+## Usage examples
 
 ```ts
-import { bootstrapApi, useAuthSession } from "@/hooks/useAuth";
+// Catalog browse (public)
+const catalog = await api.catalog.getTree();
 
-// Already called in main.tsx
-bootstrapApi({ onUnauthorized: () => { /* redirect */ } });
+// Provider search
+const results = await api.provider.search({
+  category_id: 1,
+  city: "Austin",
+  sort: "rating",
+});
 
-const { login, logout, fetchMe, isProvider, isAuthenticated } = useAuthSession();
+// Create open project (triggers matching on BE)
+const project = await api.project.create({
+  category_id: 1,
+  service_type_id: 2,
+  title: "Fix sink",
+  description: "…",
+  address_line: "123 Main",
+  status: "open",
+});
+
+// Provider leads
+const leads = await api.matching.listMyLeads();
+// or api.provider.listMyLeads()
+
+// Proposal accept → appointment
+await api.proposal.accept(proposalId);
+
+// Appointments
+await api.appointment.updateStatus(bookingId, {
+  appointment_status: "Confirmed",
+});
+
+// Project chat
+const chat = await api.chat.createChat({ project_id: projectId });
+await api.chat.sendMessage({ chat_id: chat.data.id, message: "Hi" });
 ```
 
-Tokens: `localStorage` via `tokenStorage` (`token`, `refreshToken`, role meta).
-401 → refresh via `POST /auth/refresh-token` → retry; else clear session.
+## Module map (Postman ↔ FE)
+
+| Domain | Module | Notes |
+|--------|--------|-------|
+| Auth | `api.auth` | M1 |
+| Catalog | `api.catalog` | M3 preferred over `api.service.getCategories` |
+| Provider search / leads | `api.provider` + `api.matching` | M3 |
+| Projects | `api.project` | includes match helpers |
+| Proposals | `api.proposal` | M3 |
+| Appointments | `api.appointment` | M3 |
+| Chat | `api.chat` | report/block included |
+| Payments | `api.payment` / `api.payout` | M2/M4 |
+| Legacy booking | `api.booking` | laundry-era |
+
+## Rules for UI work
+
+1. **Never hardcode URLs** in pages — use `ENDPOINTS` / `api.*`.
+2. Prefer `api.catalog.*` for marketplace browse (not legacy services categories).
+3. Prefer `api.appointment.*` for M3 status flow (not raw booking status enums).
+4. Use `queryKeys.*` with React Query for cache invalidation.
+5. Legacy files under `src/api/*.api.ts` (outside `modules/`) are old — do not extend them; use `modules/`.
 
 ## Env
 
-See `.env.example`.
-
-- `VITE_BASE_URL` → `http://localhost:5000/api/v1` (versioned)
-- `VITE_API_BASE_URL` → media host
-
-`config/env.ts` auto-appends `/v1` if you only set `…/api`.
-
-## Adding a new feature API
-
-1. Add paths in `constants/endpoints.ts`
-2. Add types in `types/api/`
-3. Create `api/modules/<feature>.api.ts` using `http` + `ENDPOINTS`
-4. Export from `api/modules/index.ts` and `api` object
-5. Add `queryKeys` entry if using React Query
-
-Do **not** put raw `axios` / URLs inside pages.
-
-## Legacy note
-
-Existing pages may still import `@/api/axios` or `@/api/auth.api`.
-Those keep working. Prefer migrating call sites to `@/api` modules over time.
+`VITE_BASE_URL=http://localhost:5000/api/v1`

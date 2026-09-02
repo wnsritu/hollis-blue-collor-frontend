@@ -53,6 +53,9 @@ export const payoutApi = {
 
   markEligible: (id: number | string) =>
     http.post<ApiSuccess<Payout>>(ENDPOINTS.payout.markEligible(id)),
+
+  fail: (id: number | string, payload?: { reason?: string }) =>
+    http.post<ApiSuccess<Payout>>(ENDPOINTS.payout.fail(id), payload),
 };
 
 export default paymentApi;
