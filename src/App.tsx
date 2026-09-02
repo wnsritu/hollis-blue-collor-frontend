@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Header from "@/components/Header";
+import PublicLayout from "./components/layout/PublicLayout";
 import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
@@ -130,92 +131,84 @@ const App = () => (
           <Route
             path="/"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Index />
-              </>
+              </PublicLayout>
             }
           />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<SignUp />} />
           <Route
             path="/how-it-works"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <HowItWorks />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/about"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <About />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/search"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <SearchProviders />
-              </>
+              </PublicLayout>
             }
           />
 
           <Route
             path="/provider/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <ProviderProfile />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/cleaning"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CleaningBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/carwash"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CarWashBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Booking />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/checkout"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Checkout />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/rating/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <RatingPage />
-              </>
+              </PublicLayout>
             }
           />
 
