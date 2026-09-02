@@ -715,75 +715,42 @@ const handleVerifyOtp = async (otp: string) => {
               </p>
             </div>
 
-            {/* Role tabs */}
-            {tab === "signup" && (
-              <div className="mb-4 flex bg-muted p-2 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("customer");
-                    setErrors({});
-                  }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                    role === "customer"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground"
-                  }`}
-                >
+            {/* Role cards for signup / login */}
+            <div className="mb-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("customer");
+                  setErrors({});
+                }}
+                className={`rounded-2xl border p-3.5 text-center transition-all ${
+                  role === "customer"
+                    ? "border-[#BF1523] bg-[#fdf0f1] font-bold text-[#BF1523] shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-gray-300"
+                }`}
+              >
+                <span className={`block text-xs ${role === "customer" ? "font-bold text-[#BF1523]" : "font-medium text-foreground"}`}>
                   Customer
-                </button>
+                </span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("provider");
-                    setErrors({});
-                  }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                    role === "provider"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground"
-                  }`}
-                >
+              <button
+                type="button"
+                onClick={() => {
+                  setRole("provider");
+                  setErrors({});
+                }}
+                className={`rounded-2xl border p-3.5 text-center transition-all ${
+                  role === "provider"
+                    ? "border-[#BF1523] bg-[#fdf0f1] font-bold text-[#BF1523] shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-gray-300"
+                }`}
+              >
+                <span className={`block text-xs ${role === "provider" ? "font-bold text-[#BF1523]" : "font-medium text-foreground"}`}>
                   Provider
-                </button>
-              </div>
-            )}
-
-            {/* ✅ Role toggle for LOGIN */}
-            {tab === "login" && (
-              <div className="mb-4 flex bg-muted p-2 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("customer");
-                    setErrors({});
-                  }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                    role === "customer"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Customer
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("provider");
-                    setErrors({});
-                  }}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                    role === "provider"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Provider
-                </button>
-              </div>
-            )}
+                </span>
+              </button>
+            </div>
 
             {/* Login / Signup tabs */}
             {/* <div className="mb-5 flex gap-4 border-b border-border">
