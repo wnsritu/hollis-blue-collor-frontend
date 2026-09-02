@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Header from "@/components/Header";
 import PublicLayout from "./components/layout/PublicLayout";
+import { ProviderPortal } from "./components/layout/portals";
 import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
@@ -290,15 +291,14 @@ const App = () => (
             }
           />
 
-          {/* ================= PROVIDER (PROTECTED) ================= */}
+          {/* ================= PROVIDER (PROTECTED) — service-connect portal shell ================= */}
           <Route
             path="/provider/dashboard"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderDashboard />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -307,10 +307,9 @@ const App = () => (
             path="/provider/orders"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderOrders />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -319,10 +318,9 @@ const App = () => (
             path="/provider/order/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderOrderDetail />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -331,10 +329,9 @@ const App = () => (
             path="/provider/pricing"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderPricing />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -343,10 +340,9 @@ const App = () => (
             path="/provider/availability"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderAvailability />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -355,10 +351,9 @@ const App = () => (
             path="/provider/earnings"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderEarnings />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -366,10 +361,9 @@ const App = () => (
             path="/provider/featured"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderFeatured />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -378,10 +372,9 @@ const App = () => (
             path="/provider/profile"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderProfileSettings />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
