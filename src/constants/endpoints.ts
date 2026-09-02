@@ -1,9 +1,12 @@
 /**
- * API path templates aligned with backend `slug/object.js`.
+ * API path templates aligned with backend + Postman (M1–M3).
  * Paths are relative to `env.apiBaseUrl` (…/api/v1).
+ *
+ * Prefer importing via `@/constants` or `@/constants/endpoints`.
  */
 
 export const ENDPOINTS = {
+  // ─── M1 Auth ───────────────────────────────────────────
   auth: {
     register: "/auth/register",
     login: "/auth/login",
@@ -31,6 +34,7 @@ export const ENDPOINTS = {
     resetPassword: "/reset-password",
   },
 
+  // ─── M1 Profiles ───────────────────────────────────────
   user: {
     myProfile: "/user/my-profile",
     updateAdminProfile: "/user/update-profile",
@@ -52,6 +56,18 @@ export const ENDPOINTS = {
     deactivate: (id: number | string) => `/customers/${id}/deactivate`,
   },
 
+  // ─── M3 Catalog ────────────────────────────────────────
+  catalog: {
+    tree: "/catalog",
+    categories: "/categories",
+    serviceTypes: "/service-types",
+    adminCategories: "/admin/categories",
+    adminCategoryById: (id: number | string) => `/admin/categories/${id}`,
+    adminServiceTypes: "/admin/service-types",
+    adminServiceTypeById: (id: number | string) => `/admin/service-types/${id}`,
+  },
+
+  // ─── Providers (legacy + marketplace) ──────────────────
   provider: {
     list: "/provider/list",
     details: (id: number | string) => `/provider/details/${id}`,
@@ -65,8 +81,10 @@ export const ENDPOINTS = {
 
   marketplaceProvider: {
     root: "/providers",
+    search: "/providers/search",
     byId: (id: number | string) => `/providers/${id}`,
     profile: "/providers/me/profile",
+    leads: "/providers/me/leads",
   },
 
   providerAvailability: {
@@ -76,6 +94,7 @@ export const ENDPOINTS = {
       `/provider-availability/provider/${providerId}`,
   },
 
+  // ─── M3 Projects / Matching ────────────────────────────
   project: {
     root: "/projects",
     byId: (id: number | string) => `/projects/${id}`,
@@ -85,8 +104,12 @@ export const ENDPOINTS = {
     attachments: (id: number | string) => `/projects/${id}/attachments`,
     attachmentById: (id: number | string, fileId: number | string) =>
       `/projects/${id}/attachments/${fileId}`,
+    matches: (id: number | string) => `/projects/${id}/matches`,
+    matchRespond: (id: number | string) => `/projects/${id}/matches/respond`,
+    runMatch: (id: number | string) => `/projects/${id}/match`,
   },
 
+  // ─── M3 Proposals ──────────────────────────────────────
   proposal: {
     root: "/proposals",
     byId: (id: number | string) => `/proposals/${id}`,
@@ -97,9 +120,33 @@ export const ENDPOINTS = {
     expire: (id: number | string) => `/proposals/${id}/expire`,
   },
 
+  // ─── M3 Appointments ───────────────────────────────────
+  appointment: {
+    me: "/appointments/me",
+    byId: (id: number | string) => `/appointments/${id}`,
+    status: (id: number | string) => `/appointments/${id}/status`,
+    reschedule: (id: number | string) => `/appointments/${id}/reschedule`,
+    confirmReschedule: (id: number | string) =>
+      `/appointments/${id}/confirm-reschedule`,
+  },
+
+  // ─── M3 Chat ───────────────────────────────────────────
+  chat: {
+    userChats: "/chats/user",
+    messages: (chatId: number | string) => `/chats/messages/${chatId}`,
+    sendMessage: "/chats/send-message",
+    createChat: "/chats/create-chat",
+    markAsRead: "/chats/mark-as-read",
+    report: (id: number | string) => `/chats/${id}/report`,
+    block: (id: number | string) => `/chats/${id}/block`,
+  },
+
+  // ─── M2 Payments / Payouts / Subscriptions ─────────────
   payment: {
     createIntent: "/payments/create-payment-intent",
+    createIntentAlias: "/payments/create-intent",
     confirm: "/payments/confirm-payment",
+    confirmAlias: "/payments/confirm",
     refund: "/payments/refund-payment",
     list: "/payments",
     byId: (id: number | string) => `/payments/${id}`,
@@ -114,6 +161,7 @@ export const ENDPOINTS = {
     history: "/admin/payouts/history",
     process: (id: number | string) => `/admin/payouts/${id}/process`,
     markEligible: (id: number | string) => `/admin/payouts/${id}/eligible`,
+    fail: (id: number | string) => `/admin/payouts/${id}/fail`,
   },
 
   subscription: {
@@ -128,14 +176,7 @@ export const ENDPOINTS = {
     allProviders: "/subscriptions/all-providers",
   },
 
-  chat: {
-    userChats: "/chats/user",
-    messages: (chatId: number | string) => `/chats/messages/${chatId}`,
-    sendMessage: "/chats/send-message",
-    createChat: "/chats/create-chat",
-    markAsRead: "/chats/mark-as-read",
-  },
-
+  // ─── Support / legacy ──────────────────────────────────
   dispute: {
     create: "/disputes/create",
     list: "/disputes/list",

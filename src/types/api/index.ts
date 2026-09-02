@@ -4,4 +4,8 @@ export * from "./project";
 export * from "./proposal";
 export * from "./provider";
 export * from "./payment";
+export * from "./catalog";
+export * from "./search";
+export * from "./matching";
+export * from "./appointment";
 export * from "./misc";
