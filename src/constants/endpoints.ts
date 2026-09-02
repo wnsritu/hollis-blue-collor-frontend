@@ -85,6 +85,7 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/providers/${id}`,
     profile: "/providers/me/profile",
     leads: "/providers/me/leads",
+    requestQuote: (id: number | string) => `/providers/${id}/request-quote`,
   },
 
   providerAvailability: {

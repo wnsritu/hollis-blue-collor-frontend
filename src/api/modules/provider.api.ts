@@ -58,6 +58,19 @@ export const providerApi = {
       ENDPOINTS.marketplaceProvider.byId(id)
     ),
 
+  /**
+   * Customer: provider profile → select service → Request a Quote.
+   * Creates a direct_quote project for this provider only.
+   */
+  requestQuote: (
+    providerId: number | string,
+    payload: import("@/types/api/project").RequestQuotePayload
+  ) =>
+    http.post<ApiSuccess<import("@/types/api/project").Project>>(
+      ENDPOINTS.marketplaceProvider.requestQuote(providerId),
+      payload
+    ),
+
   getMyMarketplaceProfile: () =>
     http.get<ApiSuccess<ProviderProfile>>(ENDPOINTS.marketplaceProvider.profile),
 

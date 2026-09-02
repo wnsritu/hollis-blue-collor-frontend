@@ -4,6 +4,7 @@ import type { ApiListParams, ApiSuccess } from "@/types/api/common";
 import type {
   CreateProjectPayload,
   Project,
+  RequestQuotePayload,
   UpdateProjectPayload,
   UpdateProjectStatusPayload,
 } from "@/types/api/project";
@@ -12,6 +13,16 @@ import type { ProjectMatch, RespondToMatchPayload } from "@/types/api/matching";
 export const projectApi = {
   create: (payload: CreateProjectPayload) =>
     http.post<ApiSuccess<Project>>(ENDPOINTS.project.root, payload),
+
+  /**
+   * Customer: pick provider → select their service → request quote (direct).
+   * Only that provider gets the lead (no open matching).
+   */
+  requestQuote: (providerId: number | string, payload: RequestQuotePayload) =>
+    http.post<ApiSuccess<Project>>(
+      ENDPOINTS.marketplaceProvider.requestQuote(providerId),
+      payload
+    ),
 
   list: (params?: ApiListParams) =>
     http.get<ApiSuccess<Project[]>>(ENDPOINTS.project.root, params),
