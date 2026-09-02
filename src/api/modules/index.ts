@@ -1,9 +1,12 @@
 export { authApi } from "./auth.api";
 export { userApi } from "./user.api";
 export { customerApi } from "./customer.api";
+export { catalogApi } from "./catalog.api";
 export { providerApi } from "./provider.api";
+export { matchingApi } from "./matching.api";
 export { projectApi } from "./project.api";
 export { proposalApi } from "./proposal.api";
+export { appointmentApi } from "./appointment.api";
 export { paymentApi, payoutApi } from "./payment.api";
 export { subscriptionApi } from "./subscription.api";
 export { chatApi } from "./chat.api";
@@ -23,9 +26,12 @@ export {
 import { authApi } from "./auth.api";
 import { userApi } from "./user.api";
 import { customerApi } from "./customer.api";
+import { catalogApi } from "./catalog.api";
 import { providerApi } from "./provider.api";
+import { matchingApi } from "./matching.api";
 import { projectApi } from "./project.api";
 import { proposalApi } from "./proposal.api";
+import { appointmentApi } from "./appointment.api";
 import { paymentApi, payoutApi } from "./payment.api";
 import { subscriptionApi } from "./subscription.api";
 import { chatApi } from "./chat.api";
@@ -42,14 +48,25 @@ import {
   uploadApi,
 } from "./admin.api";
 
-/** Single entry for all feature APIs */
+/**
+ * Single entry for all feature APIs.
+ *
+ * @example
+ * import { api } from "@/api";
+ * const { data } = await api.catalog.getTree();
+ * await api.project.create({ ... });
+ * await api.proposal.accept(id);
+ */
 export const api = {
   auth: authApi,
   user: userApi,
   customer: customerApi,
+  catalog: catalogApi,
   provider: providerApi,
+  matching: matchingApi,
   project: projectApi,
   proposal: proposalApi,
+  appointment: appointmentApi,
   payment: paymentApi,
   payout: payoutApi,
   subscription: subscriptionApi,

@@ -7,6 +7,7 @@ import type {
   UpdateProjectPayload,
   UpdateProjectStatusPayload,
 } from "@/types/api/project";
+import type { ProjectMatch, RespondToMatchPayload } from "@/types/api/matching";
 
 export const projectApi = {
   create: (payload: CreateProjectPayload) =>
@@ -18,8 +19,9 @@ export const projectApi = {
   listMine: (params?: ApiListParams) =>
     http.get<ApiSuccess<Project[]>>(ENDPOINTS.project.customerMy, params),
 
+  /** Matched opportunities for provider (prefer over dumping all open projects) */
   listProviderFeed: (params?: ApiListParams) =>
-    http.get<ApiSuccess<Project[]>>(ENDPOINTS.project.providerFeed, params),
+    http.get<ApiSuccess<ProjectMatch[]>>(ENDPOINTS.project.providerFeed, params),
 
   getById: (id: number | string) =>
     http.get<ApiSuccess<Project>>(ENDPOINTS.project.byId(id)),
@@ -38,6 +40,16 @@ export const projectApi = {
 
   removeAttachment: (id: number | string, fileId: number | string) =>
     http.delete<ApiSuccess>(ENDPOINTS.project.attachmentById(id, fileId)),
+
+  // ── Matching helpers (also on matchingApi) ──
+  runMatching: (id: number | string) =>
+    http.post<ApiSuccess<ProjectMatch[]>>(ENDPOINTS.project.runMatch(id)),
+
+  listMatches: (id: number | string) =>
+    http.get<ApiSuccess<ProjectMatch[]>>(ENDPOINTS.project.matches(id)),
+
+  respondToMatch: (id: number | string, payload: RespondToMatchPayload) =>
+    http.post<ApiSuccess<ProjectMatch>>(ENDPOINTS.project.matchRespond(id), payload),
 };
 
 export default projectApi;

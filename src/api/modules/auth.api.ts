@@ -34,7 +34,7 @@ export const authApi = {
   googleLogin: (payload: GoogleLoginPayload) =>
     http.post<AuthResponse>(ENDPOINTS.auth.googleLogin, payload),
 
-  loginWithOtp: (payload: { token: string; role_id?: number }) =>
+  loginWithOtp: (payload: { email: string; otp: string; role_id?: number }) =>
     http.post<AuthResponse>(ENDPOINTS.auth.loginWithOtp, payload),
 
   sendEmailOtp: (payload: ForgotPasswordPayload) =>
