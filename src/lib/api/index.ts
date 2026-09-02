@@ -3,6 +3,7 @@ export { http, type RequestConfig } from "./http";
 export {
   ApiError,
   getErrorMessage,
+  getErrorField,
   normalizeAxiosError,
   type ApiErrorBody,
 } from "./errors";

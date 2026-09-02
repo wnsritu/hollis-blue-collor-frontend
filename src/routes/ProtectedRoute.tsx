@@ -1,14 +1,20 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const token = localStorage.getItem("token");
+  const location = useLocation();
+  const { isAuthenticated, isHydrated } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
 
-  // ❌ Not logged in → redirect
-  if (!token) {
-    return <Navigate to="/" replace />;
+  if (!isHydrated && !hasToken) {
+    // Storage may hydrate on next tick; prefer token as immediate source of truth
   }
 
-  // ✅ Logged in → allow
+  if (!isAuthenticated && !hasToken) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
   return children;
 };
 

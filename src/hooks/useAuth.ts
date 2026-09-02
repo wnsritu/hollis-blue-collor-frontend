@@ -50,13 +50,15 @@ export function useAuthSession() {
     [applyAuthResponse]
   );
 
-  const register = useCallback(
-    async (payload: RegisterPayload) => {
-      const res = await authApi.register(payload);
-      return applyAuthResponse(res);
-    },
-    [applyAuthResponse]
-  );
+  const register = useCallback(async (payload: RegisterPayload) => {
+    // Register often returns user without tokens (email verification required)
+    const res = await authApi.register(payload);
+    const { accessToken, refreshToken, user } = pickTokens(res);
+    if (accessToken) {
+      authStore.setSession({ accessToken, refreshToken, user });
+    }
+    return { accessToken, refreshToken, user, raw: res };
+  }, []);
 
   const logout = useCallback(async () => {
     try {

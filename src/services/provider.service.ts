@@ -1,3 +1,4 @@
+import { userApi } from "@/api/modules/user.api";
 import {
   getProviderTimeSlotsApi,
   getServiceTypesApi,
@@ -7,7 +8,6 @@ import {
   saveProviderSetupApi,
   searchProvidersApi,
   updateProviderProfileApi,
-  uploadProviderFileApi,
   verifyProviderApi,
   getProviderPriceApi,
   getProviderSlotsApi,
@@ -25,9 +25,9 @@ export const updateProviderProfile = async (payload) => {
   return res.data;
 };
 
-export const uploadProviderFile = async (formData) => {
-  const res = await uploadProviderFileApi(formData);
-  return res.data;
+export const uploadProviderFile = async (formData: FormData) => {
+  // Uses http client that strips Content-Type for FormData (correct multipart boundary)
+  return userApi.updateProfilePhoto(formData);
 };
 
 // ✅ NEW SERVICE

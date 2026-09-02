@@ -8,9 +8,8 @@ import { env } from "@/config/env";
 
 bootstrapApi({
   onUnauthorized: () => {
-    // Pages can listen via authStore; soft redirect only if not already home
-    if (window.location.pathname !== "/") {
-      window.location.assign("/");
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.assign("/login");
     }
   },
 });

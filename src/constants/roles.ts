@@ -1,5 +1,8 @@
 /**
- * Role IDs — MUST stay in sync with backend `src/constants/roles.js`
+ * Role IDs — MUST stay in sync with backend `src/constants/roles.js` + roles seeder.
+ *
+ * Register API (`POST /auth/register`): send field name **`role`** (number), never `role_id`.
+ * OTP / forgot-password APIs: may use **`role_id`** when required by those endpoints.
  */
 export const ROLES = {
   CUSTOMER: 1,
@@ -18,6 +21,11 @@ export const ROLE_NAMES = {
 } as const;
 
 export type RoleName = (typeof ROLE_NAMES)[RoleId];
+
+/** Map UI signup choice → register `role` field */
+export const registerRoleFromSignup = (
+  signupRole: "customer" | "provider"
+): RoleId => (signupRole === "provider" ? ROLES.PROVIDER : ROLES.CUSTOMER);
 
 export const isCustomer = (roleId?: number | null) => Number(roleId) === ROLES.CUSTOMER;
 export const isProvider = (roleId?: number | null) => Number(roleId) === ROLES.PROVIDER;

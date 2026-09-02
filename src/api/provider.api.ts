@@ -8,12 +8,9 @@ export const updateProviderProfileApi = (data: any) => {
   return api.put("/user/provider/profile", data);
 };
 
-export const uploadProviderFileApi = (formData: any) => {
-  return api.put("/user/profile/photo", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export const uploadProviderFileApi = (formData: FormData) => {
+  // Do NOT set Content-Type manually — browser must set multipart boundary
+  return api.put("/user/profile/photo", formData);
 };
 
 // ✅ NEW API

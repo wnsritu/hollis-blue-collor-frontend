@@ -7,11 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Select from "react-select";
 import toast from "react-hot-toast";
 
-import { getMyProfile } from "@/services/user.service";
-import {
-  updateProviderProfile,
-  uploadProviderFile,
-} from "@/services/provider.service";
+import { userApi } from "@/api/modules/user.api";
+import { providerApi } from "@/api/modules/provider.api";
+import { uploadApi } from "@/api/modules/upload.api";
+import { subscriptionApi } from "@/api/modules/subscription.api";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { getErrorMessage } from "@/lib/api/errors";
 import Spinner from "@/components/ui/spinner";
 import {
   Dialog,
@@ -23,69 +24,24 @@ import { Country, State, City } from "country-state-city";
 import "react-country-state-city/dist/react-country-state-city.css";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { useNavigate } from "react-router-dom";
-import { getMyPlan } from "@/api/provider.api";
 
-// const customStyles = {
-//   control: (base) => ({
-//     ...base,
-//     minHeight: "38px",
-//     height: "38px",
-//     borderRadius: "12px",
-//     backgroundColor: "#f3f4f6",
-//     border: "1px solid #e5e7eb",
-//     boxShadow: "none",
-//   }),
-
-//   valueContainer: (base) => ({
-//     ...base,
-//     padding: "0 8px",
-//   }),
-
-//   placeholder: (base) => ({
-//     ...base,
-//     fontSize: "14px", // 👈 reduce size
-//     color: "#9ca3af", // light gray
-//   }),
-
-//   singleValue: (base) => ({
-//     ...base,
-//     fontSize: "14px", // 👈 selected value bhi small
-//   }),
-
-//   input: (base) => ({
-//     ...base,
-//     fontSize: "14px",
-//   }),
-
-//   indicatorsContainer: (base) => ({
-//     ...base,
-//     height: "38px",
-//   }),
-
-//   menuList: (base) => ({
-//     ...base,
-//     padding: "4px", // 👈 less spacing
-//     maxHeight: "150px",
-//   }),
-
-//   option: (base, state) => ({
-//     ...base,
-//     fontSize: "14px", // 👈 text small
-//     padding: "6px 10px", // 👈 height kam
-//     borderRadius: "6px",
-//     backgroundColor: state.isFocused ? "#f3f4f6" : "white",
-//     color: "#111827",
-//     cursor: "pointer",
-//   }),
-// };
+function unwrapData<T = any>(res: unknown): T {
+  if (res && typeof res === "object" && "data" in (res as object)) {
+    return ((res as { data: T }).data ?? res) as T;
+  }
+  return res as T;
+}
 
 const ProviderProfileSettings = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState("");
+  const [providerId, setProviderId] = useState<number | null>(null);
   const [supported, setSupported] = useState<string[]>(["Laundry"]);
   const toggle = (id: string) =>
-    setSupported((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSupported((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
 
   const [businessName, setBusinessName] = useState("");
   const [description, setDescription] = useState("");
@@ -97,8 +53,8 @@ const ProviderProfileSettings = () => {
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [zipCode, setZipCode] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
-  const [idFile, setIdFile] = useState(null);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [idFile, setIdFile] = useState<{ name?: string } | File | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -109,14 +65,15 @@ const ProviderProfileSettings = () => {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
 
-  const [selfieFile, setSelfieFile] = useState(null);
+  const [selfieFile, setSelfieFile] = useState<{ name?: string } | File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState("");
+  const [licenseDocPath, setLicenseDocPath] = useState("");
+  const [insuranceDocPath, setInsuranceDocPath] = useState("");
 
   const [myPlan, setMyPlan] = useState(null);
 
   const navigate = useNavigate();
 
- 
   const inputStyle =
     "w-full rounded-xl bg-gray-100 border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus:border-gray-200";
 
@@ -126,9 +83,8 @@ const ProviderProfileSettings = () => {
     if (!businessName.trim())
       newErrors.businessName = "Business name is required";
 
-    if (!description.trim()) newErrors.description = "Description is required";
-
-    // if (!langs.trim()) newErrors.langs = "Languages required";
+    if (!description.trim() || description.trim().length < 10)
+      newErrors.description = "Description must be at least 10 characters";
 
     if (!serviceAddress.trim())
       newErrors.serviceAddress = "Service address required";
@@ -148,39 +104,55 @@ const ProviderProfileSettings = () => {
     if (!profilePreview && !profileImage)
       newErrors.profile = "Profile photo required";
 
-    if (!idPreview && !idFile) newErrors.id = "ID document required";
-
-    if (!selfiePreview && !selfieFile) newErrors.selfie = "Selfie is required";
-
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
   };
+
   const fetchProfile = async () => {
-    // debugger
     try {
       setLoading(true);
 
-      const res = await getMyProfile();
+      // Prefer marketplace me-profile; fall back to user my-profile
+      let provider: any = null;
+      let user: any = null;
 
-      const user = res?.data || res?.user || res;
-      const provider = user?.provider;
+      try {
+        const meRes = await providerApi.getMyMarketplaceProfile();
+        provider = unwrapData(meRes);
+      } catch {
+        /* fall through */
+      }
 
-      if (!provider) return;
+      try {
+        const userRes = await userApi.getMyProfile();
+        user = unwrapData(userRes);
+        if (!provider) provider = user?.provider;
+      } catch {
+        /* ignore */
+      }
 
-      setBusinessName(provider.business_name || "");
-      setDescription(provider.service_description || "");
-      setLangs(provider.language_spoken || "");
-      setServiceAddress(provider.service_location_address || "");
-      setZipCode(provider.zip_code || "");
-      setEmail(user.email || "");
-      setPhone(user.phone || "");
-      setIsVerified(provider.verified);
-      setCountry(provider.country || "");
-      setState(provider.state || "");
-      setCity(provider.city || "");
+      if (!provider?.id && !user) {
+        toast.error("Could not load provider profile.");
+        return;
+      }
 
-      if (provider.service_categories) {
+      if (provider?.id) setProviderId(Number(provider.id));
+
+      setBusinessName(provider?.business_name || "");
+      setDescription(provider?.service_description || "");
+      setServiceAddress(provider?.service_location_address || "");
+      setZipCode(provider?.zip_code || "");
+      setEmail(user?.email || provider?.user?.email || "");
+      setPhone(user?.phone || provider?.user?.phone || "");
+      setIsVerified(provider?.verified || "");
+      setCountry(provider?.country || "");
+      setState(provider?.state || "");
+      setCity(provider?.city || "");
+      if (provider?.latitude != null) setLat(Number(provider.latitude));
+      if (provider?.longitude != null) setLng(Number(provider.longitude));
+
+      if (provider?.service_categories) {
         setSupported(
           typeof provider.service_categories === "string"
             ? JSON.parse(provider.service_categories)
@@ -188,35 +160,32 @@ const ProviderProfileSettings = () => {
         );
       }
 
-      // images
-      if (provider?.profile_photo) {
-        setProfilePreview(
-          `${import.meta.env.VITE_API_BASE_URL}${provider.profile_photo}`,
-        );
+      const photoPath =
+        user?.profile_image ||
+        user?.profile_photo ||
+        provider?.user?.profile_image ||
+        provider?.profile_photo;
+      if (photoPath) {
+        setProfilePreview(resolveMediaUrl(String(photoPath)) || "");
       }
 
-
-      if (provider.government_id) {
-        setIdPreview(
-          `${import.meta.env.VITE_API_BASE_URL}${provider.government_id}`,
-        );
-
-        setIdFile({
-          name: provider?.government_id?.split("/").pop(),
-        });
+      if (provider?.license_document || provider?.license_document_url) {
+        const path = provider.license_document_url || provider.license_document;
+        setLicenseDocPath(provider.license_document || "");
+        setIdPreview(resolveMediaUrl(String(path)) || String(path));
+        setIdFile({ name: String(path).split("/").pop() });
       }
-      if (provider.selfie_pic) {
-        const cleanedPath = provider.selfie_pic.replace(/^"|"$/g, '');
 
-        setSelfiePreview(`${import.meta.env.VITE_API_BASE_URL}${cleanedPath}`);
-
-        setSelfieFile({
-          name: cleanedPath.split("/").pop(),
-        });
+      if (provider?.insurance_certificate || provider?.insurance_certificate_url) {
+        const path =
+          provider.insurance_certificate_url || provider.insurance_certificate;
+        setInsuranceDocPath(provider.insurance_certificate || "");
+        setSelfiePreview(resolveMediaUrl(String(path)) || String(path));
+        setSelfieFile({ name: String(path).split("/").pop() });
       }
     } catch (err) {
       console.log("PROVIDER PROFILE ERROR:", err);
-      // toast.error("Failed to load profile.");
+      toast.error(getErrorMessage(err, "Failed to load profile."));
     } finally {
       setLoading(false);
     }
@@ -227,22 +196,6 @@ const ProviderProfileSettings = () => {
     getMySubscription();
   }, []);
 
-  const isProfileComplete = () => {
-    return (
-      businessName &&
-      description &&
-      langs &&
-      serviceAddress &&
-      city &&
-      state &&
-      zipCode &&
-      country &&
-      (profilePreview || profileImage) &&
-      (idPreview || idFile) &&
-      (selfiePreview || selfieFile)
-    );
-  };
-
   const handleSave = async () => {
     if (!validateForm()) {
       toast.error("Please fill all required fields.");
@@ -252,98 +205,111 @@ const ProviderProfileSettings = () => {
     try {
       setLoading(true);
 
+      // Backend fields: PUT /providers/me/profile
       const payload = {
-        business_name: businessName,
-        description: description,
-        languages_spoken: langs,
-        service_address: serviceAddress,
-        country: country,
-        state: state,
-        city: city,
-        zip_code: zipCode,
+        business_name: businessName.trim(),
+        service_description: description.trim(),
+        service_location_address: serviceAddress.trim(),
+        country: country.trim(),
+        state: state.trim(),
+        city: city.trim(),
+        zip_code: zipCode.trim(),
         latitude: lat,
         longitude: lng,
-        service_categories: supported
+        service_categories: supported,
+        ...(licenseDocPath ? { license_document: licenseDocPath } : {}),
+        ...(insuranceDocPath ? { insurance_certificate: insuranceDocPath } : {}),
       };
 
-      await toast.promise(updateProviderProfile(payload), {
+      await toast.promise(providerApi.updateMyMarketplaceProfile(payload), {
         loading: "Updating profile...",
         success: "Profile updated successfully.",
-        error: "Update failed.",
+        error: (err) => getErrorMessage(err, "Update failed."),
       });
-      // debugger
-      if (isVerified == "unverified") {
+
+      if (isVerified === "unverified") {
         setShowReviewPopup(true);
       }
+      await fetchProfile();
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileChange = async (e, type) => {
-    const file = e.target.files[0];
+  const handleFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "profile" | "id" | "selfie"
+  ) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-
-    if (type === "profile") {
-      formData.append("profile_photo", file);
-      setProfilePreview(URL.createObjectURL(file));
-
-      // ✅ remove error instantly
-      setErrors((prev) => ({ ...prev, profile: "" }));
-    }
-    if (type === "id") {
-      formData.append("government_id", file);
-
-      setIdFile(file); // ✅ ADD THIS
-      setIdPreview(URL.createObjectURL(file));
-
-      setErrors((prev) => ({ ...prev, id: "" }));
-    }
-
-    if (type === "selfie") {
-      formData.append("selfie", file);
-
-      setSelfieFile(file);
-      setSelfiePreview(URL.createObjectURL(file));
-
-      setErrors((prev) => ({ ...prev, selfie: "" }));
-    }
-
     try {
-      await uploadProviderFile(formData);
       if (type === "profile") {
-        toast.success("Profile photo uploaded."); // ✅ ADD
+        setProfilePreview(URL.createObjectURL(file));
+        setProfileImage(file);
+        setErrors((prev) => ({ ...prev, profile: "" }));
+
+        const formData = new FormData();
+        formData.append("profile_photo", file);
+        await userApi.updateProfilePhoto(formData);
+        toast.success("Profile photo uploaded.");
+        return;
       }
+
+      // id → license_document ; selfie → insurance_certificate (current schema)
+      const isImage = file.type.startsWith("image/");
+      const res = isImage
+        ? await uploadApi.uploadProviderImage(file)
+        : await uploadApi.uploadProviderDocument(file);
+      const data = unwrapData<{ base_path?: string; name?: string }>(res);
+      const path = data?.base_path || data?.name || "";
+      if (!path) throw new Error("Upload succeeded but no path returned");
+      const normalized = path.startsWith("/") ? path : `/${path}`;
 
       if (type === "id") {
-        toast.success("ID uploaded successfully."); // ✅ ADD
+        setIdFile(file);
+        setIdPreview(URL.createObjectURL(file));
+        setLicenseDocPath(normalized);
+        setErrors((prev) => ({ ...prev, id: "" }));
+
+        if (providerId) {
+          await providerApi.updateVerificationDocs(providerId, {
+            license_document: normalized,
+          });
+        }
+        toast.success("License / ID document uploaded.");
       }
+
       if (type === "selfie") {
-        toast.success("Selfie uploaded successfully.");
+        setSelfieFile(file);
+        setSelfiePreview(URL.createObjectURL(file));
+        setInsuranceDocPath(normalized);
+        setErrors((prev) => ({ ...prev, selfie: "" }));
+
+        if (providerId) {
+          await providerApi.updateVerificationDocs(providerId, {
+            insurance_certificate: normalized,
+          });
+        }
+        toast.success("Insurance certificate uploaded.");
       }
     } catch (err) {
       console.log("UPLOAD ERROR:", err);
-      toast.error("File upload failed.");
+      toast.error(getErrorMessage(err, "File upload failed."));
     }
   };
 
   const getMySubscription = async () => {
     try {
-      const res = await getMyPlan();
-  
-      const data = res?.data;
-  
-  
-      // ✅ full subscription object
-      setMyPlan(data?.subscription || null);
-  
+      const res = await subscriptionApi.getCurrent();
+      const data = unwrapData<any>(res);
+      setMyPlan(data?.subscription || data || null);
     } catch (err) {
       console.error(err);
     }
   };
-  
   return (
     <div className="container-grid py-8">
       <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -798,10 +764,10 @@ const ProviderProfileSettings = () => {
             </div>
           </div>
 
-          {/* ID Verification */}
+          {/* License document (was ID verification) */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-3 font-heading text-base font-semibold text-foreground">
-              {t("idVerification")} <span className="text-red-500"> *</span>
+              License Document
             </h2>
             <div className="rounded-lg border-2 border-dashed border-border p-8 text-center cursor-pointer">
               <input
@@ -842,7 +808,7 @@ const ProviderProfileSettings = () => {
                       className="mx-auto text-muted-foreground"
                     />
                     <p className="mt-2 text-sm text-muted-foreground">
-                      {t("uploadId")}
+                      Upload license document
                     </p>
                   </>
                 )}
@@ -854,17 +820,16 @@ const ProviderProfileSettings = () => {
             </div>
           </div>
 
-          {/* Selfie Upload */}
+          {/* Insurance certificate */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-3 font-heading text-base font-semibold text-foreground">
-              Upload a Selfie with two thumbs up{" "}
-              <span className="text-red-500"> *</span>
+              Insurance Certificate
             </h2>
 
             <div className="rounded-lg border-2 border-dashed border-border p-6 text-center cursor-pointer">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,.pdf"
                 id="selfieUpload"
                 className="hidden"
                 onChange={(e) => handleFileChange(e, "selfie")}
@@ -875,18 +840,21 @@ const ProviderProfileSettings = () => {
                   <div className="relative w-fit mx-auto">
                     <img
                       src={selfiePreview}
-                      alt="selfie preview"
-                      className="h-24 w-24 rounded-full object-cover"
+                      alt="insurance preview"
+                      className="h-24 w-24 rounded-lg object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
                     />
+                    <p className="text-sm text-green-600 font-medium truncate max-w-[200px] mt-1">
+                      {(selfieFile as { name?: string })?.name || "Uploaded"}
+                    </p>
                     <button
                       type="button"
                       onClick={() => {
                         setSelfiePreview("");
                         setSelfieFile(null);
-                        setErrors((prev) => ({
-                          ...prev,
-                          selfie: "Selfie is required",
-                        }));
+                        setInsuranceDocPath("");
                       }}
                       className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full"
                     >
@@ -900,7 +868,7 @@ const ProviderProfileSettings = () => {
                       className="mx-auto text-muted-foreground"
                     />
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Upload your selfie
+                      Upload insurance certificate
                     </p>
                   </>
                 )}
@@ -918,12 +886,6 @@ const ProviderProfileSettings = () => {
       <Dialog
         open={showReviewPopup}
         onOpenChange={(open) => {
-          // ❌ prevent closing if profile not complete
-          if (!isProfileComplete()) {
-            setShowReviewPopup(true);
-            return;
-          }
-
           setShowReviewPopup(open);
         }}
       >

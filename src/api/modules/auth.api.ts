@@ -57,13 +57,13 @@ export const authApi = {
 
   /** Prefer auth-prefixed routes; legacy paths kept for older backends */
   forgotPassword: (payload: ForgotPasswordPayload) =>
-    http.post<ApiSuccess>(ENDPOINTS.forgotPasswordLegacy.request, payload),
+    http.post<ApiSuccess>(ENDPOINTS.auth.forgotPassword, payload),
 
   verifyForgotOtp: (payload: VerifyOtpPayload) =>
     http.post<ApiSuccess>(ENDPOINTS.forgotPasswordLegacy.verifyOtp, payload),
 
   resetPassword: (payload: ResetPasswordPayload) =>
-    http.post<ApiSuccess>(ENDPOINTS.forgotPasswordLegacy.resetPassword, payload),
+    http.post<ApiSuccess>(ENDPOINTS.auth.resetPassword, payload),
 
   saveFcmToken: (payload: SaveFcmTokenPayload) =>
     http.post<ApiSuccess>(ENDPOINTS.auth.saveFcmToken, payload),

@@ -58,14 +58,30 @@ export const providerApi = {
       ENDPOINTS.marketplaceProvider.byId(id)
     ),
 
+  /**
+   * Customer: provider profile → select service → Request a Quote.
+   * Creates a direct_quote project for this provider only.
+   */
+  requestQuote: (
+    providerId: number | string,
+    payload: import("@/types/api/project").RequestQuotePayload
+  ) =>
+    http.post<ApiSuccess<import("@/types/api/project").Project>>(
+      ENDPOINTS.marketplaceProvider.requestQuote(providerId),
+      payload
+    ),
+
   getMyMarketplaceProfile: () =>
     http.get<ApiSuccess<ProviderProfile>>(ENDPOINTS.marketplaceProvider.profile),
+
+  updateMyMarketplaceProfile: (payload: UpdateProviderPayload | Record<string, unknown>) =>
+    http.put<ApiSuccess<ProviderProfile>>(ENDPOINTS.marketplaceProvider.profile, payload),
 
   /** Provider matched leads (alias of matchingApi.listMyLeads) */
   listMyLeads: () =>
     http.get<ApiSuccess<ProjectMatch[]>>(ENDPOINTS.marketplaceProvider.leads),
 
-  // ── Bank / verification (when wired) ──
+  // ── Bank / verification ──
   getBankInfo: (providerId: number | string) =>
     http.get<ApiSuccess<ProviderBankInfo>>(ENDPOINTS.provider.bankInfo(providerId)),
 
@@ -77,6 +93,17 @@ export const providerApi = {
 
   getVerificationStatus: (providerId: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.provider.verificationStatus(providerId)),
+
+  updateVerificationDocs: (
+    providerId: number | string,
+    payload: {
+      license_number?: string | null;
+      insurance_policy?: string | null;
+      license_document?: string | null;
+      insurance_certificate?: string | null;
+    }
+  ) =>
+    http.put<ApiSuccess>(ENDPOINTS.provider.verificationDocs(providerId), payload),
 };
 
 export default providerApi;

@@ -14,6 +14,15 @@ export const adminApi = {
   approveProvider: (id: number | string, payload?: Record<string, unknown>) =>
     http.put<ApiSuccess>(ENDPOINTS.admin.approveProvider(id), payload),
 
+  rejectProvider: (id: number | string, payload: { reason: string }) =>
+    http.put<ApiSuccess>(ENDPOINTS.admin.rejectProvider(id), payload),
+
+  suspendProvider: (id: number | string, payload?: { reason?: string }) =>
+    http.put<ApiSuccess>(ENDPOINTS.admin.suspendProvider(id), payload),
+
+  unsuspendProvider: (id: number | string) =>
+    http.put<ApiSuccess>(ENDPOINTS.admin.unsuspendProvider(id)),
+
   getPlans: () => http.get<ApiSuccess>(ENDPOINTS.admin.plansAll),
 
   updatePlans: (payload: Record<string, unknown>) =>
@@ -70,11 +79,6 @@ export const sponsoredApi = {
     http.post<ApiSuccess>(ENDPOINTS.sponsored.create, payload),
   remove: (id: number | string) =>
     http.delete<ApiSuccess>(ENDPOINTS.sponsored.byId(id)),
-};
-
-export const uploadApi = {
-  uploadMedia: (mediaFor: string, mediaType: string, formData: FormData) =>
-    http.post<ApiSuccess>(ENDPOINTS.upload.media(mediaFor, mediaType), formData),
 };
 
 export default adminApi;

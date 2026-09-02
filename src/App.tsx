@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Header from "@/components/Header";
+import PublicLayout from "./components/layout/PublicLayout";
 import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
@@ -17,6 +18,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import VerifyEmail from "./pages/VerifyEmail";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
@@ -47,6 +49,7 @@ import SupportDashboard from "./pages/support/SupportAgent";
 import SupportLayout from "./components/SupportLayout";
 import SupportRequestsPage from "./pages/admin/SupportRequest";
 import ProviderFeatured from "./pages/ProviderFeatured";
+import ProviderOnboarding from "./pages/ProviderOnboarding";
 import AdminFeaturedPricing from "./pages/admin/AdminFeaturedPricing";
 import ReportIssue from "./pages/ReportIssue";
 import HowItWorks from "./pages/HowItWorks";
@@ -130,92 +133,87 @@ const App = () => (
           <Route
             path="/"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Index />
-              </>
+              </PublicLayout>
             }
           />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<SignUp />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/verify-otp" element={<VerifyEmail />} />
+          <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
           <Route
             path="/how-it-works"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <HowItWorks />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/about"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <About />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/search"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <SearchProviders />
-              </>
+              </PublicLayout>
             }
           />
 
           <Route
             path="/provider/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <ProviderProfile />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/cleaning"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CleaningBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/carwash"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CarWashBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Booking />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/checkout"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Checkout />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/rating/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <RatingPage />
-              </>
+              </PublicLayout>
             }
           />
 

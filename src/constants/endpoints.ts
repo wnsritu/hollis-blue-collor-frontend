@@ -77,6 +77,7 @@ export const ENDPOINTS = {
     serviceById: (id: number | string) => `/provider/service/${id}`,
     bankInfo: (id: number | string) => `/providers/${id}/bank-info`,
     verificationStatus: (id: number | string) => `/providers/${id}/verification-status`,
+    verificationDocs: (id: number | string) => `/providers/${id}/verification-docs`,
   },
 
   marketplaceProvider: {
@@ -85,6 +86,7 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/providers/${id}`,
     profile: "/providers/me/profile",
     leads: "/providers/me/leads",
+    requestQuote: (id: number | string) => `/providers/${id}/request-quote`,
   },
 
   providerAvailability: {
@@ -227,6 +229,9 @@ export const ENDPOINTS = {
     providers: "/admin/providers",
     providerDetails: (id: number | string) => `/admin/providers/${id}`,
     approveProvider: (id: number | string) => `/admin/providers/${id}/approve`,
+    rejectProvider: (id: number | string) => `/admin/providers/${id}/reject`,
+    suspendProvider: (id: number | string) => `/admin/providers/${id}/suspend`,
+    unsuspendProvider: (id: number | string) => `/admin/providers/${id}/unsuspend`,
     plansAll: "/admin/plans/all",
     plansUpdate: "/admin/plans/update",
     platformSettings: "/admin/platform-settings",
@@ -257,8 +262,14 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/sponsored/${id}`,
   },
 
+  // ─── Uploads ───────────────────────────────────────────
+  /** POST /upload/:mediaFor/:mediaType — mediaFor: customer|provider|admin ; mediaType: image|document|video */
   upload: {
-    media: (mediaFor: string, mediaType: string) => `/upload/${mediaFor}/${mediaType}`,
+    media: (mediaFor: string, mediaType: string) =>
+      `/upload/${mediaFor}/${mediaType}`,
+    providerImage: "/upload/provider/image",
+    providerDocument: "/upload/provider/document",
+    customerImage: "/upload/customer/image",
   },
 } as const;
 
