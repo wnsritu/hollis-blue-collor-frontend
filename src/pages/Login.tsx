@@ -176,12 +176,8 @@ export function Login() {
                 Remember me
               </label>
               <Link
-                to="/login"
+                to={`/forgot-password?role=${role}${email ? `&email=${encodeURIComponent(email)}` : ""}`}
                 className="text-sm font-medium text-accent hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast("Use Forgot password from support or OTP email flow.");
-                }}
               >
                 Forgot password?
               </Link>
