@@ -3,9 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Header from "@/components/Header";
 import PublicLayout from "./components/layout/PublicLayout";
-import { ProviderPortal } from "./components/layout/portals";
+import { ProviderPortal, CustomerPortal, RolePortal } from "./components/layout/portals";
 import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
@@ -20,6 +19,7 @@ import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
@@ -141,6 +141,8 @@ const App = () => (
           />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ForgotPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-otp" element={<VerifyEmail />} />
           <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
@@ -218,15 +220,14 @@ const App = () => (
             }
           />
 
-          {/* ================= CUSTOMER (PROTECTED) ================= */}
+          {/* ================= CUSTOMER (PROTECTED) — service-connect portal shell ================= */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerDashboard />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -235,11 +236,9 @@ const App = () => (
             path="/orders"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <OrderTracking />
-                  {/* <CustomerOrderDetail /> */}
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -248,10 +247,9 @@ const App = () => (
             path="/order/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerOrderDetail />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -259,10 +257,9 @@ const App = () => (
             path="/report-issue/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <ReportIssue />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -271,10 +268,9 @@ const App = () => (
             path="/messages"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <RolePortal>
                   <Messages />
-                </>
+                </RolePortal>
               </ProtectedRoute>
             }
           />
@@ -283,10 +279,9 @@ const App = () => (
             path="/profile"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerProfile />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />

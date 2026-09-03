@@ -1,556 +1,529 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Camera,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldCheck,
+  Trash2,
+  User,
+} from "lucide-react";
+import toast from "react-hot-toast";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getMyProfile, updateMyProfile } from "@/services/user.service";
-import { ShoppingBag, Star, Upload, Zap } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import toast from "react-hot-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { getOrderList } from "@/services/order.service";
-import { useNavigate, useParams, Link } from "react-router-dom";
-import { uploadProviderFile } from "@/services/provider.service";
-import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
-import PaginationController from "@/components/ui/PaginationController";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Avatar } from "@/components/shared/primitives";
+import Spinner from "@/components/ui/spinner";
 
+import { authApi } from "@/api/modules/auth.api";
+import { customerApi } from "@/api/modules/customer.api";
+import { userApi } from "@/api/modules/user.api";
+import { useAuthSession } from "@/hooks/useAuth";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { getErrorMessage } from "@/lib/api/errors";
+
+type ProfileTab = "profile" | "security";
+
+function unwrapData<T = unknown>(res: unknown): T {
+  if (res && typeof res === "object" && "data" in (res as object)) {
+    return ((res as { data: T }).data ?? res) as T;
+  }
+  return res as T;
+}
+
+function initialsFrom(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "CU";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
 
 const CustomerProfile = () => {
-  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = (searchParams.get("tab") as ProfileTab) || "profile";
+  const activeTab: ProfileTab =
+    tabParam === "security" ? "security" : "profile";
+
+  const { user, fetchMe } = useAuthSession();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [errors, setErrors] = useState<any>({});
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [status, setStatus] = useState("active");
 
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [profilePreview, setProfilePreview] = useState("");
-  const [idPreview, setIdPreview] = useState("");
-  const [idFile, setIdFile] = useState(null);
-  const [profileImage, setProfileImage] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-
-  
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const validate = () => {
-    let err: any = {};
-
-    // First Name
-    if (!firstName.trim()) {
-      err.firstName = "First name is required";
-    } else if (firstName.length < 2) {
-      err.firstName = "Minimum 2 characters required";
-    }
-
-    // Last Name
-    if (!lastName.trim()) {
-      err.lastName = "Last name is required";
-    }
-
-    // Email
-    if (!email.trim()) {
-      err.email = "Email is required";
-    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/.test(email)) {
-      err.email = "Invalid email format";
-    }
-
-    // Phone
-    if (!phone.trim()) {
-      err.phone = "Phone number is required";
-    }
-
-    // Address
-    if (!address.trim()) {
-      err.address = "Address is required";
-    } else if (address.length < 5) {
-      err.address = "Address too short";
-    }
-
-    setErrors(err);
-    return Object.keys(err).length === 0;
+  const setTab = (tab: ProfileTab) => {
+    setSearchParams(tab === "profile" ? {} : { tab });
   };
 
-  const fetchProfile = async () => {
-    try {
-      const res = await getMyProfile();
-
-      const user = res.data;
-
-      setFirstName(user.first_name || "");
-      setLastName(user.last_name || "");
-      setEmail(user.email || "");
-      setPhone(user.phone || "");
-
-      // ✅ address handling
-      if (user.addresses && user.addresses.length > 0) {
-        setAddress(user.addresses[0].address_line || "");
-      }
-      // debugger;
-      if (user.profile_image) {
-        setProfilePreview(
-          `${import.meta.env.VITE_API_BASE_URL}${user.profile_image}`,
-        );
-      }
-    } catch (err) {
-      console.log("PROFILE ERROR:", err);
-      toast.error("Failed to load profile.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!validate()) {
-      toast.error("Please fill all required fields."); // ✅ ADD
-      return;
-    }
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
+      let profile: any = null;
 
-      const payload = {
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone,
-        address, // ✅ matches your API response
-        latitude: latitude,
-        longitude: longitude
-      };
-
-      await toast.promise(updateMyProfile(payload), {
-        loading: "Updating profile...",
-        success: "Profile updated successfully.",
-        error: "Update failed.",
-      });
-    } catch (err) {
-      console.log("UPDATE ERROR:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
- useEffect(() => {
-   fetchOrderList(currentPage);
- }, [currentPage]);
-
-  // Fetch all orders for dashboard
-  const fetchOrderList = async (page = 1) => {
-    try {
-      let reqData = {
-        page: page,
-        limit: 5, // 👈 pagination ke liye 5 hi rakho
-        status: "",
-      };
-
-      const response: any = await getOrderList(reqData);
-
-      if (response.data.success) {
-        const ordersData = response.data.bookings || [];
-
-        setOrders(ordersData);
-        setTotalPages(response.data.total_pages || 1); // 👈 IMPORTANT
+      try {
+        profile = unwrapData(await customerApi.getMyProfile());
+      } catch {
+        profile = unwrapData(await userApi.getMyProfile());
       }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
+
+      if (!profile) {
+        toast.error("Could not load profile.");
+        return;
+      }
+
+      const name =
+        profile.full_name ||
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+        user?.full_name ||
+        "";
+      setFullName(name);
+      setEmail(profile.email || user?.email || "");
+      setMobileNumber(profile.phone || user?.phone || "");
+      setStatus(String(profile.status || "active"));
+
+      const photo = profile.profile_image || profile.profile_photo;
+      if (photo) {
+        setAvatarPreview(resolveMediaUrl(String(photo)));
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load profile."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email, user?.full_name, user?.phone]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
-    // smooth scroll top
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
-      accepted: { label: "Accepted", className: "bg-blue-100 text-blue-700" },
-      rejected: { label: "Rejected", className: "bg-red-100 text-red-700" },
-      in_progress: {
-        label: "In Progress",
-        className: "bg-purple-100 text-purple-700",
-      },
-      delivering: {
-        label: "Delivering",
-        className: "bg-orange-100 text-orange-700",
-      },
-      finished: { label: "Finished", className: "bg-green-100 text-green-700" },
-      delivered: {
-        label: "Delivered",
-        className: "bg-emerald-100 text-emerald-700",
-      },
-      completed: {
-        label: "Completed",
-        className: "bg-green-100 text-green-700",
-      },
-      cancelled: { label: "Cancelled", className: "bg-red-100 text-red-700" },
-    };
-
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <Badge className={`${config.className} border-0`}>{config.label}</Badge>
-    );
-  };
-
-  const handleFileChange = async (e, type) => {
-    const file = e.target.files[0];
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-
-    const formData = new FormData();
-
-    if (type === "profile") {
-      formData.append("profile_photo", file);
-      setProfilePreview(URL.createObjectURL(file));
-
-      // ✅ remove error instantly
-      setErrors((prev) => ({ ...prev, profile: "" }));
-    }
-    if (type === "id") {
-      formData.append("government_id", file);
-
-      setIdFile(file); // ✅ ADD THIS
-      setIdPreview(URL.createObjectURL(file));
-
-      setErrors((prev) => ({ ...prev, id: "" }));
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size exceeds 5MB limit.");
+      return;
     }
 
     try {
-      await uploadProviderFile(formData);
-      if (type === "profile") {
-        toast.success("Profile photo uploaded."); // ✅ ADD
-      }
-
-      if (type === "id") {
-        toast.success("ID uploaded successfully."); // ✅ ADD
+      setAvatarPreview(URL.createObjectURL(file));
+      const formData = new FormData();
+      formData.append("profile_photo", file);
+      await userApi.updateProfilePhoto(formData);
+      toast.success("Profile photo uploaded.");
+      try {
+        await fetchMe();
+      } catch {
+        /* ignore */
       }
     } catch (err) {
-      console.log("UPLOAD ERROR:", err);
-      toast.error("File upload failed.");
+      toast.error(getErrorMessage(err, "Photo upload failed."));
     }
   };
 
-  console.log(address);
-  
+  const handleRemovePhoto = () => {
+    setAvatarPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    toast.success("Photo cleared locally. Upload a new one to replace.");
+  };
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!fullName.trim()) {
+      toast.error("Full name is required.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await customerApi.updateMyProfile({
+        full_name: fullName.trim(),
+        phone: mobileNumber.trim() || undefined,
+      });
+      // Also update legacy customer profile path for address-compatible clients
+      try {
+        await userApi.updateCustomerProfile({
+          full_name: fullName.trim(),
+          phone: mobileNumber.trim() || undefined,
+        });
+      } catch {
+        /* primary path already succeeded */
+      }
+      toast.success("Profile information saved successfully.");
+      try {
+        await fetchMe();
+      } catch {
+        /* ignore */
+      }
+      await loadProfile();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to save profile."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!currentPassword) {
+      toast.error("Please enter your current password.");
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await authApi.changePassword({
+        old_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success("Password updated successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to update password."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="container-grid p-4 py-8">
-        <div className="mb-4">
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            {t("myProfile")}
+    <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
+            My Profile
           </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your personal details and password security.
+          </p>
         </div>
-        <div className="mt-6 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 font-heading text-base font-semibold text-foreground">
-              {t("profileInfo")}
-            </h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Profile Photo */}
-                <div className="rounded-xl bg-card p-1">
-                  <div className="rounded-lg p-2 text-center cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      id="profileUpload"
-                      className="hidden"
-                      onChange={(e) => handleFileChange(e, "profile")}
-                    />
+        {activeTab === "profile" ? (
+          <Button onClick={() => handleSaveProfile()} disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        ) : (
+          <Button onClick={() => handleUpdatePassword()} disabled={saving}>
+            {saving ? "Updating…" : "Update Password"}
+          </Button>
+        )}
+      </div>
 
-                    <label
-                      htmlFor="profileUpload"
-                      className="cursor-pointer block"
-                    >
-                      {profilePreview ? (
-                        <div className="relative w-fit">
+      <div className="mb-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setTab(v as ProfileTab)}
+        >
+          <TabsList className="grid h-auto w-full max-w-md grid-cols-2">
+            <TabsTrigger value="profile" className="gap-2 py-2">
+              <User size={16} /> Profile
+            </TabsTrigger>
+            <TabsTrigger value="security" className="gap-2 py-2">
+              <Lock size={16} /> Password &amp; Security
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-6">
+          {activeTab === "profile" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Personal Information</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Update your contact details used for service bookings and
+                  communications.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveProfile} className="space-y-5">
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <div className="flex flex-col items-center gap-4 sm:flex-row">
+                      <div className="relative">
+                        {avatarPreview ? (
                           <img
-                            src={profilePreview}
-                            alt="profile preview"
-                            className="h-24 w-24 rounded-full object-cover"
+                            src={avatarPreview}
+                            alt={fullName}
+                            className="size-16 rounded-full object-cover"
                           />
-
-                          <button
+                        ) : (
+                          <Avatar
+                            initials={initialsFrom(fullName)}
+                            size="lg"
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-2 text-center sm:text-left">
+                        <p className="text-sm font-bold text-foreground">
+                          Profile Photo
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          JPG, PNG or GIF. Max size 5MB.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:justify-start">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            id="avatar-upload-input"
+                          />
+                          <Button
                             type="button"
-                            onClick={() => {
-                              setProfilePreview("");
-                              setProfileImage(null);
-
-                              setErrors((prev) => ({
-                                ...prev,
-                                profile: "Profile photo required",
-                              }));
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            onClick={() => fileInputRef.current?.click()}
                           >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload
-                            size={32}
-                            className="mx-auto text-muted-foreground"
-                          />
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {t("uploadPhoto")}
-                          </p>
-                        </>
-                      )}
-                    </label>
-
-                    {errors.profile && (
-                      <p className="text-xs text-red-500 mt-2">
-                        {errors.profile}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div></div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-foreground">
-                    {t("firstName")}
-                    <span className="text-red-500"> *</span>
-                  </label>
-                  <Input
-                    value={firstName}
-                    onChange={(e) => {
-                      setFirstName(e.target.value);
-                      setErrors((prev: any) => ({ ...prev, firstName: "" }));
-                    }}
-                  />
-                  {errors.firstName && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.firstName}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-foreground">
-                    {t("lastName")}
-                    <span className="text-red-500"> *</span>
-                  </label>
-                  <Input
-                    value={lastName}
-                    onChange={(e) => {
-                      setLastName(e.target.value);
-                      setErrors((p: any) => ({ ...p, lastName: "" }));
-                    }}
-                  />
-                  {errors.lastName && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.lastName}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">
-                  {t("email")}
-                  <span className="text-red-500"> *</span>
-                </label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setErrors((p: any) => ({ ...p, email: "" }));
-                  }}
-                />
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-1">{errors.email}</p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">
-                  {t("phone")}
-                  <span className="text-red-500"> *</span>
-                </label>
-                <Input
-                  value={phone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setPhone(val);
-                    setErrors((p: any) => ({ ...p, phone: "" }));
-                  }}
-                />
-                {errors.phone && (
-                  <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">
-                  {t("address")}
-                  <span className="text-red-500"> *</span>
-                </label>
-                {/* <Input
-                  value={address}
-                  onChange={(e) => {
-                    setAddress(e.target.value);
-                    setErrors((p: any) => ({ ...p, address: "" }));
-                  }}
-                /> */}
-
-                <GooglePlaceAutocomplete
-                  value={address}
-                  placeholder="Search address"
-                  onChange={(val) => {
-                    setAddress(val);
-                  }}
-                  onSelect={(place) => {
-                    setAddress(place.address);
-
-                    console.log("LAT:", place.lat);
-                    console.log("LNG:", place.lng);
-
-
-                    setLatitude(place.lat)
-                    setLongitude(place.lng)
-                  }}
-                />
-                {errors.address && (
-                  <p className="text-xs text-red-500 mt-1">{errors.address}</p>
-                )}
-              </div>
-              <Button onClick={handleSave} disabled={loading}>
-                {loading ? "Saving..." : t("saveChanges")}
-              </Button>
-            </div>
-          </div>
-
-          {/* Recent Order */}
-          <div className="mb-4">
-            {orders.length > 0 ? (
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <h2 className="font-heading text-xl font-semibold text-foreground mb-3 p-3">
-                  Order history
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="px-4 py-3 text-left text-muted-foreground font-medium">
-                          Order ID
-                        </th>
-                        <th className="px-4 py-3 text-left text-muted-foreground font-medium">
-                          Provider
-                        </th>
-                        <th className="px-4 py-3 text-left text-muted-foreground font-medium">
-                          Date
-                        </th>
-                        <th className="px-4 py-3 text-left text-muted-foreground font-medium">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-right text-muted-foreground font-medium">
-                          Amount
-                        </th>
-                        <th className="px-4 py-3 text-center text-muted-foreground font-medium">
-                          View
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((order) => (
-                        <tr
-                          key={order.id}
-                          className="border-b border-border hover:bg-muted/30 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-mono text-xs text-foreground">
-                            {order.order_id ||
-                              `ORD-${order.id.toString().padStart(3, "0")}`}
-                          </td>
-                          <td className="px-4 py-3 text-foreground">
-                            {order.provider?.business_name || order.provider_name || "-"}
-                          </td>
-
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {order.booking_date
-                              ? new Date(order.booking_date)
-                                  .toLocaleDateString("en-GB")
-                                  .replace(/\//g, "-")
-                              : "-"}
-                          </td>
-                          <td className="px-4 py-3">
-                            {getStatusBadge(order.status)}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-foreground">
-                            ${(parseFloat(order.total_amount) || 0).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-center">
+                            <Camera size={13} /> Change Photo
+                          </Button>
+                          {avatarPreview && (
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
-                              className="h-8 text-xs text-primary"
-                              onClick={() => navigate(`/order/${order.id}`)}
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
+                              onClick={handleRemovePhoto}
                             >
-                              View Order
+                              <Trash2 size={13} /> Remove
                             </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {orders.length > 0 && (
-                  <div className="mt-4 flex justify-center">
-                    <PaginationController
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={handlePageChange}
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. John Smith"
                     />
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-card p-5 flex items-center justify-center min-h-[300px]">
-                <div className="text-center space-y-5">
-                  {/* Icon */}
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-                    <Star size={24} />
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      readOnly
+                    />
                   </div>
 
-                  {/* Badge */}
-                  <div className="flex justify-center">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      <Zap size={12} /> Feature Coming Soon
+                  <div className="grid gap-2">
+                    <Label htmlFor="mobileNumber">Mobile Number</Label>
+                    <Input
+                      id="mobileNumber"
+                      type="tel"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      placeholder="e.g. (555) 234-5678"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <Button type="submit" disabled={saving}>
+                      {saving ? "Saving…" : "Save Changes"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "security" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Password Reset &amp; Security
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Update your account password to maintain strong account
+                  security.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdatePassword} className="space-y-5">
+                  <div className="grid gap-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCurrentPassword(!showCurrentPassword)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">
+                      Confirm New Password
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button type="submit" disabled={saving}>
+                      {saving ? "Updating…" : "Update Password"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <aside className="space-y-6">
+          <Card>
+            <CardHeader className="pb-2 text-center">
+              <div className="mx-auto mb-3 flex justify-center">
+                {avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt="Customer Avatar"
+                    className="size-20 rounded-full border-2 border-primary/20 object-cover"
+                  />
+                ) : (
+                  <Avatar initials={initialsFrom(fullName)} size="lg" />
+                )}
+              </div>
+              <CardTitle className="text-base">
+                {fullName || "Customer"}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">{email}</p>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-2 text-xs">
+              <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Account Type</span>
+                  <span className="font-semibold text-foreground">Customer</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                    <ShieldCheck size={13} />{" "}
+                    {status === "inactive" ? "Inactive" : "Active"}
+                  </span>
+                </div>
+                {mobileNumber && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Mobile</span>
+                    <span className="font-semibold text-foreground">
+                      {mobileNumber}
                     </span>
                   </div>
-
-                  {/* Title */}
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Order History Coming Soon
-                  </h2>
-
-                  {/* Subtitle */}
-                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    You will soon be able to view your past orders, track
-                    activity, and manage bookings here.
-                  </p>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
-    </>
+    </div>
   );
 };
 
