@@ -82,6 +82,7 @@ export default function ProviderOnboarding() {
   );
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -193,6 +194,9 @@ export default function ProviderOnboarding() {
   };
 
   const handleNext = async () => {
+    setError("");
+    setFieldErrors({});
+
     if (step === 0) {
       if (!selectedCategoryId) {
         setError("Please select a service category.");
@@ -203,20 +207,39 @@ export default function ProviderOnboarding() {
         return;
       }
     }
+
     if (step === 1) {
-      if (
-        !form.address.trim() ||
-        !form.city.trim() ||
-        !form.state.trim() ||
-        !form.zip.trim() ||
-        !form.country.trim()
-      ) {
-        setError("Please complete your service coverage location.");
+      const errs: Record<string, string> = {};
+      if (!form.address.trim()) errs.address = "Street address is required.";
+      if (!form.city.trim()) errs.city = "City is required.";
+      if (!form.state.trim()) errs.state = "State / Province is required.";
+      if (!form.zip.trim()) {
+        errs.zip = "ZIP / Postal code is required.";
+      } else if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim()) && form.zip.trim().length < 3) {
+        errs.zip = "Please enter a valid 5-digit ZIP code.";
+      }
+      if (!form.country.trim()) errs.country = "Country is required.";
+
+      if (Object.keys(errs).length > 0) {
+        setFieldErrors(errs);
+        setError("Please complete all required service coverage fields.");
         return;
       }
     }
 
-    setError("");
+    if (step === 2) {
+      const errs: Record<string, string> = {};
+      if (!form.license.trim()) errs.license = "License number is required.";
+      if (!form.insurance.trim()) errs.insurance = "Insurance policy number is required.";
+      if (!form.licenseDocumentPath) errs.licenseDocument = "Please upload your business license document.";
+      if (!form.insuranceDocumentPath) errs.insuranceDocument = "Please upload your insurance certificate.";
+
+      if (Object.keys(errs).length > 0) {
+        setFieldErrors(errs);
+        setError("Please provide all required license and insurance credentials.");
+        return;
+      }
+    }
 
     if (step < steps.length - 1) {
       setStep((s) => s + 1);
@@ -280,6 +303,18 @@ export default function ProviderOnboarding() {
     file: File | null | undefined
   ) => {
     if (!file) return;
+    const maxBytes = 25 * 1024 * 1024; // 25MB limit
+    if (file.size > maxBytes) {
+      toast.error("File size exceeds 25MB limit. Please choose a smaller file.");
+      return;
+    }
+
+    const allowedExtensions = /\.(pdf|png|jpg|jpeg|doc|docx|webp)$/i;
+    if (!allowedExtensions.test(file.name)) {
+      toast.error("Invalid file format. Please upload a PDF, PNG, JPG, or DOC file.");
+      return;
+    }
+
     try {
       setUploadingDoc(kind);
       const isImage = file.type.startsWith("image/");
@@ -306,7 +341,7 @@ export default function ProviderOnboarding() {
           insuranceFileName: file.name,
         }));
       }
-      toast.success(`${file.name} uploaded`);
+      toast.success(`${file.name} uploaded successfully.`);
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "File upload failed"));
     } finally {
@@ -558,29 +593,62 @@ export default function ProviderOnboarding() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="address">Street Address</Label>
+                  <Label htmlFor="address">
+                    Street Address <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="address"
                     placeholder="Start typing your street address..."
                     value={form.address}
-                    onChange={(e) => set({ address: e.target.value })}
+                    onChange={(e) => {
+                      set({ address: e.target.value });
+                      if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: undefined });
+                    }}
+                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
+                  {fieldErrors.address && (
+                    <p className="text-xs font-medium text-destructive">{fieldErrors.address}</p>
+                  )}
                 </div>
-                <Field label="City" value={form.city} onChange={(v) => set({ city: v })} />
+                <Field
+                  label="City"
+                  value={form.city}
+                  onChange={(v) => {
+                    set({ city: v });
+                    if (fieldErrors.city) setFieldErrors({ ...fieldErrors, city: undefined });
+                  }}
+                  error={fieldErrors.city}
+                  required
+                />
                 <Field
                   label="State / Province"
                   value={form.state}
-                  onChange={(v) => set({ state: v })}
+                  onChange={(v) => {
+                    set({ state: v });
+                    if (fieldErrors.state) setFieldErrors({ ...fieldErrors, state: undefined });
+                  }}
+                  error={fieldErrors.state}
+                  required
                 />
                 <Field
                   label="ZIP / Postal Code"
                   value={form.zip}
-                  onChange={(v) => set({ zip: v })}
+                  onChange={(v) => {
+                    set({ zip: v });
+                    if (fieldErrors.zip) setFieldErrors({ ...fieldErrors, zip: undefined });
+                  }}
+                  error={fieldErrors.zip}
+                  required
                 />
                 <Field
                   label="Country"
                   value={form.country}
-                  onChange={(v) => set({ country: v })}
+                  onChange={(v) => {
+                    set({ country: v });
+                    if (fieldErrors.country) setFieldErrors({ ...fieldErrors, country: undefined });
+                  }}
+                  error={fieldErrors.country}
+                  required
                 />
               </div>
             </div>
@@ -600,54 +668,81 @@ export default function ProviderOnboarding() {
                 <Field
                   label="License Number"
                   value={form.license}
-                  onChange={(v) => set({ license: v })}
+                  onChange={(v) => {
+                    set({ license: v });
+                    if (fieldErrors.license) setFieldErrors({ ...fieldErrors, license: undefined });
+                  }}
+                  error={fieldErrors.license}
+                  required
                 />
                 <Field
                   label="Insurance Policy"
                   value={form.insurance}
-                  onChange={(v) => set({ insurance: v })}
+                  onChange={(v) => {
+                    set({ insurance: v });
+                    if (fieldErrors.insurance) setFieldErrors({ ...fieldErrors, insurance: undefined });
+                  }}
+                  error={fieldErrors.insurance}
+                  required
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-border bg-card p-4 text-center transition-colors hover:border-primary/50">
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                      className="hidden"
-                      disabled={uploadingDoc === "license"}
-                      onChange={(e) =>
-                        void handleDocUpload("license", e.target.files?.[0])
-                      }
-                    />
-                    <FileCheck size={24} className="mb-1 text-primary" />
-                    <span className="text-xs font-semibold text-foreground">
-                      {uploadingDoc === "license"
-                        ? "Uploading..."
-                        : form.licenseFileName || "Upload License Document"}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      PDF, PNG, or JPG (max 25MB)
-                    </span>
-                  </label>
-                  <label className="grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-border bg-card p-4 text-center transition-colors hover:border-primary/50">
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                      className="hidden"
-                      disabled={uploadingDoc === "insurance"}
-                      onChange={(e) =>
-                        void handleDocUpload("insurance", e.target.files?.[0])
-                      }
-                    />
-                    <FileCheck size={24} className="mb-1 text-primary" />
-                    <span className="text-xs font-semibold text-foreground">
-                      {uploadingDoc === "insurance"
-                        ? "Uploading..."
-                        : form.insuranceFileName || "Upload Insurance Certificate"}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      PDF, PNG, or JPG (max 25MB)
-                    </span>
-                  </label>
+                  <div>
+                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
+                      fieldErrors.licenseDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
+                    }`}>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        className="hidden"
+                        disabled={uploadingDoc === "license"}
+                        onChange={(e) => {
+                          if (fieldErrors.licenseDocument) setFieldErrors({ ...fieldErrors, licenseDocument: undefined });
+                          void handleDocUpload("license", e.target.files?.[0]);
+                        }}
+                      />
+                      <FileCheck size={24} className="mb-1 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">
+                        {uploadingDoc === "license"
+                          ? "Uploading..."
+                          : form.licenseFileName || "Upload License Document *"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        PDF, PNG, or JPG (max 25MB)
+                      </span>
+                    </label>
+                    {fieldErrors.licenseDocument && (
+                      <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.licenseDocument}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
+                      fieldErrors.insuranceDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
+                    }`}>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        className="hidden"
+                        disabled={uploadingDoc === "insurance"}
+                        onChange={(e) => {
+                          if (fieldErrors.insuranceDocument) setFieldErrors({ ...fieldErrors, insuranceDocument: undefined });
+                          void handleDocUpload("insurance", e.target.files?.[0]);
+                        }}
+                      />
+                      <FileCheck size={24} className="mb-1 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">
+                        {uploadingDoc === "insurance"
+                          ? "Uploading..."
+                          : form.insuranceFileName || "Upload Insurance Certificate *"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        PDF, PNG, or JPG (max 25MB)
+                      </span>
+                    </label>
+                    {fieldErrors.insuranceDocument && (
+                      <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.insuranceDocument}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -661,6 +756,7 @@ export default function ProviderOnboarding() {
               onClick={() => {
                 setStep((s) => Math.max(0, s - 1));
                 setError("");
+                setFieldErrors({});
               }}
               disabled={step === 0 || loading}
             >
@@ -688,15 +784,27 @@ function Field({
   label,
   value,
   onChange,
+  error,
+  required,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  error?: string;
+  required?: boolean;
 }) {
   return (
     <div className="grid gap-2">
-      <Label htmlFor={label}>{label}</Label>
-      <Input id={label} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Label htmlFor={label}>
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
+      <Input
+        id={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={error ? "border-destructive focus-visible:ring-destructive" : ""}
+      />
+      {error && <p className="text-xs font-medium text-destructive">{error}</p>}
     </div>
   );
 }
