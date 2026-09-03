@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   MailCheck,
+  ShieldCheck,
   User,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,15 +22,17 @@ import { ROLES } from "@/constants/roles";
 import { getErrorMessage } from "@/lib/api/errors";
 
 type Step = "email" | "otp" | "reset" | "done";
+type AccountRole = "customer" | "provider" | "admin";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const defaultRole =
-    searchParams.get("role") === "provider" ? "provider" : "customer";
+  const roleParam = searchParams.get("role");
+  const defaultRole: AccountRole =
+    roleParam === "provider" || roleParam === "admin" ? roleParam : "customer";
 
   const [step, setStep] = useState<Step>("email");
-  const [role, setRole] = useState<"customer" | "provider">(defaultRole);
+  const [role, setRole] = useState<AccountRole>(defaultRole);
   const [email, setEmail] = useState(
     (searchParams.get("email") || "").trim().toLowerCase()
   );
@@ -42,14 +45,16 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const roleId = useMemo(
-    () => (role === "provider" ? ROLES.PROVIDER : ROLES.CUSTOMER),
-    [role]
-  );
+  const roleId = useMemo(() => {
+    if (role === "provider") return ROLES.PROVIDER;
+    if (role === "admin") return ROLES.ADMIN;
+    return ROLES.CUSTOMER;
+  }, [role]);
 
   const roles = [
     { id: "customer" as const, label: "Customer", icon: User },
     { id: "provider" as const, label: "Professional", icon: Building2 },
+    { id: "admin" as const, label: "Admin", icon: ShieldCheck },
   ];
 
   const handleSendCode = async (e: React.FormEvent) => {
@@ -200,19 +205,19 @@ export default function ForgotPassword() {
 
               {step === "email" && (
                 <form className="mt-6 grid gap-4" onSubmit={handleSendCode}>
-                  <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-muted/40 p-1">
+                  <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-muted/40 p-1">
                     {roles.map((r) => (
                       <button
                         key={r.id}
                         type="button"
                         onClick={() => setRole(r.id)}
-                        className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                        className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-semibold transition-colors sm:text-sm ${
                           role === r.id
                             ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        <r.icon size={16} />
+                        <r.icon size={15} />
                         {r.label}
                       </button>
                     ))}
