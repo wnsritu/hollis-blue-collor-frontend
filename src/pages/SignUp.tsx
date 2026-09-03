@@ -44,6 +44,7 @@ export function SignUp() {
     searchParams.get("role") === "provider" ? "provider" : "customer"
   );
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [agree, setAgree] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -57,24 +58,62 @@ export function SignUp() {
     confirmPassword: "",
   });
 
+  const validateForm = (): boolean => {
+    const errs: Record<string, string> = {};
+
+    if (!form.name.trim()) {
+      errs.name = "Full name is required.";
+    } else if (form.name.trim().length < 2) {
+      errs.name = "Full name must be at least 2 characters.";
+    }
+
+    if (role === "provider") {
+      if (!form.businessName.trim()) {
+        errs.businessName = "Business name is required for professionals.";
+      } else if (form.businessName.trim().length < 2) {
+        errs.businessName = "Business name must be at least 2 characters.";
+      }
+    }
+
+    const trimmedEmail = form.email.trim();
+    if (!trimmedEmail) {
+      errs.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errs.email = "Please enter a valid email address (e.g. name@example.com).";
+    }
+
+    const cleanPhone = form.mobile.replace(/\D/g, "");
+    if (!form.mobile.trim()) {
+      errs.mobile = "Mobile number is required.";
+    } else if (cleanPhone.length < 10) {
+      errs.mobile = "Please enter a valid 10-digit mobile number.";
+    }
+
+    if (!form.password) {
+      errs.password = "Password is required.";
+    } else if (form.password.length < 6) {
+      errs.password = "Password must be at least 6 characters long.";
+    }
+
+    if (!form.confirmPassword) {
+      errs.confirmPassword = "Please confirm your password.";
+    } else if (form.password !== form.confirmPassword) {
+      errs.confirmPassword = "Passwords do not match.";
+    }
+
+    if (!agree) {
+      errs.agree = "You must agree to the Terms and Privacy Policy.";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!form.name.trim() || !form.email.includes("@") || !form.mobile.trim() || form.password.length < 6) {
-      setError("Please fill in all required fields with a valid email and 6+ character password.");
-      return;
-    }
-    if (role === "provider" && !form.businessName.trim()) {
-      setError("Business name is required for professionals.");
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (!agree) {
-      setError("You must agree to the Terms and Privacy Policy.");
+    if (!validateForm()) {
       return;
     }
 
@@ -142,7 +181,11 @@ export function SignUp() {
                 <button
                   key={o.id}
                   type="button"
-                  onClick={() => setRole(o.id)}
+                  onClick={() => {
+                    setRole(o.id);
+                    setError("");
+                    setFieldErrors({});
+                  }}
                   className={`rounded-2xl border p-5 text-left transition-all ${
                     active
                       ? "border-accent bg-accent-soft shadow-card"
@@ -168,7 +211,7 @@ export function SignUp() {
             })}
           </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+          <form className="mt-6 grid gap-4" onSubmit={handleSubmit} noValidate>
             {role === "provider" ? (
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -177,20 +220,32 @@ export function SignUp() {
                     <Input
                       id="fullname"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, name: e.target.value });
+                        if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined });
+                      }}
+                      className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="John Doe"
                     />
+                    {fieldErrors.name && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.name}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="bname">Business Name</Label>
                     <Input
                       id="bname"
                       value={form.businessName}
-                      onChange={(e) =>
-                        setForm({ ...form, businessName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setForm({ ...form, businessName: e.target.value });
+                        if (fieldErrors.businessName) setFieldErrors({ ...fieldErrors, businessName: undefined });
+                      }}
+                      className={fieldErrors.businessName ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="ABC Plumbing Co."
                     />
+                    {fieldErrors.businessName && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.businessName}</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -200,9 +255,16 @@ export function SignUp() {
                       id="remail"
                       type="email"
                       value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, email: e.target.value });
+                        if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                      }}
+                      className={fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="you@example.com"
                     />
+                    {fieldErrors.email && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.email}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="rmobile">Mobile Number</Label>
@@ -210,9 +272,16 @@ export function SignUp() {
                       id="rmobile"
                       type="tel"
                       value={form.mobile}
-                      onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, mobile: e.target.value });
+                        if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
+                      }}
+                      className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="(512) 555-0148"
                     />
+                    {fieldErrors.mobile && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
+                    )}
                   </div>
                 </div>
               </>
@@ -223,9 +292,16 @@ export function SignUp() {
                   <Input
                     id="name"
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, name: e.target.value });
+                      if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined });
+                    }}
+                    className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
                     placeholder="Sarah Whitfield"
                   />
+                  {fieldErrors.name && (
+                    <p className="text-xs font-medium text-destructive">{fieldErrors.name}</p>
+                  )}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
@@ -234,9 +310,16 @@ export function SignUp() {
                       id="remail"
                       type="email"
                       value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, email: e.target.value });
+                        if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                      }}
+                      className={fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="you@example.com"
                     />
+                    {fieldErrors.email && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.email}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="rmobile">Mobile Number</Label>
@@ -244,9 +327,16 @@ export function SignUp() {
                       id="rmobile"
                       type="tel"
                       value={form.mobile}
-                      onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, mobile: e.target.value });
+                        if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
+                      }}
+                      className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
                       placeholder="(512) 555-0148"
                     />
+                    {fieldErrors.mobile && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
+                    )}
                   </div>
                 </div>
               </>
@@ -260,9 +350,12 @@ export function SignUp() {
                     id="rpass"
                     type={showPassword ? "text" : "password"}
                     value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, password: e.target.value });
+                      if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: undefined });
+                    }}
                     placeholder="At least 6 characters"
-                    className="pr-10"
+                    className={`pr-10 ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   <button
                     type="button"
@@ -272,6 +365,9 @@ export function SignUp() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {fieldErrors.password && (
+                  <p className="text-xs font-medium text-destructive">{fieldErrors.password}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="rconfpass">Confirm Password</Label>
@@ -280,11 +376,12 @@ export function SignUp() {
                     id="rconfpass"
                     type={showConfirmPassword ? "text" : "password"}
                     value={form.confirmPassword}
-                    onChange={(e) =>
-                      setForm({ ...form, confirmPassword: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setForm({ ...form, confirmPassword: e.target.value });
+                      if (fieldErrors.confirmPassword) setFieldErrors({ ...fieldErrors, confirmPassword: undefined });
+                    }}
                     placeholder="Confirm your password"
-                    className="pr-10"
+                    className={`pr-10 ${fieldErrors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   <button
                     type="button"
@@ -294,19 +391,30 @@ export function SignUp() {
                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {fieldErrors.confirmPassword && (
+                  <p className="text-xs font-medium text-destructive">{fieldErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
 
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
 
-            <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
-              <Checkbox
-                checked={agree}
-                onCheckedChange={(v) => setAgree(v === true)}
-                className="mt-0.5"
-              />
-              <span>I agree to the Terms and Privacy Policy.</span>
-            </label>
+            <div>
+              <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+                <Checkbox
+                  checked={agree}
+                  onCheckedChange={(v) => {
+                    setAgree(v === true);
+                    if (fieldErrors.agree) setFieldErrors({ ...fieldErrors, agree: undefined });
+                  }}
+                  className="mt-0.5"
+                />
+                <span>I agree to the Terms and Privacy Policy.</span>
+              </label>
+              {fieldErrors.agree && (
+                <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.agree}</p>
+              )}
+            </div>
 
             <Button type="submit" size="lg" disabled={loading}>
               {loading

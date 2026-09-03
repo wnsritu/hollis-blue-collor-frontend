@@ -23,6 +23,18 @@ export const adminApi = {
   unsuspendProvider: (id: number | string) =>
     http.put<ApiSuccess>(ENDPOINTS.admin.unsuspendProvider(id)),
 
+  listCustomers: (params?: ApiListParams & { status?: string; search?: string }) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.customers, params),
+
+  getCustomer: (id: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.customerDetails(id)),
+
+  activateCustomer: (id: number | string) =>
+    http.put<ApiSuccess>(ENDPOINTS.admin.activateCustomer(id)),
+
+  deactivateCustomer: (id: number | string) =>
+    http.put<ApiSuccess>(ENDPOINTS.admin.deactivateCustomer(id)),
+
   getPlans: () => http.get<ApiSuccess>(ENDPOINTS.admin.plansAll),
 
   updatePlans: (payload: Record<string, unknown>) =>

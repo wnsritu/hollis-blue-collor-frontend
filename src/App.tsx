@@ -33,6 +33,8 @@ import AdminLayout from "./components/AdminLayout";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProviders from "./pages/admin/AdminProviders";
+import AdminProviderDetail from "./pages/admin/AdminProviderDetail";
+import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminDisputes from "./pages/admin/AdminDisputes";
 import AdminSponsored from "./pages/admin/AdminSponsored";
@@ -91,6 +93,8 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="services" element={<AdminServices />} />
             <Route path="providers" element={<AdminProviders />} />
+            <Route path="providers/:id" element={<AdminProviderDetail />} />
+            <Route path="customers" element={<AdminCustomers />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="disputes/:id" element={<AdminDisputeDetail />} />

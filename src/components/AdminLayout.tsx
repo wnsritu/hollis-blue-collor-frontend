@@ -3,6 +3,7 @@ import { useNavigate, Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
+  Building2,
   ClipboardList,
   AlertTriangle,
   Star,
@@ -18,7 +19,8 @@ import { getMyProfile } from "@/services/user.service";
 const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
   { label: "Services", to: "/admin/services", icon: LayoutGrid },
-  { label: "Providers", to: "/admin/providers", icon: Users },
+  { label: "Customers", to: "/admin/customers", icon: Users },
+  { label: "Providers", to: "/admin/providers", icon: Building2 },
   { label: "Orders", to: "/admin/orders", icon: ClipboardList },
   { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
   { label: "Sponsored Listings", to: "/admin/sponsored", icon: Star },

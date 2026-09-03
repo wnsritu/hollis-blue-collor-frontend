@@ -66,14 +66,34 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
+
+  const validate = (): boolean => {
+    const errs: { email?: string; password?: string } = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      errs.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errs.email = "Please enter a valid email address (e.g. name@example.com).";
+    }
+
+    if (!password) {
+      errs.password = "Password is required.";
+    } else if (password.length < 6) {
+      errs.password = "Password must be at least 6 characters long.";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!email.includes("@") || password.length < 6) {
-      setError("Enter a valid email and a password of at least 6 characters.");
+    if (!validate()) {
       return;
     }
 
@@ -156,6 +176,7 @@ export function Login() {
                 onClick={() => {
                   setRole(r.id);
                   setError("");
+                  setFieldErrors({});
                 }}
                 className={`rounded-xl border p-3.5 text-center transition-all ${
                   role === r.id
@@ -184,7 +205,7 @@ export function Login() {
             ))}
           </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+          <form className="mt-6 grid gap-4" onSubmit={handleSubmit} noValidate>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -192,9 +213,16 @@ export function Login() {
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+                }}
+                className={fieldErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}
                 placeholder="you@example.com"
               />
+              {fieldErrors.email && (
+                <p className="text-xs font-medium text-destructive">{fieldErrors.email}</p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
@@ -204,8 +232,11 @@ export function Login() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: undefined });
+                  }}
+                  className={`pr-10 ${fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   placeholder="Your password"
                 />
                 <button
@@ -217,6 +248,9 @@ export function Login() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="text-xs font-medium text-destructive">{fieldErrors.password}</p>
+              )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex items-center justify-between">
