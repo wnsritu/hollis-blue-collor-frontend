@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Eye, EyeOff, User } from "lucide-react";
+import { Building2, Eye, EyeOff, ShieldCheck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -13,19 +13,55 @@ import { getErrorField, getErrorMessage } from "@/lib/api/errors";
 import { resolvePostLoginPath } from "@/utils/postLoginNavigation";
 import toast from "react-hot-toast";
 
-const roles = [
-  { id: "customer" as const, label: "Customer", icon: User },
-  { id: "provider" as const, label: "Professional", icon: Building2 },
+type LoginRole = "customer" | "provider" | "admin";
+
+const roles: {
+  id: LoginRole;
+  label: string;
+  icon: typeof User;
+}[] = [
+  { id: "customer", label: "Customer", icon: User },
+  { id: "provider", label: "Professional", icon: Building2 },
+  { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
+
+function expectedRoleId(role: LoginRole): number {
+  if (role === "provider") return ROLES.PROVIDER;
+  if (role === "admin") return ROLES.ADMIN;
+  return ROLES.CUSTOMER;
+}
+
+function roleMismatchMessage(selected: LoginRole, actualRoleId: number): string {
+  const actual =
+    actualRoleId === ROLES.PROVIDER
+      ? "Professional"
+      : actualRoleId === ROLES.ADMIN
+        ? "Admin"
+        : actualRoleId === ROLES.SUPPORT
+          ? "Support"
+          : "Customer";
+
+  if (selected === "customer") {
+    return `This is a ${actual} account. Switch to the ${actual} tab to sign in.`;
+  }
+  if (selected === "provider") {
+    return `This is a ${actual} account. Switch to the ${actual} tab to sign in.`;
+  }
+  return `This is a ${actual} account. Admin login only accepts Admin accounts.`;
+}
+
+function parseDefaultRole(raw: string | null): LoginRole {
+  if (raw === "provider" || raw === "admin" || raw === "customer") return raw;
+  return "customer";
+}
 
 export function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuthSession();
-  const defaultRole =
-    searchParams.get("role") === "provider" ? "provider" : "customer";
+  const { login, clearSession } = useAuthSession();
+  const defaultRole = parseDefaultRole(searchParams.get("role"));
 
-  const [role, setRole] = useState<"customer" | "provider">(defaultRole);
+  const [role, setRole] = useState<LoginRole>(defaultRole);
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,15 +84,19 @@ export function Login() {
         password: password.trim(),
       });
 
-      const roleId = user?.role_id;
-      const expected =
-        role === "provider" ? ROLES.PROVIDER : ROLES.CUSTOMER;
-      if (roleId != null && Number(roleId) !== expected) {
-        toast.error(
-          role === "provider"
-            ? "This account is not a professional account. Switch to Customer or use a provider email."
-            : "This account is not a customer account. Switch to Professional or use a customer email."
+      const roleId = Number(user?.role_id);
+      const expected = expectedRoleId(role);
+
+      // Hard gate: selected tab must match account role
+      if (!Number.isFinite(roleId) || roleId !== expected) {
+        clearSession();
+        const msg = roleMismatchMessage(
+          role,
+          Number.isFinite(roleId) ? roleId : -1
         );
+        setError(msg);
+        toast.error(msg);
+        return;
       }
 
       toast.success("Login successful");
@@ -75,10 +115,10 @@ export function Login() {
       const unverifiedEmail =
         getErrorField<string>(err, "email") || email.trim().toLowerCase();
       const looksUnverified =
-        emailVerifiedFlag === false ||
-        /email is not verified/i.test(msg);
+        emailVerifiedFlag === false || /email is not verified/i.test(msg);
 
-      if (looksUnverified && unverifiedEmail) {
+      // Admin accounts typically skip customer/provider verify UX
+      if (looksUnverified && unverifiedEmail && role !== "admin") {
         toast.error("Email not verified. Enter the OTP sent to your inbox.");
         navigate(
           `/verify-email?email=${encodeURIComponent(unverifiedEmail)}&role=${role}`,
@@ -96,28 +136,40 @@ export function Login() {
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
         <div className="mx-auto w-full max-w-md">
           <div className="flex flex-col items-center justify-center text-center">
-            <Logo imgClassName="h-16 sm:h-20 max-h-24 w-auto" className="justify-center" />
-            <h1 className="mt-6 text-3xl font-extrabold tracking-tight">Welcome back</h1>
+            <Logo
+              imgClassName="h-16 sm:h-20 max-h-24 w-auto"
+              className="justify-center"
+            />
+            <h1 className="mt-6 text-3xl font-extrabold tracking-tight">
+              Welcome back
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Select your account type to proceed to your dashboard.
             </p>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2">
+          <div className="mt-6 grid grid-cols-3 gap-2">
             {roles.map((r) => (
               <button
                 key={r.id}
                 type="button"
-                onClick={() => setRole(r.id)}
+                onClick={() => {
+                  setRole(r.id);
+                  setError("");
+                }}
                 className={`rounded-xl border p-3.5 text-center transition-all ${
                   role === r.id
-                    ? "border-accent bg-accent-soft shadow-sm ring-2 ring-accent/20 font-bold"
+                    ? "border-accent bg-accent-soft font-bold shadow-sm ring-2 ring-accent/20"
                     : "border-border bg-card hover:border-accent/40"
                 }`}
               >
                 <r.icon
                   size={18}
-                  className={role === r.id ? "mx-auto text-accent" : "mx-auto text-muted-foreground"}
+                  className={
+                    role === r.id
+                      ? "mx-auto text-accent"
+                      : "mx-auto text-muted-foreground"
+                  }
                 />
                 <span
                   className={`mt-1.5 block text-xs ${
@@ -168,15 +220,17 @@ export function Login() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium">
                 <Checkbox
                   defaultChecked
-                  className="border-accent/60 hover:border-accent focus-visible:ring-accent data-[state=checked]:bg-accent data-[state=checked]:border-accent data-[state=checked]:text-accent-foreground"
+                  className="border-accent/60 hover:border-accent focus-visible:ring-accent data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground"
                 />{" "}
                 Remember me
               </label>
               <Link
-                to={`/forgot-password?role=${role}${email ? `&email=${encodeURIComponent(email)}` : ""}`}
+                to={`/forgot-password?role=${role}${
+                  email ? `&email=${encodeURIComponent(email)}` : ""
+                }`}
                 className="text-sm font-medium text-accent hover:underline"
               >
                 Forgot password?
@@ -187,15 +241,24 @@ export function Login() {
             </Button>
           </form>
 
-          <p className="mt-5 text-sm text-muted-foreground">
-            New to Hollis?{" "}
-            <Link
-              to={role === "provider" ? "/register?role=provider" : "/register"}
-              className="font-semibold text-primary hover:underline"
-            >
-              Create an account
-            </Link>
-          </p>
+          {role !== "admin" ? (
+            <p className="mt-5 text-sm text-muted-foreground">
+              New to Hollis?{" "}
+              <Link
+                to={
+                  role === "provider" ? "/register?role=provider" : "/register"
+                }
+                className="font-semibold text-primary hover:underline"
+              >
+                Create an account
+              </Link>
+            </p>
+          ) : (
+            <p className="mt-5 text-sm text-muted-foreground">
+              Admin access is invitation-only. Contact platform support if you
+              need help.
+            </p>
+          )}
         </div>
       </div>
       <AuthAside />
