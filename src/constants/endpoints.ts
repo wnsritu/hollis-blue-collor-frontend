@@ -234,6 +234,7 @@ export const ENDPOINTS = {
     unsuspendProvider: (id: number | string) => `/admin/providers/${id}/unsuspend`,
     customers: "/admin/customers",
     customerDetails: (id: number | string) => `/admin/customers/${id}`,
+    updateCustomerStatus: (id: number | string) => `/admin/customers/${id}/status`,
     activateCustomer: (id: number | string) => `/admin/customers/${id}/activate`,
     deactivateCustomer: (id: number | string) => `/admin/customers/${id}/deactivate`,
     plansAll: "/admin/plans/all",

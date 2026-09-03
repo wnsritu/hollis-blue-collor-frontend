@@ -13,6 +13,7 @@ export function usd(n: number | string) {
 export interface GenericProvider {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   initials?: string;
   verified?: boolean;
   featured?: boolean;
@@ -37,16 +38,28 @@ export function ProviderCard({
   compact?: boolean;
   services?: string[];
 }) {
-  const rawServices = provider.services || [];
+  let rawServices: any = provider.services || [];
+  if (typeof rawServices === "string") {
+    try {
+      const parsed = JSON.parse(rawServices);
+      rawServices = Array.isArray(parsed) ? parsed : [rawServices];
+    } catch {
+      rawServices = [rawServices];
+    }
+  }
+  if (!Array.isArray(rawServices)) {
+    rawServices = [];
+  }
+
   const list = services.length
     ? services
-    : rawServices.map((s) => (typeof s === "string" ? s : s.name));
+    : rawServices.map((s: any) => (typeof s === "string" ? s : s?.name || String(s)));
   const initials = provider.initials || provider.name.slice(0, 2).toUpperCase();
 
   return (
     <div className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
       <div className="flex min-w-0 items-start gap-3">
-        <Avatar initials={initials} />
+        <Avatar initials={initials} src={provider.avatarUrl} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="truncate font-display text-base font-bold">{provider.name}</h3>

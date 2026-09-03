@@ -27,13 +27,13 @@ import { customerApi } from "@/api/modules/customer.api";
 import { userApi } from "@/api/modules/user.api";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
-/** Service-connect provider nav — Hollis route aliases where needed. */
+/** Provider nav — M3 Marketplace ready. */
 export const providerNav: NavItem[] = [
   { to: "/provider/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/provider/pricing", label: "Services & Pricing", icon: Tags },
   { to: "/provider/availability", label: "Availability", icon: CalendarDays },
-  { to: "/provider/orders", label: "Schedule", icon: CalendarDays },
-  { to: "/provider/orders", label: "Custom Requests", icon: ListChecks },
+  { to: "/appointments", label: "Schedule", icon: CalendarDays },
+  { to: "/provider/opportunities", label: "Custom Requests", icon: ListChecks },
   { to: "/provider/orders", label: "Active Jobs", icon: Briefcase },
   { to: "/messages", label: "Messages", icon: MessageSquare },
   { to: "/provider/earnings", label: "Earnings", icon: Wallet },
@@ -46,10 +46,10 @@ export const providerNav: NavItem[] = [
 export const customerNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/search", label: "Find a Pro", icon: Search },
-  { to: "/orders", label: "My Bookings", icon: Briefcase },
-  { to: "/orders", label: "Custom Requests", icon: PlusCircle },
+  { to: "/appointments", label: "My Bookings", icon: Briefcase },
+  { to: "/projects", label: "Custom Requests", icon: PlusCircle },
   { to: "/messages", label: "Messages", icon: MessageSquare },
-  { to: "/orders", label: "Payments", icon: CreditCard },
+  { to: "/appointments", label: "Payments", icon: CreditCard },
   { to: "/dashboard", label: "Reviews", icon: Star },
   { to: "/profile", label: "My Profile", icon: User },
 ];

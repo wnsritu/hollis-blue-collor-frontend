@@ -27,6 +27,10 @@ import ProviderPricing from "./pages/ProviderPricing";
 import ProviderAvailability from "./pages/ProviderAvailability";
 import ProviderEarnings from "./pages/ProviderEarnings";
 import ProviderProfileSettings from "./pages/ProviderProfileSettings";
+import CustomerProjects from "./pages/CustomerProjects";
+import ProjectDetail from "./pages/ProjectDetail";
+import ProviderLeads from "./pages/ProviderLeads";
+import AppointmentsPage from "./pages/AppointmentsPage";
 import NotFound from "./pages/NotFound";
 
 import AdminLayout from "./components/AdminLayout";
@@ -45,6 +49,7 @@ import AdminProfile from "./pages/admin/AdminProfile";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminConversation from "./pages/admin/AdminConversation";
 import AdminServices from "./pages/admin/AdminServices";
+import AdminCategories from "./pages/admin/AdminCategories";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import SupportAgentsPage from "./pages/admin/SupportAgentsPage";
@@ -91,6 +96,7 @@ const App = () => (
             }
           >
             <Route index element={<AdminDashboard />} />
+            <Route path="categories" element={<AdminCategories />} />
             <Route path="services" element={<AdminServices />} />
             <Route path="providers" element={<AdminProviders />} />
             <Route path="providers/:id" element={<AdminProviderDetail />} />
@@ -290,6 +296,39 @@ const App = () => (
             }
           />
 
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <CustomerPortal>
+                  <CustomerProjects />
+                </CustomerPortal>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/projects/:id"
+            element={
+              <ProtectedRoute>
+                <RolePortal>
+                  <ProjectDetail />
+                </RolePortal>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/appointments"
+            element={
+              <ProtectedRoute>
+                <RolePortal>
+                  <AppointmentsPage />
+                </RolePortal>
+              </ProtectedRoute>
+            }
+          />
+
           {/* ================= PROVIDER (PROTECTED) — service-connect portal shell ================= */}
           <Route
             path="/provider/dashboard"
@@ -297,6 +336,17 @@ const App = () => (
               <ProtectedRoute>
                 <ProviderPortal>
                   <ProviderDashboard />
+                </ProviderPortal>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/provider/opportunities"
+            element={
+              <ProtectedRoute>
+                <ProviderPortal>
+                  <ProviderLeads />
                 </ProviderPortal>
               </ProtectedRoute>
             }

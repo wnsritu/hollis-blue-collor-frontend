@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
 import { Avatar, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import Spinner from "@/components/ui/spinner";
 import { adminApi } from "@/api/modules/admin.api";
@@ -716,62 +717,17 @@ export function AdminProviderDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* DOCUMENT PREVIEW MODAL */}
-      {selectedDocPreview && (
-        <Dialog open={Boolean(selectedDocPreview)} onOpenChange={() => setSelectedDocPreview(null)}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center justify-between gap-2">
-                <span>{selectedDocPreview.title}</span>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-y-auto rounded-xl border border-border bg-black/5 p-4 text-center flex flex-col items-center justify-center min-h-[300px]">
-              {selectedDocPreview.url ? (
-                selectedDocPreview.url.toLowerCase().includes(".pdf") ? (
-                  <iframe
-                    src={selectedDocPreview.url}
-                    title={selectedDocPreview.title}
-                    className="w-full h-[500px] rounded-lg border border-border"
-                  />
-                ) : (
-                  <img
-                    src={selectedDocPreview.url}
-                    alt={selectedDocPreview.title}
-                    className="max-h-[500px] w-full object-contain rounded-lg shadow-sm"
-                  />
-                )
-              ) : (
-                <div className="space-y-3 py-10">
-                  <FileText size={48} className="mx-auto text-primary" />
-                  <p className="font-bold text-sm text-foreground">{selectedDocPreview.filename}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Document uploaded for provider {businessName}.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
-              <span className="text-xs text-muted-foreground truncate max-w-xs">
-                {selectedDocPreview.url || selectedDocPreview.filename}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setSelectedDocPreview(null)}>
-                  Close
-                </Button>
-                {selectedDocPreview.url && (
-                  <Button size="sm" asChild className="gap-1.5 text-xs">
-                    <a href={selectedDocPreview.url} target="_blank" rel="noreferrer" download>
-                      <Download size={14} /> Download Document
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* REUSABLE DOCUMENT PREVIEW MODAL */}
+      <DocumentPreviewModal
+        open={Boolean(selectedDocPreview)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDocPreview(null);
+        }}
+        documentUrl={selectedDocPreview?.url}
+        title={selectedDocPreview?.title}
+        filename={selectedDocPreview?.filename}
+        description={`Document uploaded for provider ${businessName}.`}
+      />
     </div>
   );
 }
