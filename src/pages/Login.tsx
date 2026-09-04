@@ -31,23 +31,8 @@ function expectedRoleId(role: LoginRole): number {
   return ROLES.CUSTOMER;
 }
 
-function roleMismatchMessage(selected: LoginRole, actualRoleId: number): string {
-  const actual =
-    actualRoleId === ROLES.PROVIDER
-      ? "Professional"
-      : actualRoleId === ROLES.ADMIN
-        ? "Admin"
-        : actualRoleId === ROLES.SUPPORT
-          ? "Support"
-          : "Customer";
-
-  if (selected === "customer") {
-    return `This is a ${actual} account. Switch to the ${actual} tab to sign in.`;
-  }
-  if (selected === "provider") {
-    return `This is a ${actual} account. Switch to the ${actual} tab to sign in.`;
-  }
-  return `This is a ${actual} account. Admin login only accepts Admin accounts.`;
+function roleMismatchMessage(): string {
+  return "Credentials do not match the selected login type.";
 }
 
 function parseDefaultRole(raw: string | null): LoginRole {
@@ -110,10 +95,7 @@ export function Login() {
       // Hard gate: selected tab must match account role
       if (!Number.isFinite(roleId) || roleId !== expected) {
         clearSession();
-        const msg = roleMismatchMessage(
-          role,
-          Number.isFinite(roleId) ? roleId : -1
-        );
+        const msg = roleMismatchMessage();
         setError(msg);
         toast.error(msg);
         return;
