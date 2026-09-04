@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, KeyRound } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/primitives";
 import { AuthAside } from "@/components/shared/AuthAside";
@@ -98,40 +98,35 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-screen lg:grid-cols-[1fr_1.05fr]">
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
         <div className="mx-auto w-full max-w-md">
-          <Link
-            to={isProvider ? "/login?role=provider" : "/login"}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft size={16} /> Back to Log in
-          </Link>
-
-          <Logo imgClassName="h-14 w-auto" />
-
-          <div className="mt-8">
-            <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
-              <KeyRound size={22} />
-            </span>
-            <h1 className="mt-4 text-3xl font-extrabold">Verify your email</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              We sent a 6-digit verification code to{" "}
-              <span className="font-semibold text-foreground">
-                {email || "your email"}
-              </span>
-              . Enter the code below to activate your account.
-            </p>
+          <div className="flex flex-col items-center justify-center text-center">
+            <Logo
+              imgClassName="h-16 sm:h-20 max-h-24 w-auto"
+              className="justify-center"
+            />
           </div>
 
+          <h1 className="mt-8 text-center text-3xl font-extrabold tracking-tight">
+            Verify your email
+          </h1>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            We sent a 6-digit verification code to{" "}
+            <strong className="font-semibold text-foreground">
+              {email || "your email"}
+            </strong>
+            . Enter the code below to activate your account.
+          </p>
+
           {!email && (
-            <p className="mt-4 text-sm font-medium text-destructive">
+            <p className="mt-4 text-center text-sm font-medium text-destructive">
               No email in the link. Use Log in — if your email is unverified you will be
               sent here automatically.
             </p>
           )}
 
-          <form className="mt-8 space-y-6" onSubmit={handleVerify}>
+          <form className="mt-6 space-y-6" onSubmit={handleVerify}>
             <div className="space-y-3">
               <OtpInput
                 value={otp}
@@ -155,7 +150,7 @@ export default function VerifyEmail() {
                 "Verifying..."
               ) : (
                 <>
-                  Verify & Continue <ArrowRight size={16} />
+                  Verify &amp; Continue <ArrowRight size={16} />
                 </>
               )}
             </Button>
@@ -174,6 +169,13 @@ export default function VerifyEmail() {
               </button>
             </p>
           </div>
+
+          <Link
+            to={isProvider ? "/login?role=provider" : "/login"}
+            className="mt-6 inline-flex w-full items-center justify-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            <ArrowLeft size={15} /> Back to log in
+          </Link>
         </div>
       </div>
       <AuthAside />

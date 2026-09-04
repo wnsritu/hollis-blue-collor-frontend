@@ -25,6 +25,7 @@ export const ENDPOINTS = {
     resetPassword: "/auth/reset-password",
     saveFcmToken: "/auth/save-fcm-token",
     removeFcmToken: "/auth/remove-fcm-token",
+    checkEmail: "/auth/check-email",
   },
 
   /** Legacy forgot-password routes still mounted on backend */

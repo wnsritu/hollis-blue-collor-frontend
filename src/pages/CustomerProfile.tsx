@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar } from "@/components/shared/primitives";
+import { sanitizePhoneInput } from "@/utils/format";
 import Spinner from "@/components/ui/spinner";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 
@@ -39,19 +40,27 @@ function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
     return ((res as { data: T }).data ?? res) as T;
   }
+
   return res as T;
 }
 
 function initialsFrom(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
+
   if (!parts.length) return "CU";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 const CustomerProfile = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
   const tabParam = (searchParams.get("tab") as ProfileTab) || "profile";
+
   const activeTab: ProfileTab =
     tabParam === "security" ? "security" : "profile";
 
@@ -68,7 +77,7 @@ const CustomerProfile = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [status, setStatus] = useState("active");
 
-  // Address fields (similar to Provider profile)
+  // Address fields
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -77,9 +86,11 @@ const CustomerProfile = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
 
+  // Password fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -91,6 +102,7 @@ const CustomerProfile = () => {
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
+
       let profile: any = null;
 
       try {
@@ -106,15 +118,19 @@ const CustomerProfile = () => {
 
       const name =
         profile.full_name ||
-        [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+        [profile.first_name, profile.last_name]
+          .filter(Boolean)
+          .join(" ") ||
         user?.full_name ||
         "";
+
       setFullName(name);
       setEmail(profile.email || user?.email || "");
       setMobileNumber(profile.phone || user?.phone || "");
       setStatus(String(profile.status || "active"));
 
       const photo = profile.profile_image || profile.profile_photo;
+
       if (photo) {
         setAvatarPreview(resolveMediaUrl(String(photo)));
       } else {
@@ -122,23 +138,58 @@ const CustomerProfile = () => {
       }
 
       // Populate address details
-      const primaryAddr = profile.address || profile.addresses?.[0]?.address_line || "";
-      const primaryCity = profile.city || profile.addresses?.[0]?.city || "";
-      const primaryState = profile.state || profile.addresses?.[0]?.state || "";
-      const primaryZip = profile.zip_code || profile.addresses?.[0]?.zip_code || "";
-      const primaryCountry = profile.country || profile.addresses?.[0]?.country || "";
-      const primaryLat = profile.latitude ?? profile.addresses?.[0]?.latitude ?? null;
-      const primaryLng = profile.longitude ?? profile.addresses?.[0]?.longitude ?? null;
+      const primaryAddr =
+        profile.address ||
+        profile.addresses?.[0]?.address_line ||
+        "";
+
+      const primaryCity =
+        profile.city ||
+        profile.addresses?.[0]?.city ||
+        "";
+
+      const primaryState =
+        profile.state ||
+        profile.addresses?.[0]?.state ||
+        "";
+
+      const primaryZip =
+        profile.zip_code ||
+        profile.addresses?.[0]?.zip_code ||
+        "";
+
+      const primaryCountry =
+        profile.country ||
+        profile.addresses?.[0]?.country ||
+        "";
+
+      const primaryLat =
+        profile.latitude ??
+        profile.addresses?.[0]?.latitude ??
+        null;
+
+      const primaryLng =
+        profile.longitude ??
+        profile.addresses?.[0]?.longitude ??
+        null;
 
       setAddress(primaryAddr);
       setCity(primaryCity);
       setState(primaryState);
       setZipCode(primaryZip);
       setCountry(primaryCountry);
-      setLatitude(primaryLat !== null ? Number(primaryLat) : null);
-      setLongitude(primaryLng !== null ? Number(primaryLng) : null);
+
+      setLatitude(
+        primaryLat !== null ? Number(primaryLat) : null
+      );
+
+      setLongitude(
+        primaryLng !== null ? Number(primaryLng) : null
+      );
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to load profile."));
+      toast.error(
+        getErrorMessage(err, "Failed to load profile.")
+      );
     } finally {
       setLoading(false);
     }
@@ -148,9 +199,13 @@ const CustomerProfile = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
+
     if (!file) return;
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size exceeds 5MB limit.");
       return;
@@ -158,29 +213,40 @@ const CustomerProfile = () => {
 
     try {
       setAvatarPreview(URL.createObjectURL(file));
+
       const formData = new FormData();
       formData.append("profile_photo", file);
+
       await userApi.updateProfilePhoto(formData);
+
       toast.success("Profile photo uploaded.");
+
       try {
         await fetchMe();
       } catch {
-        /* ignore */
+        // Ignore fetchMe errors.
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Photo upload failed."));
+      toast.error(
+        getErrorMessage(err, "Photo upload failed.")
+      );
     }
   };
 
   const handleRemovePhoto = async () => {
     try {
       setAvatarPreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       await userApi.updateCustomerProfile({
         full_name: fullName.trim() || undefined,
         profile_photo: null,
         profile_image: null,
       });
+
       try {
         await customerApi.updateMyProfile({
           full_name: fullName.trim() || undefined,
@@ -188,21 +254,29 @@ const CustomerProfile = () => {
           profile_image: null,
         });
       } catch {
-        /* ignore fallback */
+        // Ignore fallback errors.
       }
+
       toast.success("Profile photo removed successfully.");
+
       try {
         await fetchMe();
       } catch {
-        /* ignore */
+        // Ignore fetchMe errors.
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to remove profile photo."));
+      toast.error(
+        getErrorMessage(
+          err,
+          "Failed to remove profile photo."
+        )
+      );
     }
   };
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
     e?.preventDefault();
+
     if (!fullName.trim()) {
       toast.error("Full name is required.");
       return;
@@ -210,49 +284,69 @@ const CustomerProfile = () => {
 
     try {
       setSaving(true);
+
       const profilePayload = {
         full_name: fullName.trim(),
         phone: mobileNumber.trim() || undefined,
+
         address: address.trim() || undefined,
         address_line: address.trim() || undefined,
+
         city: city.trim() || undefined,
         state: state.trim() || undefined,
         country: country.trim() || undefined,
         zip_code: zipCode.trim() || undefined,
+
         latitude: latitude ?? undefined,
         longitude: longitude ?? undefined,
       };
 
       await userApi.updateCustomerProfile(profilePayload);
+
       try {
         await customerApi.updateMyProfile(profilePayload);
       } catch {
-        /* primary path already succeeded */
+        // Primary path already succeeded.
       }
+
       toast.success("Profile information saved successfully.");
+
       try {
         await fetchMe();
       } catch {
-        /* ignore */
+        // Ignore fetchMe errors.
       }
+
       await loadProfile();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to save profile."));
+      toast.error(
+        getErrorMessage(
+          err,
+          "Failed to save profile."
+        )
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUpdatePassword = async (e?: React.FormEvent) => {
+  const handleUpdatePassword = async (
+    e?: React.FormEvent
+  ) => {
     e?.preventDefault();
+
     if (!currentPassword) {
       toast.error("Please enter your current password.");
       return;
     }
+
     if (!newPassword || newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters.");
+      toast.error(
+        "New password must be at least 6 characters."
+      );
       return;
     }
+
     if (newPassword !== confirmPassword) {
       toast.error("New passwords do not match.");
       return;
@@ -260,16 +354,24 @@ const CustomerProfile = () => {
 
     try {
       setSaving(true);
+
       await authApi.changePassword({
         old_password: currentPassword,
         new_password: newPassword,
       });
+
       toast.success("Password updated successfully.");
+
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to update password."));
+      toast.error(
+        getErrorMessage(
+          err,
+          "Failed to update password."
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -290,16 +392,25 @@ const CustomerProfile = () => {
           <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
             My Profile
           </h1>
+
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your personal details, address, and password security.
+            Manage your personal details, address, and password
+            security.
           </p>
         </div>
+
         {activeTab === "profile" ? (
-          <Button onClick={() => handleSaveProfile()} disabled={saving}>
+          <Button
+            onClick={() => handleSaveProfile()}
+            disabled={saving}
+          >
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         ) : (
-          <Button onClick={() => handleUpdatePassword()} disabled={saving}>
+          <Button
+            onClick={() => handleUpdatePassword()}
+            disabled={saving}
+          >
             {saving ? "Updating…" : "Update Password"}
           </Button>
         )}
@@ -308,14 +419,25 @@ const CustomerProfile = () => {
       <div className="mb-6">
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setTab(v as ProfileTab)}
+          onValueChange={(v) =>
+            setTab(v as ProfileTab)
+          }
         >
           <TabsList className="grid h-auto w-full max-w-md grid-cols-2">
-            <TabsTrigger value="profile" className="gap-2 py-2">
-              <User size={16} /> Profile
+            <TabsTrigger
+              value="profile"
+              className="gap-2 py-2"
+            >
+              <User size={16} />
+              Profile
             </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2 py-2">
-              <Lock size={16} /> Password &amp; Security
+
+            <TabsTrigger
+              value="security"
+              className="gap-2 py-2"
+            >
+              <Lock size={16} />
+              Password &amp; Security
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -328,14 +450,22 @@ const CustomerProfile = () => {
               {/* Personal Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Personal Information</CardTitle>
+                  <CardTitle className="text-lg">
+                    Personal Information
+                  </CardTitle>
+
                   <p className="text-sm text-muted-foreground">
-                    Update your contact details used for service bookings and
-                    communications.
+                    Update your contact details used for service
+                    bookings and communications.
                   </p>
                 </CardHeader>
+
                 <CardContent>
-                  <form onSubmit={handleSaveProfile} className="space-y-5">
+                  <form
+                    onSubmit={handleSaveProfile}
+                    className="space-y-5"
+                  >
+                    {/* Profile Photo */}
                     <div className="rounded-xl border border-border bg-surface p-4">
                       <div className="flex flex-col items-center gap-4 sm:flex-row">
                         <div className="relative">
@@ -352,13 +482,16 @@ const CustomerProfile = () => {
                             />
                           )}
                         </div>
+
                         <div className="space-y-2 text-center sm:text-left">
                           <p className="text-sm font-bold text-foreground">
                             Profile Photo
                           </p>
+
                           <p className="text-xs text-muted-foreground">
                             JPG, PNG or GIF. Max size 5MB.
                           </p>
+
                           <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:justify-start">
                             <input
                               ref={fileInputRef}
@@ -368,15 +501,20 @@ const CustomerProfile = () => {
                               className="hidden"
                               id="avatar-upload-input"
                             />
+
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
                               className="h-8 gap-1.5 text-xs"
-                              onClick={() => fileInputRef.current?.click()}
+                              onClick={() =>
+                                fileInputRef.current?.click()
+                              }
                             >
-                              <Camera size={13} /> Change Photo
+                              <Camera size={13} />
+                              Change Photo
                             </Button>
+
                             {avatarPreview && (
                               <Button
                                 type="button"
@@ -385,7 +523,8 @@ const CustomerProfile = () => {
                                 className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
                                 onClick={handleRemovePhoto}
                               >
-                                <Trash2 size={13} /> Remove
+                                <Trash2 size={13} />
+                                Remove
                               </Button>
                             )}
                           </div>
@@ -393,18 +532,28 @@ const CustomerProfile = () => {
                       </div>
                     </div>
 
+                    {/* Full Name */}
                     <div className="grid gap-2">
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="fullName">
+                        Full Name
+                      </Label>
+
                       <Input
                         id="fullName"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) =>
+                          setFullName(e.target.value)
+                        }
                         placeholder="e.g. John Smith"
                       />
                     </div>
 
+                    {/* Email */}
                     <div className="grid gap-2">
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="email">
+                        Email Address
+                      </Label>
+
                       <Input
                         id="email"
                         type="email"
@@ -413,13 +562,23 @@ const CustomerProfile = () => {
                       />
                     </div>
 
+                    {/* Mobile Number */}
                     <div className="grid gap-2">
-                      <Label htmlFor="mobileNumber">Mobile Number</Label>
+                      <Label htmlFor="mobileNumber">
+                        Mobile Number
+                      </Label>
+
                       <Input
                         id="mobileNumber"
                         type="tel"
                         value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
+                        onChange={(e) =>
+                          setMobileNumber(
+                            sanitizePhoneInput(
+                              e.target.value
+                            )
+                          )
+                        }
                         placeholder="e.g. (555) 234-5678"
                       />
                     </div>
@@ -427,17 +586,26 @@ const CustomerProfile = () => {
                 </CardContent>
               </Card>
 
-              {/* Address & Location Card (Reference from Provider Profile Settings) */}
+              {/* Address & Location */}
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <MapPin size={18} className="text-primary" /> Address &amp; Location
+                    <MapPin
+                      size={18}
+                      className="text-primary"
+                    />
+                    Address &amp; Location
                   </CardTitle>
                 </CardHeader>
+
                 <CardContent className="space-y-4 p-6">
                   <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Street Address */}
                     <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="address">Street Address</Label>
+                      <Label htmlFor="address">
+                        Street Address
+                      </Label>
+
                       <GooglePlaceAutocomplete
                         value={address}
                         onChange={setAddress}
@@ -446,68 +614,131 @@ const CustomerProfile = () => {
                           setAddress(place.address);
                           setLatitude(place.lat);
                           setLongitude(place.lng);
-                          const comps = place.fullPlace?.address_components || [];
-                          const getComp = (type: string) =>
-                            comps.find((c) => c.types.includes(type))
-                              ?.long_name || "";
+
+                          const comps =
+                            place.fullPlace
+                              ?.address_components || [];
+
+                          const getComp = (
+                            type: string
+                          ) =>
+                            comps.find((c) =>
+                              c.types.includes(type)
+                            )?.long_name || "";
+
                           const cityVal =
-                            getComp("locality") || getComp("sublocality") || city;
+                            getComp("locality") ||
+                            getComp("sublocality") ||
+                            city;
+
                           const stateVal =
-                            getComp("administrative_area_level_1") || state;
-                          const zipVal = getComp("postal_code") || zipCode;
-                          const countryVal = getComp("country") || country;
-                          if (cityVal) setCity(cityVal);
-                          if (stateVal) setState(stateVal);
-                          if (zipVal) setZipCode(zipVal);
-                          if (countryVal) setCountry(countryVal);
+                            getComp(
+                              "administrative_area_level_1"
+                            ) || state;
+
+                          const zipVal =
+                            getComp("postal_code") ||
+                            zipCode;
+
+                          const countryVal =
+                            getComp("country") ||
+                            country;
+
+                          if (cityVal) {
+                            setCity(cityVal);
+                          }
+
+                          if (stateVal) {
+                            setState(stateVal);
+                          }
+
+                          if (zipVal) {
+                            setZipCode(zipVal);
+                          }
+
+                          if (countryVal) {
+                            setCountry(countryVal);
+                          }
                         }}
                       />
                     </div>
 
+                    {/* City */}
                     <div className="grid gap-2">
-                      <Label htmlFor="city">City</Label>
+                      <Label htmlFor="city">
+                        City
+                      </Label>
+
                       <Input
                         id="city"
                         value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        onChange={(e) =>
+                          setCity(e.target.value)
+                        }
                         placeholder="e.g. New York"
                       />
                     </div>
 
+                    {/* State */}
                     <div className="grid gap-2">
-                      <Label htmlFor="state">State / Province</Label>
+                      <Label htmlFor="state">
+                        State / Province
+                      </Label>
+
                       <Input
                         id="state"
                         value={state}
-                        onChange={(e) => setState(e.target.value)}
+                        onChange={(e) =>
+                          setState(e.target.value)
+                        }
                         placeholder="e.g. NY"
                       />
                     </div>
 
+                    {/* ZIP */}
                     <div className="grid gap-2">
-                      <Label htmlFor="zipCode">ZIP / Postal Code</Label>
+                      <Label htmlFor="zipCode">
+                        ZIP / Postal Code
+                      </Label>
+
                       <Input
                         id="zipCode"
                         value={zipCode}
-                        onChange={(e) => setZipCode(e.target.value)}
+                        onChange={(e) =>
+                          setZipCode(e.target.value)
+                        }
                         placeholder="e.g. 10001"
                       />
                     </div>
 
+                    {/* Country */}
                     <div className="grid gap-2">
-                      <Label htmlFor="country">Country</Label>
+                      <Label htmlFor="country">
+                        Country
+                      </Label>
+
                       <Input
                         id="country"
                         value={country}
-                        onChange={(e) => setCountry(e.target.value)}
+                        onChange={(e) =>
+                          setCountry(e.target.value)
+                        }
                         placeholder="e.g. USA"
                       />
                     </div>
                   </div>
 
                   <div className="pt-2">
-                    <Button type="button" onClick={() => handleSaveProfile()} disabled={saving}>
-                      {saving ? "Saving…" : "Save Changes"}
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        handleSaveProfile()
+                      }
+                      disabled={saving}
+                    >
+                      {saving
+                        ? "Saving…"
+                        : "Save Changes"}
                     </Button>
                   </div>
                 </CardContent>
@@ -515,34 +746,55 @@ const CustomerProfile = () => {
             </>
           )}
 
+          {/* Security */}
           {activeTab === "security" && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">
                   Password Reset &amp; Security
                 </CardTitle>
+
                 <p className="text-sm text-muted-foreground">
-                  Update your account password to maintain strong account
-                  security.
+                  Update your account password to maintain
+                  strong account security.
                 </p>
               </CardHeader>
+
               <CardContent>
-                <form onSubmit={handleUpdatePassword} className="space-y-5">
+                <form
+                  onSubmit={handleUpdatePassword}
+                  className="space-y-5"
+                >
+                  {/* Current Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Label htmlFor="currentPassword">
+                      Current Password
+                    </Label>
+
                     <div className="relative">
                       <Input
                         id="currentPassword"
-                        type={showCurrentPassword ? "text" : "password"}
+                        type={
+                          showCurrentPassword
+                            ? "text"
+                            : "password"
+                        }
                         value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        onChange={(e) =>
+                          setCurrentPassword(
+                            e.target.value
+                          )
+                        }
                         placeholder="••••••••"
                         className="pr-10"
                       />
+
                       <button
                         type="button"
                         onClick={() =>
-                          setShowCurrentPassword(!showCurrentPassword)
+                          setShowCurrentPassword(
+                            !showCurrentPassword
+                          )
                         }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
@@ -555,20 +807,37 @@ const CustomerProfile = () => {
                     </div>
                   </div>
 
+                  {/* New Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="newPassword">New Password</Label>
+                    <Label htmlFor="newPassword">
+                      New Password
+                    </Label>
+
                     <div className="relative">
                       <Input
                         id="newPassword"
-                        type={showNewPassword ? "text" : "password"}
+                        type={
+                          showNewPassword
+                            ? "text"
+                            : "password"
+                        }
                         value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        onChange={(e) =>
+                          setNewPassword(
+                            e.target.value
+                          )
+                        }
                         placeholder="••••••••"
                         className="pr-10"
                       />
+
                       <button
                         type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        onClick={() =>
+                          setShowNewPassword(
+                            !showNewPassword
+                          )
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showNewPassword ? (
@@ -580,23 +849,36 @@ const CustomerProfile = () => {
                     </div>
                   </div>
 
+                  {/* Confirm Password */}
                   <div className="grid gap-2">
                     <Label htmlFor="confirmPassword">
                       Confirm New Password
                     </Label>
+
                     <div className="relative">
                       <Input
                         id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onChange={(e) =>
+                          setConfirmPassword(
+                            e.target.value
+                          )
+                        }
                         placeholder="••••••••"
                         className="pr-10"
                       />
+
                       <button
                         type="button"
                         onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
+                          setShowConfirmPassword(
+                            !showConfirmPassword
+                          )
                         }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
@@ -610,8 +892,13 @@ const CustomerProfile = () => {
                   </div>
 
                   <div className="pt-2">
-                    <Button type="submit" disabled={saving}>
-                      {saving ? "Updating…" : "Update Password"}
+                    <Button
+                      type="submit"
+                      disabled={saving}
+                    >
+                      {saving
+                        ? "Updating…"
+                        : "Update Password"}
                     </Button>
                   </div>
                 </form>
@@ -620,6 +907,7 @@ const CustomerProfile = () => {
           )}
         </div>
 
+        {/* Profile Summary */}
         <aside className="space-y-6">
           <Card>
             <CardHeader className="pb-2 text-center">
@@ -631,40 +919,79 @@ const CustomerProfile = () => {
                     className="size-20 rounded-full border-2 border-primary/20 object-cover"
                   />
                 ) : (
-                  <Avatar initials={initialsFrom(fullName)} size="lg" />
+                  <Avatar
+                    initials={initialsFrom(fullName)}
+                    size="lg"
+                  />
                 )}
               </div>
+
               <CardTitle className="text-base">
                 {fullName || "Customer"}
               </CardTitle>
-              <p className="text-xs text-muted-foreground">{email}</p>
+
+              <p className="text-xs text-muted-foreground">
+                {email}
+              </p>
             </CardHeader>
+
             <CardContent className="space-y-4 pt-2 text-xs">
               <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
+                {/* Account Type */}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Account Type</span>
-                  <span className="font-semibold text-foreground">Customer</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
-                    <ShieldCheck size={13} />{" "}
-                    {status === "inactive" ? "Inactive" : "Active"}
+                  <span className="text-muted-foreground">
+                    Account Type
+                  </span>
+
+                  <span className="font-semibold text-foreground">
+                    Customer
                   </span>
                 </div>
+
+                {/* Status */}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">
+                    Status
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                    <ShieldCheck size={13} />
+
+                    {status === "inactive"
+                      ? "Inactive"
+                      : "Active"}
+                  </span>
+                </div>
+
+                {/* Mobile */}
                 {mobileNumber && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Mobile</span>
+                    <span className="text-muted-foreground">
+                      Mobile
+                    </span>
+
                     <span className="font-semibold text-foreground">
                       {mobileNumber}
                     </span>
                   </div>
                 )}
+
+                {/* Address */}
                 {address && (
                   <div className="flex items-start justify-between gap-2 border-t border-border pt-2">
-                    <span className="shrink-0 text-muted-foreground">Address</span>
+                    <span className="shrink-0 text-muted-foreground">
+                      Address
+                    </span>
+
                     <span className="text-right font-medium text-foreground">
-                      {[address, city, state, zipCode].filter(Boolean).join(", ")}
+                      {[
+                        address,
+                        city,
+                        state,
+                        zipCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
                     </span>
                   </div>
                 )}

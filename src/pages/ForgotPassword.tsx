@@ -265,18 +265,6 @@ export default function ForgotPassword() {
                   >
                     {resending ? "Resending…" : "Resend code"}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("email");
-                      setOtp("");
-                      setError("");
-                    }}
-                    className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft size={15} /> Change email
-                  </button>
                 </form>
               )}
 
