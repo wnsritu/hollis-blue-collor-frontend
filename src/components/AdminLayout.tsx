@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
+import { useAuthSession } from "@/hooks/useAuth";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
@@ -40,6 +42,7 @@ const adminNav: NavItem[] = [
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const { user: authUser, logout } = useAuthSession();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -54,20 +57,22 @@ const AdminLayout = () => {
     fetchProfile();
   }, []);
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("id");
+  const handleSignOut = async () => {
+    await logout();
     navigate("/");
   };
 
-  const accountName = user
-    ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Admin User"
-    : "Platform Admin";
+  const accountName =
+    authUser?.full_name ||
+    (user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : null) ||
+    "Platform Admin";
 
-  const avatarUrl = user?.profile_image
-    ? `${import.meta.env.VITE_API_BASE_URL}${user.profile_image}`
-    : undefined;
+  const rawPhoto =
+    (authUser as any)?.profile_image ||
+    (authUser as any)?.profile_photo ||
+    user?.profile_image ||
+    user?.profile_photo;
+  const avatarUrl = resolveMediaUrl(rawPhoto) || undefined;
 
   return (
     <DashboardShell
