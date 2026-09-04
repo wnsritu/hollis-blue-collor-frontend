@@ -9,6 +9,7 @@ import { Logo } from "@/components/shared/primitives";
 import { AuthAside } from "@/components/shared/AuthAside";
 import { useAuthSession } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
+import { sanitizePhoneInput } from "@/utils/format";
 import { authApi } from "@/api/modules/auth.api";
 import { getErrorMessage } from "@/lib/api/errors";
 import toast from "react-hot-toast";
@@ -150,6 +151,23 @@ export function SignUp() {
         mobile: form.mobile.trim(),
         password: form.password.trim(),
       };
+
+      try {
+        setLoading(true);
+        await authApi.checkEmail(draft.email, draft.mobile);
+      } catch (err: any) {
+        const msg = getErrorMessage(err, "Email is already registered.");
+        setError(msg);
+        if (/phone|mobile/i.test(msg)) {
+          setFieldErrors((prev) => ({ ...prev, mobile: msg }));
+        } else {
+          setFieldErrors((prev) => ({ ...prev, email: msg }));
+        }
+        return;
+      } finally {
+        setLoading(false);
+      }
+
       try {
         sessionStorage.setItem(PROVIDER_SIGNUP_DRAFT_KEY, JSON.stringify(draft));
       } catch {
@@ -297,7 +315,8 @@ export function SignUp() {
                       type="tel"
                       value={form.mobile}
                       onChange={(e) => {
-                        setForm({ ...form, mobile: e.target.value });
+                        const val = sanitizePhoneInput(e.target.value);
+                        setForm({ ...form, mobile: val });
                         if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
                       }}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
@@ -352,7 +371,8 @@ export function SignUp() {
                       type="tel"
                       value={form.mobile}
                       onChange={(e) => {
-                        setForm({ ...form, mobile: e.target.value });
+                        const val = sanitizePhoneInput(e.target.value);
+                        setForm({ ...form, mobile: val });
                         if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
                       }}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
