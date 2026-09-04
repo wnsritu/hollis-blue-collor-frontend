@@ -265,7 +265,6 @@ export default function ForgotPassword() {
                   >
                     {resending ? "Resending…" : "Resend code"}
                   </button>
-
                   {role !== "provider" && (
                     <button
                       type="button"

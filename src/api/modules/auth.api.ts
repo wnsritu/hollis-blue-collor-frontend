@@ -21,8 +21,11 @@ export const authApi = {
   register: (payload: RegisterPayload) =>
     http.post<AuthResponse>(ENDPOINTS.auth.register, payload),
 
-  checkEmail: (email: string) =>
-    http.post<{ success: boolean; available: boolean; message: string }>("/auth/check-email", { email }),
+  checkEmail: (email: string, phone?: string) =>
+    http.post<ApiSuccess<{ available: boolean }>>(ENDPOINTS.auth.checkEmail, {
+      email,
+      phone,
+    }),
 
   logout: () => http.post<ApiSuccess>(ENDPOINTS.auth.logout),
 

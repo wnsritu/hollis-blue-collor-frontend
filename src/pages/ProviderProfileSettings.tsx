@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { sanitizePhoneInput } from "@/utils/format";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -567,7 +568,7 @@ const ProviderProfileSettings = () => {
                         id="pmobile"
                         type="tel"
                         value={mobile}
-                        onChange={(e) => setMobile(e.target.value)}
+                        onChange={(e) => setMobile(sanitizePhoneInput(e.target.value))}
                         placeholder="(512) 555-0148"
                       />
                     </div>

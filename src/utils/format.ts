@@ -10,6 +10,13 @@ export const formatDate = (dateStr: string) => {
   return `${mm}-${dd}-${yyyy}`;
 };
 
+export const sanitizePhoneInput = (value: string): string => {
+  if (!value) return "";
+  const hasLeadingPlus = value.startsWith("+");
+  const digits = value.replace(/\D/g, "");
+  return hasLeadingPlus ? `+${digits}` : digits;
+};
+
 export const formatPhone = (phone: string) => {
   if (!phone) return "";
 
