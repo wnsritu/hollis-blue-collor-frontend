@@ -453,29 +453,48 @@ export function AdminProviderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm">
-              <span className="text-xs text-muted-foreground block">Category Hierarchy</span>
-              <span className="font-bold text-primary text-base">Home Services</span>
-              <span className="mx-2 text-muted-foreground">→</span>
-              <span className="font-semibold text-foreground">{categoryName}</span>
+            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm flex items-center justify-between">
+              <div>
+                <span className="text-xs text-muted-foreground block">Category Hierarchy (Fixed at registration)</span>
+                <span className="font-bold text-primary text-base">{provider.category?.name || "Home Services"}</span>
+                <span className="mx-2 text-muted-foreground">→</span>
+                <span className="font-semibold text-foreground">{provider.sub_category?.name || (Array.isArray(provider.service_categories) && provider.service_categories[0]) || categoryName}</span>
+              </div>
+              <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-3 py-1">
+                Fixed Subcategory
+              </span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(provider.services && provider.services.length > 0 ? provider.services : [
-                { id: 1, name: `${categoryName} Standard Service`, price: 120, unit: "flat rate" },
-                { id: 2, name: `${categoryName} Emergency Inspection`, price: 85, unit: "per visit" },
-              ]).map((svc: any) => (
-                <div
-                  key={svc.id}
-                  className="rounded-xl border border-border p-4 bg-card shadow-xs flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <p className="font-semibold text-sm text-foreground">{svc.name || svc.service_name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{svc.unit || "flat rate"}</p>
-                  </div>
-                  <span className="font-extrabold text-primary text-sm">${svc.price || svc.rate || 100}</span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Enabled Services</h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(() => {
+                  const offeredList = Array.isArray(provider.offered_services) && provider.offered_services.length > 0
+                    ? provider.offered_services
+                    : Array.isArray(provider.services) && provider.services.length > 0
+                    ? provider.services
+                    : [{ name: `${categoryName} Standard Service`, price: 120 }];
+
+                  return offeredList.map((svc: any, idx: number) => {
+                    const svcName = typeof svc === "string" ? svc : svc.name || svc.service_name || String(svc);
+                    const priceVal = typeof svc === "object" ? svc.price || svc.amount || 100 : 100;
+                    return (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-border p-4 bg-card shadow-xs flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{svcName}</p>
+                          <p className="text-xs text-success font-medium flex items-center gap-1 mt-0.5">
+                            <CheckCircle2 size={12} /> Enabled by Provider
+                          </p>
+                        </div>
+                        <span className="font-extrabold text-primary text-sm">${priceVal}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>

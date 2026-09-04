@@ -11,12 +11,33 @@ import type {
   UpdateServiceTypePayload,
 } from "@/types/api/catalog";
 
+export interface ServiceItemModel {
+  id: number;
+  name: string;
+  service_type_id: number;
+  category_id: number;
+  service_type?: ServiceType;
+  category?: Category;
+}
+
+export interface CreateServiceItemPayload {
+  name: string;
+  service_type_id: number;
+  category_id: number;
+}
+
+export interface UpdateServiceItemPayload {
+  name?: string;
+  service_type_id?: number;
+  category_id?: number;
+}
+
 /**
  * M3 Catalog APIs — preferred over legacy `/services/categories`.
  * Public browse does not require auth.
  */
 export const catalogApi = {
-  /** Full tree: categories + nested service_types */
+  /** Full tree: categories + nested service_types + nested services */
   getTree: () => http.get<ApiSuccess<Category[]>>(ENDPOINTS.catalog.tree),
 
   listCategories: () =>
@@ -25,7 +46,10 @@ export const catalogApi = {
   listServiceTypes: (params?: ServiceTypeListParams) =>
     http.get<ApiSuccess<ServiceType[]>>(ENDPOINTS.catalog.serviceTypes, params),
 
-  // ── Admin ──
+  listServices: (params?: { service_type_id?: number | string; category_id?: number | string }) =>
+    http.get<ApiSuccess<ServiceItemModel[]>>(ENDPOINTS.catalog.services, params),
+
+  // ── Admin Categories ──
   createCategory: (payload: CreateCategoryPayload) =>
     http.post<ApiSuccess<Category>>(ENDPOINTS.catalog.adminCategories, payload),
 
@@ -35,6 +59,7 @@ export const catalogApi = {
   deleteCategory: (id: number | string) =>
     http.delete<ApiSuccess>(ENDPOINTS.catalog.adminCategoryById(id)),
 
+  // ── Admin Subcategories (Service Types) ──
   createServiceType: (payload: CreateServiceTypePayload) =>
     http.post<ApiSuccess<ServiceType>>(ENDPOINTS.catalog.adminServiceTypes, payload),
 
@@ -46,6 +71,19 @@ export const catalogApi = {
 
   deleteServiceType: (id: number | string) =>
     http.delete<ApiSuccess>(ENDPOINTS.catalog.adminServiceTypeById(id)),
+
+  // ── Admin Individual Services ──
+  createService: (payload: CreateServiceItemPayload) =>
+    http.post<ApiSuccess<ServiceItemModel>>(ENDPOINTS.catalog.adminServices, payload),
+
+  updateService: (id: number | string, payload: UpdateServiceItemPayload) =>
+    http.put<ApiSuccess<ServiceItemModel>>(
+      ENDPOINTS.catalog.adminServiceById(id),
+      payload
+    ),
+
+  deleteService: (id: number | string) =>
+    http.delete<ApiSuccess>(ENDPOINTS.catalog.adminServiceById(id)),
 };
 
 export default catalogApi;

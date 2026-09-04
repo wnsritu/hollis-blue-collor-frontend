@@ -384,6 +384,16 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/provider/services-pricing"
+            element={
+              <ProtectedRoute>
+                <ProviderPortal>
+                  <ProviderPricing />
+                </ProviderPortal>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/provider/availability"

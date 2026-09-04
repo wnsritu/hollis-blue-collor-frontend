@@ -129,27 +129,23 @@ export const ProviderProfile: React.FC = () => {
   const startingPrice = Number(provider?.starting_price) || 0;
   const responseTime = "Under 1 hour";
 
-  // Parse services
+  const mainCategoryName = provider?.category?.name || "Services";
+  const subCategoryName =
+    provider?.sub_category?.name ||
+    (Array.isArray(provider?.service_categories) && provider.service_categories[0]) ||
+    "";
+
+  // Parse services offered strictly by provider under their selected subcategory
   let servicesList: Array<{ name: string; price: number }> = [];
-  if (provider?.category?.service_types && Array.isArray(provider.category.service_types)) {
-    servicesList = provider.category.service_types.map((st: any) => ({
-      name: st.name,
-      price: Number(st.provider_services?.amount) || startingPrice,
-    }));
-  } else if (Array.isArray(provider?.services)) {
-    servicesList = provider.services.map((s: any) => ({
-      name: typeof s === "string" ? s : s.name,
+  const rawOffered = provider?.offered_services || provider?.selected_services || provider?.services;
+
+  if (Array.isArray(rawOffered) && rawOffered.length > 0) {
+    servicesList = rawOffered.map((s: any) => ({
+      name: typeof s === "string" ? s : s.name || String(s),
       price: typeof s === "object" ? Number(s.price || s.amount) || startingPrice : startingPrice,
     }));
-  }
-
-  if (servicesList.length === 0) {
-    servicesList = [
-      { name: "Plumbing Repair", price: startingPrice },
-      { name: "Water Heater Installation", price: 850 },
-      { name: "Emergency Service", price: 150 },
-      { name: "Drain Cleaning & Hydro Jetting", price: 210 },
-    ];
+  } else if (subCategoryName) {
+    servicesList = [{ name: `${subCategoryName} General Service`, price: startingPrice || 75 }];
   }
 
   // Parse FAQs
@@ -187,6 +183,11 @@ export const ProviderProfile: React.FC = () => {
                   {featured && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent-soft-foreground">
                       <Sparkles size={12} className="text-accent" /> Featured
+                    </span>
+                  )}
+                  {subCategoryName && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-semibold text-primary">
+                      {mainCategoryName} • {subCategoryName}
                     </span>
                   )}
                 </div>

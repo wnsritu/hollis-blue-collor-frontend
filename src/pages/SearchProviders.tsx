@@ -111,22 +111,17 @@ export const SearchProviders: React.FC = () => {
 
       // Map backend Provider models to GenericProvider card shape
       const mapped: GenericProvider[] = list.map((p: any) => {
-        let servicesList: string[] = [];
-        if (p.category?.service_types && Array.isArray(p.category.service_types)) {
-          servicesList = p.category.service_types.map((st: any) => st.name);
-        }
+        const subCatName =
+          p.sub_category?.name ||
+          (Array.isArray(p.service_categories) && p.service_categories[0]) ||
+          "";
 
-        const raw = p.services || p.service_categories;
-        if (typeof raw === "string") {
-          try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              servicesList = Array.from(new Set([...servicesList, ...parsed]));
-            }
-          } catch {}
-        } else if (Array.isArray(raw)) {
-          const names = raw.map((item) => (typeof item === "string" ? item : item?.name || String(item)));
-          servicesList = Array.from(new Set([...servicesList, ...names]));
+        let servicesList: string[] = [];
+        const rawOffered = p.offered_services || p.selected_services || p.services;
+        if (Array.isArray(rawOffered) && rawOffered.length > 0) {
+          servicesList = rawOffered.map((item: any) => (typeof item === "string" ? item : item?.name || String(item)));
+        } else if (subCatName) {
+          servicesList = [`${subCatName} Service`];
         }
 
         if (servicesList.length === 0) {
@@ -150,13 +145,17 @@ export const SearchProviders: React.FC = () => {
         const ratingVal = Number(p.rating) || 0;
         const reviewsVal = p.review_count ?? p.reviews_count ?? 0;
 
+        const catDisplay = subCatName
+          ? `${p.category?.name || "Service"} • ${subCatName}`
+          : p.category?.name || "General Service";
+
         return {
           id: String(p.id || p.provider_id),
           name: p.business_name || p.user?.full_name || "Service Professional",
           avatarUrl: photo,
           verified: p.verified === "verified" || p.status === "active",
           featured: Boolean(p.is_featured || p.featured),
-          category: p.category?.name || servicesList[0] || "General Service",
+          category: catDisplay,
           rating: ratingVal,
           reviews: Number(reviewsVal),
           tagline: p.service_description || "",

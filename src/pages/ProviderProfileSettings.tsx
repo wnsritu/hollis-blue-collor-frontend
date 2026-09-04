@@ -147,6 +147,8 @@ const ProviderProfileSettings = () => {
   // Business
   const [businessName, setBusinessName] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
+  const [subcategoryId, setSubcategoryId] = useState<string>("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [years, setYears] = useState<string>("");
   const [about, setAbout] = useState("");
 
@@ -186,10 +188,34 @@ const ProviderProfileSettings = () => {
     setSearchParams(tab === "info" ? {} : { tab });
   };
 
-  const categoryName = useMemo(() => {
-    const found = categories.find((c) => String(c.id) === categoryId);
-    return found?.name || "";
+  const selectedCategoryObj = useMemo(() => {
+    return categories.find((c) => String(c.id) === categoryId);
   }, [categories, categoryId]);
+
+  const availableSubcategories = useMemo(() => {
+    return selectedCategoryObj?.service_types || [];
+  }, [selectedCategoryObj]);
+
+  const selectedSubcategoryObj = useMemo(() => {
+    return availableSubcategories.find((s) => String(s.id) === subcategoryId);
+  }, [availableSubcategories, subcategoryId]);
+
+  const availableServiceItems = useMemo(() => {
+    if (selectedSubcategoryObj?.services && selectedSubcategoryObj.services.length > 0) {
+      return selectedSubcategoryObj.services;
+    }
+    const subName = selectedSubcategoryObj?.name || "Service";
+    return [
+      { id: 101, name: `General ${subName} Repair` },
+      { id: 102, name: `${subName} Installation & Setup` },
+      { id: 103, name: `Emergency ${subName} Service` },
+      { id: 104, name: `Routine ${subName} Maintenance` },
+    ];
+  }, [selectedSubcategoryObj]);
+
+  const categoryName = useMemo(() => {
+    return selectedCategoryObj?.name || "";
+  }, [selectedCategoryObj]);
 
   const loadAll = useCallback(async () => {
     try {
@@ -198,7 +224,7 @@ const ProviderProfileSettings = () => {
       const [meRes, userRes, catRes, planMaybe] = await Promise.all([
         providerApi.getMyMarketplaceProfile().catch(() => null),
         userApi.getMyProfile().catch(() => null),
-        catalogApi.listCategories().catch(() => null),
+        catalogApi.getTree().catch(() => null),
         subscriptionApi.getCurrent().catch(() => null),
       ]);
 
@@ -230,6 +256,24 @@ const ProviderProfileSettings = () => {
       setCategoryId(
         provider?.category_id != null ? String(provider.category_id) : ""
       );
+      const subId =
+        provider?.service_type_id != null
+          ? String(provider.service_type_id)
+          : provider?.sub_category?.id != null
+          ? String(provider.sub_category.id)
+          : provider?.service_types?.[0]?.id != null
+          ? String(provider.service_types[0].id)
+          : "";
+      setSubcategoryId(subId);
+
+      let initialServices: string[] = [];
+      if (Array.isArray(provider?.offered_services) && provider.offered_services.length > 0) {
+        initialServices = provider.offered_services.map(String);
+      } else if (Array.isArray(provider?.services) && provider.services.length > 0) {
+        initialServices = provider.services.map((s: any) => (typeof s === "string" ? s : String(s.id || s.name)));
+      }
+      setSelectedServiceIds(initialServices);
+
       setVerified(provider?.verified || "");
       setRating(
         provider?.rating != null && provider.rating !== ""
@@ -301,10 +345,9 @@ const ProviderProfileSettings = () => {
   }, [loadAll]);
 
   const buildProfilePayload = () => {
-    const certList = certifications
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const chosenServiceNames = availableServiceItems
+      .filter((svc) => selectedServiceIds.includes(String(svc.id)) || selectedServiceIds.includes(svc.name))
+      .map((svc) => svc.name);
 
     return {
       business_name: businessName.trim(),
@@ -318,6 +361,10 @@ const ProviderProfileSettings = () => {
       longitude: lng,
       years_of_experience: years === "" ? null : Number(years),
       category_id: categoryId ? Number(categoryId) : null,
+      service_type_id: subcategoryId ? Number(subcategoryId) : null,
+      offered_services: chosenServiceNames,
+      service_categories: selectedSubcategoryObj ? [selectedSubcategoryObj.name] : [],
+      services: chosenServiceNames,
       certifications: certList,
       faqs: faqs.map(({ question, answer }) => ({ question, answer })),
       license_number: licenseNumber.trim() || null,
@@ -577,23 +624,27 @@ const ProviderProfileSettings = () => {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Primary Category</Label>
-                      <Select
-                        value={categoryId || undefined}
-                        onValueChange={setCategoryId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="flex items-center gap-1.5">
+                        Primary Category <span className="text-[10px] text-muted-foreground font-normal">(Fixed at registration)</span>
+                      </Label>
+                      <Input
+                        value={selectedCategoryObj?.name || "Home Services"}
+                        disabled
+                        className="bg-muted/50 text-muted-foreground font-semibold cursor-not-allowed"
+                      />
                     </div>
+
+                    <div className="grid gap-2">
+                      <Label className="flex items-center gap-1.5">
+                        Subcategory <span className="text-[10px] text-muted-foreground font-normal">(Fixed at registration)</span>
+                      </Label>
+                      <Input
+                        value={selectedSubcategoryObj?.name || "Plumbing"}
+                        disabled
+                        className="bg-muted/50 text-muted-foreground font-semibold cursor-not-allowed"
+                      />
+                    </div>
+
                     <div className="grid gap-2">
                       <Label htmlFor="years">Years of Experience</Label>
                       <Input
@@ -606,6 +657,8 @@ const ProviderProfileSettings = () => {
                       />
                     </div>
                   </div>
+
+
                   <div className="grid gap-2">
                     <Label htmlFor="ab">About Your Business</Label>
                     <Textarea

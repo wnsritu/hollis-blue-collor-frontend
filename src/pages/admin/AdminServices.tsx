@@ -108,17 +108,34 @@ export const AdminServicesPage: React.FC = () => {
     const list: ServiceFlatRow[] = [];
     categories.forEach((cat) => {
       (cat.service_types || []).forEach((st) => {
-        list.push({
-          serviceId: st.id,
-          serviceName: st.name,
-          description: st.description || `Service under ${st.name}`,
-          subcategoryId: st.id,
-          subcategoryName: st.name,
-          parentCategoryId: cat.id,
-          parentCategoryName: cat.name,
-          isActive: st.is_active !== false,
-          rawServiceType: st,
-        });
+        const subServices = st.services || [];
+        if (subServices.length > 0) {
+          subServices.forEach((svc) => {
+            list.push({
+              serviceId: svc.id,
+              serviceName: svc.name,
+              description: `Service under ${st.name}`,
+              subcategoryId: st.id,
+              subcategoryName: st.name,
+              parentCategoryId: cat.id,
+              parentCategoryName: cat.name,
+              isActive: st.is_active !== false,
+              rawServiceType: st,
+            });
+          });
+        } else {
+          list.push({
+            serviceId: st.id,
+            serviceName: st.name,
+            description: st.description || `Service under ${cat.name}`,
+            subcategoryId: st.id,
+            subcategoryName: st.name,
+            parentCategoryId: cat.id,
+            parentCategoryName: cat.name,
+            isActive: st.is_active !== false,
+            rawServiceType: st,
+          });
+        }
       });
     });
     return list;
@@ -201,12 +218,22 @@ export const AdminServicesPage: React.FC = () => {
     setSubmitting(true);
     try {
       const targetCatId = Number(modalParentId);
+      const targetSubId = Number(modalSubId);
+
       for (const chip of serviceChips) {
-        await catalogApi.createServiceType({
-          category_id: targetCatId,
-          name: chip.trim(),
-          description: `Service under ${modalParentId}`,
-        });
+        if (targetSubId) {
+          await catalogApi.createService({
+            category_id: targetCatId,
+            service_type_id: targetSubId,
+            name: chip.trim(),
+          });
+        } else {
+          await catalogApi.createServiceType({
+            category_id: targetCatId,
+            name: chip.trim(),
+            description: `Service under ${modalParentId}`,
+          });
+        }
       }
       toast.success(
         `✓ ${serviceChips.length} service${serviceChips.length > 1 ? "s" : ""} added successfully.`
