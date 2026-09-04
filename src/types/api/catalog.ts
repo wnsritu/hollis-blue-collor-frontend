@@ -33,12 +33,14 @@ export type CreateServiceTypePayload = {
   name: string;
   category_id: number;
   is_active?: boolean;
+  description?: string;
 };
 
 export type UpdateServiceTypePayload = {
   name?: string;
   category_id?: number;
   is_active?: boolean;
+  description?: string;
 };
 
 export type ServiceTypeListParams = {
