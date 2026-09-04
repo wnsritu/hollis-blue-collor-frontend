@@ -210,6 +210,10 @@ export const AdminServicesPage: React.FC = () => {
       toast.error("Please select a Parent Category.");
       return;
     }
+    if (!modalSubId) {
+      toast.error("Please select a Subcategory.");
+      return;
+    }
     if (serviceChips.length === 0) {
       toast.error("Please add at least one service name.");
       return;
@@ -221,22 +225,14 @@ export const AdminServicesPage: React.FC = () => {
       const targetSubId = Number(modalSubId);
 
       for (const chip of serviceChips) {
-        if (targetSubId) {
-          await catalogApi.createService({
-            category_id: targetCatId,
-            service_type_id: targetSubId,
-            name: chip.trim(),
-          });
-        } else {
-          await catalogApi.createServiceType({
-            category_id: targetCatId,
-            name: chip.trim(),
-            description: `Service under ${modalParentId}`,
-          });
-        }
+        await catalogApi.createService({
+          category_id: targetCatId,
+          service_type_id: targetSubId,
+          name: chip.trim(),
+        });
       }
       toast.success(
-        `✓ ${serviceChips.length} service${serviceChips.length > 1 ? "s" : ""} added successfully.`
+        `✓ ${serviceChips.length} service${serviceChips.length > 1 ? "s" : ""} added successfully under subcategory.`
       );
       setIsAddOpen(false);
       fetchCatalogData();
@@ -260,9 +256,8 @@ export const AdminServicesPage: React.FC = () => {
     if (!editingService || !editName.trim()) return;
     setSubmitting(true);
     try {
-      await catalogApi.updateServiceType(editingService.serviceId, {
+      await catalogApi.updateService(editingService.serviceId, {
         name: editName.trim(),
-        description: editDesc.trim(),
       });
       toast.success("Service updated successfully.");
       setEditingService(null);
@@ -278,7 +273,7 @@ export const AdminServicesPage: React.FC = () => {
   const handleDeleteService = async (id: number) => {
     if (!window.confirm("Are you sure you want to remove this service?")) return;
     try {
-      await catalogApi.deleteServiceType(id);
+      await catalogApi.deleteService(id);
       toast.success("Service removed successfully.");
       fetchCatalogData();
     } catch (err) {

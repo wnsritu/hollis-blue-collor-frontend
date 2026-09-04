@@ -8,6 +8,7 @@ import {
   Layers,
   Wrench,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,20 +45,19 @@ export const AdminCategoriesPage: React.FC = () => {
   const [selectedParentId, setSelectedParentId] = useState<number | string>("all");
   const [loading, setLoading] = useState(true);
 
-  // Subcategory (Category) Modal State
+  // Subcategory Modal State
   const [isAddSubOpen, setIsAddSubOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [catName, setCatName] = useState("");
-  const [catDesc, setCatDesc] = useState("");
-  const [submittingCat, setSubmittingCat] = useState(false);
+  const [editingSub, setEditingSub] = useState<ServiceType | null>(null);
+  const [subName, setSubName] = useState("");
+  const [subDesc, setSubDesc] = useState("");
+  const [submittingSub, setSubmittingSub] = useState(false);
 
-  // Service Type Modal State
+  // Service Modal State (Under a Subcategory)
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
-  const [targetCatId, setTargetCatId] = useState<number | null>(null);
-  const [editingServiceType, setEditingServiceType] = useState<ServiceType | null>(null);
-  const [stName, setStName] = useState("");
-  const [stDesc, setStDesc] = useState("");
-  const [submittingSt, setSubmittingSt] = useState(false);
+  const [targetSubcategory, setTargetSubcategory] = useState<ServiceType | null>(null);
+  const [editingServiceItem, setEditingServiceItem] = useState<{ id: number; name: string } | null>(null);
+  const [svcName, setSvcName] = useState("");
+  const [submittingSvc, setSubmittingSvc] = useState(false);
 
   // Fetch Category Tree
   const fetchCatalogData = async () => {
@@ -67,7 +67,7 @@ export const AdminCategoriesPage: React.FC = () => {
       const data = (res as any)?.data || res || [];
       const list = Array.isArray(data) ? data : [];
       setCategories(list);
-      if (list.length > 0 && selectedParentId === "all") {
+      if (list.length > 0 && (selectedParentId === "all" || !list.some((c) => String(c.id) === String(selectedParentId)))) {
         setSelectedParentId(list[0].id);
       }
     } catch (err) {
@@ -82,46 +82,48 @@ export const AdminCategoriesPage: React.FC = () => {
     fetchCatalogData();
   }, []);
 
-  // Active Category
-  const activeCategory = categories.find(
-    (c) => String(c.id) === String(selectedParentId)
-  ) || categories[0];
+  // Active Parent Category (FIXED: Home Services, Professional Services, Personal Services)
+  const activeCategory =
+    categories.find((c) => String(c.id) === String(selectedParentId)) || categories[0];
 
-  // Category Handlers
+  // Subcategory Handlers (Uses ServiceTypes API)
   const handleOpenAddSubModal = () => {
-    setEditingCategory(null);
-    setCatName("");
-    setCatDesc("");
+    setEditingSub(null);
+    setSubName("");
+    setSubDesc("");
     setIsAddSubOpen(true);
   };
 
-  const handleOpenEditSubModal = (cat: Category) => {
-    setEditingCategory(cat);
-    setCatName(cat.name);
-    setCatDesc(cat.description || "");
+  const handleOpenEditSubModal = (sub: ServiceType) => {
+    setEditingSub(sub);
+    setSubName(sub.name);
+    setSubDesc(sub.description || "");
     setIsAddSubOpen(true);
   };
 
-  const handleSaveCategory = async (e: React.FormEvent) => {
+  const handleSaveSubcategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!catName.trim()) {
+    if (!subName.trim() || !activeCategory) {
       toast.error("Subcategory name is required.");
       return;
     }
-    setSubmittingCat(true);
+    setSubmittingSub(true);
     try {
-      if (editingCategory) {
-        await catalogApi.updateCategory(editingCategory.id, {
-          name: catName.trim(),
-          description: catDesc.trim(),
+      if (editingSub) {
+        // PUT /api/v1/admin/service-types/:id
+        await catalogApi.updateServiceType(editingSub.id, {
+          name: subName.trim(),
+          description: subDesc.trim(),
         });
         toast.success("Subcategory updated successfully.");
       } else {
-        await catalogApi.createCategory({
-          name: catName.trim(),
-          description: catDesc.trim(),
+        // POST /api/v1/admin/service-types (Creates subcategory under active parent category)
+        await catalogApi.createServiceType({
+          category_id: Number(activeCategory.id),
+          name: subName.trim(),
+          description: subDesc.trim(),
         });
-        toast.success("Subcategory created successfully.");
+        toast.success("Subcategory created successfully under " + activeCategory.name);
       }
       setIsAddSubOpen(false);
       fetchCatalogData();
@@ -129,14 +131,14 @@ export const AdminCategoriesPage: React.FC = () => {
       console.error("Failed to save subcategory", err);
       toast.error("Failed to save subcategory.");
     } finally {
-      setSubmittingCat(false);
+      setSubmittingSub(false);
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this subcategory?")) return;
+  const handleDeleteSubcategory = async (id: number) => {
+    if (!window.confirm("Are you sure you want to remove this subcategory and its services?")) return;
     try {
-      await catalogApi.deleteCategory(id);
+      await catalogApi.deleteServiceType(id);
       toast.success("Subcategory removed successfully.");
       fetchCatalogData();
     } catch (err) {
@@ -145,44 +147,35 @@ export const AdminCategoriesPage: React.FC = () => {
     }
   };
 
-  // Service Type Handlers
-  const handleOpenAddServiceModal = (catId: number) => {
-    setTargetCatId(catId);
-    setEditingServiceType(null);
-    setStName("");
-    setStDesc("");
+  // Service Handlers (Uses Services API under a Subcategory)
+  const handleOpenAddServiceModal = (sub: ServiceType) => {
+    setTargetSubcategory(sub);
+    setEditingServiceItem(null);
+    setSvcName("");
     setIsAddServiceOpen(true);
   };
 
-  const handleOpenEditServiceType = (st: ServiceType) => {
-    setTargetCatId(st.category_id);
-    setEditingServiceType(st);
-    setStName(st.name);
-    setStDesc(st.description || "");
-    setIsAddServiceOpen(true);
-  };
-
-  const handleSaveServiceType = async (e: React.FormEvent) => {
+  const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stName.trim() || !targetCatId) {
+    if (!svcName.trim() || !targetSubcategory || !activeCategory) {
       toast.error("Service name is required.");
       return;
     }
-    setSubmittingSt(true);
+    setSubmittingSvc(true);
     try {
-      if (editingServiceType) {
-        await catalogApi.updateServiceType(editingServiceType.id, {
-          name: stName.trim(),
-          description: stDesc.trim(),
+      if (editingServiceItem) {
+        await catalogApi.updateService(editingServiceItem.id, {
+          name: svcName.trim(),
         });
         toast.success("Service updated successfully.");
       } else {
-        await catalogApi.createServiceType({
-          category_id: targetCatId,
-          name: stName.trim(),
-          description: stDesc.trim(),
+        // POST /api/v1/admin/services (Creates service under selected subcategory)
+        await catalogApi.createService({
+          category_id: Number(activeCategory.id),
+          service_type_id: Number(targetSubcategory.id),
+          name: svcName.trim(),
         });
-        toast.success("Service added successfully.");
+        toast.success(`Service added under ${targetSubcategory.name}.`);
       }
       setIsAddServiceOpen(false);
       fetchCatalogData();
@@ -190,14 +183,14 @@ export const AdminCategoriesPage: React.FC = () => {
       console.error("Failed to save service", err);
       toast.error("Failed to save service.");
     } finally {
-      setSubmittingSt(false);
+      setSubmittingSvc(false);
     }
   };
 
-  const handleDeleteServiceType = async (id: number) => {
+  const handleDeleteService = async (id: number) => {
     if (!window.confirm("Are you sure you want to remove this service?")) return;
     try {
-      await catalogApi.deleteServiceType(id);
+      await catalogApi.deleteService(id);
       toast.success("Service removed.");
       fetchCatalogData();
     } catch (err) {
@@ -210,44 +203,53 @@ export const AdminCategoriesPage: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="Subcategories"
-        subtitle="Manage service subcategories under your platform categories."
+        title="Category Hierarchy"
+        subtitle="Manage subcategories and services under fixed master categories."
         action={
-          <Button onClick={handleOpenAddSubModal} className="gap-2">
-            <Plus size={16} /> Add Subcategory
-          </Button>
+          activeCategory ? (
+            <Button onClick={handleOpenAddSubModal} className="gap-2 font-semibold">
+              <Plus size={16} /> Add Subcategory to {activeCategory.name}
+            </Button>
+          ) : undefined
         }
       />
 
-      {/* Parent Category Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
-        {categories.map((cat) => {
-          const active = String(selectedParentId) === String(cat.id);
-          const count = cat.service_types?.length || 0;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setSelectedParentId(cat.id)}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-                active
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
-              }`}
-            >
-              <span>{cat.name}</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+      {/* Fixed Parent Category Tabs (Home Services, Professional Services, Personal Services) */}
+      <div className="mb-6 space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            Fixed Master Categories <Lock size={12} className="text-muted-foreground" />
+          </Label>
+        </div>
+        <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+          {categories.map((cat) => {
+            const active = String(selectedParentId) === String(cat.id);
+            const count = cat.service_types?.length || 0;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedParentId(cat.id)}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
                   active
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
                 }`}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+                <span>{cat.name}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                    active
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {count} subcategories
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Subcategories Data Table */}
@@ -259,8 +261,14 @@ export const AdminCategoriesPage: React.FC = () => {
       ) : !activeCategory ? (
         <EmptyState
           icon={Layers}
-          title="No subcategories found"
-          description="No subcategories have been added to this platform category yet."
+          title="No master categories loaded"
+          description="Catalog categories could not be fetched."
+        />
+      ) : (activeCategory?.service_types || []).length === 0 ? (
+        <EmptyState
+          icon={Layers}
+          title={`No subcategories under ${activeCategory.name}`}
+          description={`Add subcategories (e.g. Plumbing, Electrical) under ${activeCategory.name}.`}
           action={
             <Button onClick={handleOpenAddSubModal} className="gap-1.5">
               <Plus size={14} /> Add Subcategory
@@ -274,41 +282,59 @@ export const AdminCategoriesPage: React.FC = () => {
               <TableRow className="bg-muted/50 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 <TableHead>Subcategory</TableHead>
                 <TableHead>Parent Category</TableHead>
-                <TableHead className="text-center">Services</TableHead>
+                <TableHead>Services Listed</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(activeCategory?.service_types || []).map((sub) => {
-                const slug = sub.name.toLowerCase().replace(/\s+/g, "-");
+                const servicesList = sub.services || [];
                 return (
                   <TableRow key={sub.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-semibold text-foreground">
                       <div>
-                        <p className="font-medium text-sm">{sub.name}</p>
-                        <p className="text-xs text-muted-foreground">/{slug}</p>
+                        <p className="font-bold text-sm text-foreground">{sub.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
+                          {sub.description || `Subcategory under ${activeCategory.name}`}
+                        </p>
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-sm text-muted-foreground font-medium">
-                      {activeCategory.name}
-                    </TableCell>
-
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-foreground">
-                        <Wrench size={12} className="text-primary" />
-                        4 services
+                    <TableCell className="text-sm text-muted-foreground font-semibold">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs">
+                        {activeCategory.name}
                       </span>
                     </TableCell>
 
                     <TableCell>
-                      <StatusPill status={sub.is_active !== false ? "Active" : "Inactive"} />
+                      <div className="flex flex-wrap items-center gap-1.5 max-w-md">
+                        {servicesList.length === 0 ? (
+                          <span className="text-xs text-muted-foreground italic">No services added yet</span>
+                        ) : (
+                          servicesList.map((svc) => (
+                            <span
+                              key={svc.id}
+                              className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground border border-border"
+                            >
+                              <Wrench size={10} className="text-primary" />
+                              {svc.name}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteService(svc.id)}
+                                className="ml-1 text-muted-foreground hover:text-destructive"
+                                title="Remove service"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
                     </TableCell>
 
-                    <TableCell className="text-xs text-muted-foreground">
-                      Aug 27, 2026
+                    <TableCell>
+                      <StatusPill status={sub.is_active !== false ? "Active" : "Inactive"} />
                     </TableCell>
 
                     <TableCell className="text-right">
@@ -317,7 +343,7 @@ export const AdminCategoriesPage: React.FC = () => {
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1.5 text-xs font-semibold"
-                          onClick={() => handleOpenAddServiceModal(activeCategory.id)}
+                          onClick={() => handleOpenAddServiceModal(sub)}
                         >
                           <Plus size={13} /> Add Service
                         </Button>
@@ -330,23 +356,23 @@ export const AdminCategoriesPage: React.FC = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
-                              onClick={() => handleOpenEditServiceType(sub)}
+                              onClick={() => handleOpenEditSubModal(sub)}
                               className="gap-2 cursor-pointer"
                             >
-                              <Edit2 size={14} /> Edit
+                              <Edit2 size={14} /> Edit Subcategory
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleOpenAddServiceModal(activeCategory.id)}
+                              onClick={() => handleOpenAddServiceModal(sub)}
                               className="gap-2 cursor-pointer"
                             >
                               <Wrench size={14} /> Manage Services
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => handleDeleteServiceType(sub.id)}
+                              onClick={() => handleDeleteSubcategory(sub.id)}
                               className="gap-2 text-destructive focus:text-destructive cursor-pointer"
                             >
-                              <Trash2 size={14} /> Remove
+                              <Trash2 size={14} /> Remove Subcategory
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -365,29 +391,34 @@ export const AdminCategoriesPage: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? "Edit Subcategory" : "Add Subcategory"}
+              {editingSub ? "Edit Subcategory" : `Add Subcategory under ${activeCategory?.name}`}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSaveCategory} className="space-y-4 pt-2">
+          <form onSubmit={handleSaveSubcategory} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="catName">Subcategory Name *</Label>
+              <Label className="text-xs font-bold text-muted-foreground">Parent Category</Label>
+              <Input value={activeCategory?.name || ""} disabled className="bg-muted/50 font-semibold" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="subName">Subcategory Name *</Label>
               <Input
-                id="catName"
+                id="subName"
                 placeholder="e.g. Plumbing"
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
+                value={subName}
+                onChange={(e) => setSubName(e.target.value)}
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="catDesc">Description</Label>
+              <Label htmlFor="subDesc">Description</Label>
               <Textarea
-                id="catDesc"
+                id="subDesc"
                 placeholder="Brief description of this subcategory..."
-                value={catDesc}
-                onChange={(e) => setCatDesc(e.target.value)}
+                value={subDesc}
+                onChange={(e) => setSubDesc(e.target.value)}
                 rows={3}
               />
             </div>
@@ -400,44 +431,44 @@ export const AdminCategoriesPage: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submittingCat} className="gap-2">
-                {submittingCat && <Loader2 size={14} className="animate-spin" />}
-                {editingCategory ? "Update Subcategory" : "Save Subcategory"}
+              <Button type="submit" disabled={submittingSub} className="gap-2 font-semibold">
+                {submittingSub && <Loader2 size={14} className="animate-spin" />}
+                {editingSub ? "Update Subcategory" : "Save Subcategory"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Add / Edit Service Modal */}
+      {/* Add Service Modal under selected Subcategory */}
       <Dialog open={isAddServiceOpen} onOpenChange={setIsAddServiceOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingServiceType ? "Edit Service" : "Add Service"}
+              {editingServiceItem
+                ? "Edit Service"
+                : `Add Service under ${targetSubcategory?.name}`}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSaveServiceType} className="space-y-4 pt-2">
+          <form onSubmit={handleSaveService} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="stName">Service Name *</Label>
+              <Label className="text-xs font-bold text-muted-foreground">Parent Category &amp; Subcategory</Label>
               <Input
-                id="stName"
-                placeholder="e.g. Drain Cleaning"
-                value={stName}
-                onChange={(e) => setStName(e.target.value)}
-                required
+                value={`${activeCategory?.name} → ${targetSubcategory?.name}`}
+                disabled
+                className="bg-muted/50 font-semibold text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="stDesc">Description</Label>
-              <Textarea
-                id="stDesc"
-                placeholder="Brief description of this service item..."
-                value={stDesc}
-                onChange={(e) => setStDesc(e.target.value)}
-                rows={3}
+              <Label htmlFor="svcName">Service Name *</Label>
+              <Input
+                id="svcName"
+                placeholder="e.g. Tap Repair, Basin Installation, Pipe Repair"
+                value={svcName}
+                onChange={(e) => setSvcName(e.target.value)}
+                required
               />
             </div>
 
@@ -449,9 +480,9 @@ export const AdminCategoriesPage: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submittingSt} className="gap-2">
-                {submittingSt && <Loader2 size={14} className="animate-spin" />}
-                {editingServiceType ? "Update Service" : "Save Service"}
+              <Button type="submit" disabled={submittingSvc} className="gap-2 font-semibold">
+                {submittingSvc && <Loader2 size={14} className="animate-spin" />}
+                {editingServiceItem ? "Update Service" : "Save Service"}
               </Button>
             </div>
           </form>
