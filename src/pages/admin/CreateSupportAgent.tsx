@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
+import { sanitizePhoneInput } from "@/utils/format";
+
 const CreateSupportAgent = () => {
   const navigate = useNavigate();
 
@@ -14,7 +16,9 @@ const CreateSupportAgent = () => {
   });
 
   const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const val = name === "phone" ? sanitizePhoneInput(value) : value;
+    setForm({ ...form, [name]: val });
   };
 
   const handleSubmit = () => {

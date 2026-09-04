@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
-import Header from "@/components/Header";
+import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,17 @@ import {
 } from "@/pages/SignUp";
 import { getErrorMessage } from "@/lib/api/errors";
 import toast from "react-hot-toast";
+
+const OnboardingHeader = () => (
+  <header className="border-b border-border/80 bg-background/95 backdrop-blur-md">
+    <div className="container-page flex h-16 items-center justify-between">
+      <Logo />
+      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+        Provider Onboarding
+      </span>
+    </div>
+  </header>
+);
 
 const steps = ["Services", "Coverage", "Credentials"] as const;
 
@@ -355,7 +366,7 @@ export default function ProviderOnboarding() {
 
     return (
       <>
-        <Header />
+        <OnboardingHeader />
         <main className="mx-auto max-w-lg px-4 py-20 text-center">
           <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-success-soft text-success shadow-card">
             <CheckCircle2 size={34} />
@@ -414,8 +425,8 @@ export default function ProviderOnboarding() {
 
   return (
     <>
-      <Header />
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+      <OnboardingHeader />
+      <main className="mx-auto max-w-3xl px-4 pb-10 sm:pb-14">
         <p className="text-sm font-semibold text-primary">Provider Onboarding</p>
         <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">
           Grow your business
@@ -433,22 +444,20 @@ export default function ProviderOnboarding() {
             return (
               <div
                 key={label}
-                className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition-all ${
-                  isCurrent
-                    ? "border-primary bg-primary-soft text-primary shadow-xs"
-                    : isDone
-                      ? "border-success/30 bg-success-soft/30 text-success"
-                      : "border-border bg-card text-muted-foreground"
-                }`}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition-all ${isCurrent
+                  ? "border-primary bg-primary-soft text-primary shadow-xs"
+                  : isDone
+                    ? "border-success/30 bg-success-soft/30 text-success"
+                    : "border-border bg-card text-muted-foreground"
+                  }`}
               >
                 <span
-                  className={`grid size-5 place-items-center rounded-full text-[10px] font-bold ${
-                    isCurrent
-                      ? "bg-primary text-primary-foreground"
-                      : isDone
-                        ? "bg-success text-white"
-                        : "bg-muted text-muted-foreground"
-                  }`}
+                  className={`grid size-5 place-items-center rounded-full text-[10px] font-bold ${isCurrent
+                    ? "bg-primary text-primary-foreground"
+                    : isDone
+                      ? "bg-success text-white"
+                      : "bg-muted text-muted-foreground"
+                    }`}
                 >
                   {isDone ? <Check size={12} /> : idx + 1}
                 </span>
@@ -481,19 +490,17 @@ export default function ProviderOnboarding() {
                         key={cat.id}
                         type="button"
                         onClick={() => handleSelectCategory(Number(cat.id))}
-                        className={`rounded-2xl border p-4 text-left transition-all ${
-                          active
-                            ? "border-accent bg-accent-soft shadow-sm ring-2 ring-accent/20"
-                            : "border-border bg-card hover:border-accent/40"
-                        }`}
+                        className={`rounded-2xl border p-4 text-left transition-all ${active
+                          ? "border-accent bg-accent-soft shadow-sm ring-2 ring-accent/20"
+                          : "border-border bg-card hover:border-accent/40"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span
-                            className={`grid size-10 place-items-center rounded-xl ${
-                              active
-                                ? "bg-accent text-accent-foreground"
-                                : "bg-muted text-muted-foreground"
-                            }`}
+                            className={`grid size-10 place-items-center rounded-xl ${active
+                              ? "bg-accent text-accent-foreground"
+                              : "bg-muted text-muted-foreground"
+                              }`}
                           >
                             <Icon size={20} />
                           </span>
@@ -549,18 +556,16 @@ export default function ProviderOnboarding() {
                             setSelectedServiceTypeId(Number(sub.id));
                             setError("");
                           }}
-                          className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
-                            checked
-                              ? "border-accent bg-accent-soft font-semibold shadow-xs ring-2 ring-accent/20"
-                              : "border-border bg-card hover:border-accent/40"
-                          }`}
+                          className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${checked
+                            ? "border-accent bg-accent-soft font-semibold shadow-xs ring-2 ring-accent/20"
+                            : "border-border bg-card hover:border-accent/40"
+                            }`}
                         >
                           <div
-                            className={`grid size-5 place-items-center rounded-full border text-[10px] transition-colors ${
-                              checked
-                                ? "border-accent bg-accent font-bold text-accent-foreground"
-                                : "border-muted-foreground/40 bg-background"
-                            }`}
+                            className={`grid size-5 place-items-center rounded-full border text-[10px] transition-colors ${checked
+                              ? "border-accent bg-accent font-bold text-accent-foreground"
+                              : "border-muted-foreground/40 bg-background"
+                              }`}
                           >
                             {checked && <Check size={12} />}
                           </div>
@@ -687,9 +692,8 @@ export default function ProviderOnboarding() {
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
-                      fieldErrors.licenseDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
-                    }`}>
+                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${fieldErrors.licenseDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
+                      }`}>
                       <input
                         type="file"
                         accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
@@ -716,9 +720,8 @@ export default function ProviderOnboarding() {
                   </div>
 
                   <div>
-                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
-                      fieldErrors.insuranceDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
-                    }`}>
+                    <label className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${fieldErrors.insuranceDocument ? "border-destructive bg-destructive/5" : "border-border bg-card hover:border-primary/50"
+                      }`}>
                       <input
                         type="file"
                         accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"

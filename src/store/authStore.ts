@@ -87,7 +87,14 @@ export const authStore = {
 
   setUser: (user: AuthUser | null) => {
     if (user) tokenStorage.setSessionMeta(user);
-    setState({ user, isAuthenticated: Boolean(state.accessToken) });
+    setState({ user, isAuthenticated: Boolean(state.accessToken || user) });
+  },
+
+  updateUser: (partial: Partial<AuthUser>) => {
+    if (!state.user) return;
+    const updated = { ...state.user, ...partial };
+    tokenStorage.setSessionMeta(updated);
+    setState({ user: updated });
   },
 
   clearSession: () => {

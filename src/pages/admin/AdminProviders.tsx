@@ -8,6 +8,7 @@ import {
   PauseCircle,
   PlayCircle,
   Search,
+  User,
   Users,
   XCircle,
 } from "lucide-react";
@@ -281,8 +282,14 @@ export function AdminProviders() {
             ) : filtered.length > 0 ? (
               filtered.map((p) => {
                 const pId = p.id;
-                const busName = String(p.business_name || p.name || "Provider");
-                const ownerName = String(`${p.user?.first_name || ""} ${p.user?.last_name || ""}`.trim() || p.fullName || busName);
+                const busName = String(p.business_name || p.name || "Company / Business Name");
+                const ownerName = String(
+                  p.user?.full_name ||
+                  [p.user?.first_name, p.user?.last_name].filter(Boolean).join(" ") ||
+                  p.fullName ||
+                  p.ownerName ||
+                  "N/A"
+                );
                 const category = getCategoryName(p.category || p.subcategory);
                 const location = [p.city, p.state].filter(Boolean).join(", ") || "Austin, TX";
                 const fullLocation = [p.service_location_address, p.city, p.state, p.zip_code || p.zip, p.country].filter(Boolean).join(", ") || location;
@@ -303,7 +310,9 @@ export function AdminProviders() {
                       <Link to={`/admin/providers/${pId}`} className="font-bold hover:text-primary block text-foreground">
                         {busName}
                       </Link>
-                      <span className="text-xs text-muted-foreground">{ownerName}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <User size={11} className="shrink-0 text-muted-foreground" /> {ownerName}
+                      </span>
                     </TableCell>
                     <TableCell>{category}</TableCell>
                     <TableCell className="max-w-[130px]">

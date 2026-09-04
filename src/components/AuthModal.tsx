@@ -19,6 +19,7 @@ import {
   verifyPhoneOtp,
 } from "@/services/auth.service";
 import { ROLES } from "@/constants/roles";
+import { sanitizePhoneInput } from "@/utils/format";
 import { GoogleLogin } from "@react-oauth/google";
 import OtpLogin from "./auth/OtpLogin";
 import Spinner from "./ui/spinner";
@@ -429,9 +430,9 @@ const handleVerifyOtp = async (otp: string) => {
       updatedValue = value.replace(/\s/g, "");
     }
 
-    // ✅ Phone → only digits
+    // ✅ Phone → only + and digits
     else if (field === "phone") {
-      updatedValue = value; // ✅ full number with country code
+      updatedValue = sanitizePhoneInput(value);
     }
 
     // ✅ Password → no leading space
@@ -465,9 +466,9 @@ const handleVerifyOtp = async (otp: string) => {
       updatedValue = value.replace(/\s/g, "");
     }
 
-    // ✅ Phone → only digits
+    // ✅ Phone → only + and digits
     else if (field === "phone") {
-      updatedValue = value; // ✅ full number with country code
+      updatedValue = sanitizePhoneInput(value);
     }
 
     // ✅ Password → no leading space

@@ -52,16 +52,19 @@ export function resolvePostLoginPath(user: NavUser | null | undefined): string {
     return `/verify-email?email=${encodeURIComponent(email)}&role=provider`;
   }
 
-  if (
+  const provider = (user as any)?.provider;
+  const verifiedStatus = String(provider?.verified || "").toLowerCase().trim();
+  const isVerified =
+    verifiedStatus === "verified" ||
+    verifiedStatus === "approved" ||
     status === PROVIDER_ONBOARDING_STATUS.PROFILE_COMPLETED ||
-    profileDone
-  ) {
-    return "/provider/dashboard";
-  }
+    status === PROVIDER_ONBOARDING_STATUS.ADMIN_APPROVED_PROFILE_INCOMPLETE;
 
-  if (status === PROVIDER_ONBOARDING_STATUS.ADMIN_APPROVED_PROFILE_INCOMPLETE) {
-    // Complete remaining profile fields — NOT the public signup wizard
-    return "/provider/profile";
+  if (isVerified) {
+    if (status === PROVIDER_ONBOARDING_STATUS.ADMIN_APPROVED_PROFILE_INCOMPLETE) {
+      return "/provider/profile";
+    }
+    return "/provider/dashboard";
   }
 
   // Waiting for admin approval → pending portal (submitted screen)

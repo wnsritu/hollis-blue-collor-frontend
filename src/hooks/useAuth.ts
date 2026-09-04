@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { authStore } from "@/store/authStore";
 import { authApi } from "@/api/modules/auth.api";
 import { setApiAuthHandlers } from "@/lib/api/interceptors";
+import { userApi } from "@/api/modules/user.api";
 import type { AuthResponse, AuthUser, LoginPayload, RegisterPayload } from "@/types/api/auth";
 import { isAdmin, isCustomer, isProvider, isSupport } from "@/constants/roles";
 
@@ -12,6 +13,17 @@ function pickTokens(res: AuthResponse) {
   const refreshToken = res.refreshToken || nested?.refreshToken || null;
   const user = (res.user || (nested && "id" in nested ? nested : null)) as AuthUser | null;
   return { accessToken, refreshToken, user };
+}
+
+function unwrapUser(res: unknown): AuthUser | null {
+  if (!res) return null;
+  if (typeof res === "object") {
+    const obj = res as any;
+    if (obj.data && typeof obj.data === "object" && obj.data.id) return obj.data as AuthUser;
+    if (obj.user && typeof obj.user === "object" && obj.user.id) return obj.user as AuthUser;
+    if (obj.id) return obj as AuthUser;
+  }
+  return null;
 }
 
 /**
@@ -29,11 +41,27 @@ export function useAuthSession() {
     authStore.hydrateFromStorage();
   }, []);
 
+  const updateUser = useCallback((partial: Partial<AuthUser>) => {
+    authStore.updateUser(partial);
+  }, []);
+
   const fetchMe = useCallback(async () => {
-    const res = await authApi.me();
-    const user = ((res as { data?: AuthUser }).data ?? res) as AuthUser;
-    authStore.setUser(user);
-    return user;
+    let fetchedUser: AuthUser | null = null;
+    try {
+      const res = await userApi.getMyProfile();
+      fetchedUser = unwrapUser(res);
+    } catch {
+      try {
+        const res = await authApi.me();
+        fetchedUser = unwrapUser(res);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (fetchedUser) {
+      authStore.setUser(fetchedUser);
+    }
+    return fetchedUser;
   }, []);
 
   const applyAuthResponse = useCallback((res: AuthResponse) => {
@@ -81,6 +109,7 @@ export function useAuthSession() {
     isSupport: isSupport(roleId),
     hydrate,
     fetchMe,
+    updateUser,
     login,
     register,
     logout,

@@ -116,7 +116,9 @@ const AdminProfile = () => {
     if (field === "email") {
       updated = value.replace(/\s/g, "");
     } else if (field === "phone") {
-      updated = value.replace(/\D/g, "").slice(0, 10);
+      const hasPlus = value.startsWith("+");
+      const digits = value.replace(/\D/g, "").slice(0, 15);
+      updated = hasPlus ? `+${digits}` : digits;
     } else if (field === "name") {
       updated = value.replace(/^\s+/, "");
     }
