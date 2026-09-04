@@ -10,6 +10,7 @@ import { clearAllBookingState } from "@/utils/bookingState";
 import { cn } from "@/lib/utils";
 import { useAuthSession } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const customerNav = [
   { labelKey: "dashboard", path: "/dashboard" },
@@ -114,7 +115,13 @@ const Header = () => {
         ? "/support-dashboard"
         : "/admin";
 
-  const displayUser = profile || user;
+  const displayUser = user || profile;
+  const rawPhoto =
+    (user as any)?.profile_image ||
+    (user as any)?.profile_photo ||
+    profile?.profile_image ||
+    profile?.profile_photo;
+  const avatarUrl = resolveMediaUrl(rawPhoto);
 
   return (
     <header
@@ -174,9 +181,9 @@ const Header = () => {
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground text-xs font-bold ring-2 ring-border transition-transform hover:scale-105"
               >
-                {displayUser?.profile_image ? (
+                {avatarUrl ? (
                   <img
-                    src={`${import.meta.env.VITE_API_BASE_URL}${displayUser.profile_image}`}
+                    src={avatarUrl}
                     alt="profile"
                     className="h-full w-full object-cover"
                   />

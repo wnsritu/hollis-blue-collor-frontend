@@ -55,7 +55,7 @@ const CustomerProfile = () => {
   const activeTab: ProfileTab =
     tabParam === "security" ? "security" : "profile";
 
-  const { user, fetchMe } = useAuthSession();
+  const { user, fetchMe, updateUser } = useAuthSession();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,7 +160,15 @@ const CustomerProfile = () => {
       setAvatarPreview(URL.createObjectURL(file));
       const formData = new FormData();
       formData.append("profile_photo", file);
-      await userApi.updateProfilePhoto(formData);
+      const res: any = await userApi.updateProfilePhoto(formData);
+      const newPhotoPath =
+        res?.profile_photo ||
+        res?.profile_image ||
+        res?.data?.profile_photo ||
+        res?.data?.profile_image;
+      if (newPhotoPath) {
+        updateUser({ profile_image: newPhotoPath, profile_photo: newPhotoPath });
+      }
       toast.success("Profile photo uploaded.");
       try {
         await fetchMe();
@@ -176,6 +184,7 @@ const CustomerProfile = () => {
     try {
       setAvatarPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      updateUser({ profile_photo: null, profile_image: null });
       await userApi.updateCustomerProfile({
         full_name: fullName.trim() || undefined,
         profile_photo: null,

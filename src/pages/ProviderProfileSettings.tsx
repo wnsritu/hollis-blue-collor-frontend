@@ -51,6 +51,7 @@ import { catalogApi } from "@/api/modules/catalog.api";
 import { subscriptionApi } from "@/api/modules/subscription.api";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
+import { useAuthSession } from "@/hooks/useAuth";
 import type { Category } from "@/types/api/catalog";
 import type { BankAccountType } from "@/types/api/provider";
 
@@ -131,6 +132,7 @@ const ProviderProfileSettings = () => {
   const activeTab: ProfileTab =
     tabParam === "bank" || tabParam === "faqs" ? tabParam : "info";
 
+  const { fetchMe, updateUser } = useAuthSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [providerId, setProviderId] = useState<number | null>(null);
@@ -301,10 +303,11 @@ const ProviderProfileSettings = () => {
   }, [loadAll]);
 
   const buildProfilePayload = () => {
-    const certList = certifications
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const certList = Array.isArray(certifications)
+      ? certifications
+      : typeof certifications === "string"
+      ? certifications.split(",").map((c) => c.trim()).filter(Boolean)
+      : [];
 
     return {
       business_name: businessName.trim(),
@@ -411,7 +414,7 @@ const ProviderProfileSettings = () => {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -423,8 +426,21 @@ const ProviderProfileSettings = () => {
       setLogoPreview(URL.createObjectURL(file));
       const formData = new FormData();
       formData.append("profile_photo", file);
-      await userApi.updateProfilePhoto(formData);
+      const res: any = await userApi.updateProfilePhoto(formData);
+      const photoPath =
+        res?.profile_photo ||
+        res?.profile_image ||
+        res?.data?.profile_photo ||
+        res?.data?.profile_image;
+      if (photoPath) {
+        updateUser({ profile_image: photoPath, profile_photo: photoPath });
+      }
       toast.success("Logo uploaded.");
+      try {
+        await fetchMe();
+      } catch {
+        /* ignore */
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, "Logo upload failed."));
     }
@@ -863,12 +879,14 @@ const ProviderProfileSettings = () => {
                     <Label htmlFor="account">Account Number</Label>
                     <Input
                       id="account"
-                      placeholder="Enter account number"
+                      placeholder="Enter account number (digits only)"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={bank.bank_account_number}
                       onChange={(e) =>
                         setBank((b) => ({
                           ...b,
-                          bank_account_number: e.target.value,
+                          bank_account_number: e.target.value.replace(/\D/g, ""),
                         }))
                       }
                     />
@@ -955,13 +973,13 @@ const ProviderProfileSettings = () => {
                   htmlFor="logo_upload"
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  <Upload size={14} /> Upload New Logo
+                  <Upload size={14} /> {logoPreview ? "Change Logo" : "Upload New Logo"}
                 </Label>
                 <input
                   id="logo_upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleLogoUpload}
+                  onChange={handleLogoChange}
                   className="hidden"
                 />
                 <p className="mt-2 text-[11px] text-muted-foreground">
