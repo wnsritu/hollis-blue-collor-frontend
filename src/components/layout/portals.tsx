@@ -581,6 +581,7 @@ export function ProviderPortal({
 
   useEffect(() => {
     fetchProfile();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     user?.full_name,

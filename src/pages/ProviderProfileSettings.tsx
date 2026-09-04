@@ -346,7 +346,6 @@ const ProviderProfileSettings = () => {
   useEffect(() => {
   loadAll();
 }, [loadAll]);
-
 const buildProfilePayload = () => {
   const chosenServiceNames = availableServiceItems
     .filter(
@@ -364,6 +363,7 @@ const buildProfilePayload = () => {
         .map((c) => c.trim())
         .filter(Boolean)
     : [];
+
     return {
       business_name: businessName.trim(),
       service_description: about.trim(),
