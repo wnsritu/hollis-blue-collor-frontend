@@ -4,6 +4,7 @@ export type Category = {
   id: number;
   name: string;
   description?: string;
+  is_active?: boolean;
   service_types?: ServiceType[];
   createdAt?: string;
   updatedAt?: string;
@@ -15,6 +16,7 @@ export type ServiceItem = {
   name: string;
   service_type_id: number;
   category_id: number;
+  is_active?: boolean;
   service_type?: Pick<ServiceType, "id" | "name">;
   category?: Pick<Category, "id" | "name">;
   createdAt?: string;

@@ -61,12 +61,27 @@ export default function ProviderPricing() {
       }
       setOpenAccordions(initialOpen);
 
-      // Initialize pricing state from provider's offered_services
-      const offeredList = Array.isArray(pData?.offered_services)
-        ? pData.offered_services
-        : Array.isArray(pData?.services)
-        ? pData.services.map((s: any) => (typeof s === "string" ? s : s.name || String(s)))
+      // Initialize pricing state from provider's service_pricing & offered_services
+      let offeredRaw = pData?.offered_services || pData?.services || [];
+      if (typeof offeredRaw === "string") {
+        try {
+          offeredRaw = JSON.parse(offeredRaw);
+        } catch (e) {
+          offeredRaw = [];
+        }
+      }
+      const offeredList = Array.isArray(offeredRaw)
+        ? offeredRaw.map((s: any) => (typeof s === "string" ? s : s.name || String(s)))
         : [];
+
+      let savedPricing: any = pData?.service_pricing || pData?.pricing || {};
+      if (typeof savedPricing === "string") {
+        try {
+          savedPricing = JSON.parse(savedPricing);
+        } catch (e) {
+          savedPricing = {};
+        }
+      }
 
       const initPricing: Record<string, ProviderServiceConfig> = {};
 
@@ -75,12 +90,28 @@ export default function ProviderPricing() {
           c.service_types?.forEach((st) => {
             st.services?.forEach((svc, idx) => {
               const svcKey = String(svc.id || svc.name);
-              const isOffered = offeredList.includes(svc.name) || offeredList.includes(svcKey);
-              initPricing[svcKey] = {
-                price: (idx + 1) * 45 + 30,
+              const savedConfig = savedPricing[svcKey] || savedPricing[svc.name];
+
+              const isOffered =
+                savedConfig?.offered !== undefined
+                  ? Boolean(savedConfig.offered)
+                  : offeredList.includes(svc.name) || offeredList.includes(svcKey);
+
+              const priceVal =
+                savedConfig?.price !== undefined
+                  ? Number(savedConfig.price)
+                  : (idx + 1) * 45 + 30;
+
+              const unitVal = savedConfig?.unit || (idx % 2 === 0 ? "flat rate" : "per job");
+
+              const configObj: ProviderServiceConfig = {
+                price: priceVal,
                 offered: isOffered,
-                unit: idx % 2 === 0 ? "flat rate" : "per job",
+                unit: unitVal,
               };
+
+              initPricing[svcKey] = configObj;
+              initPricing[svc.name] = configObj;
             });
           });
         });
@@ -100,17 +131,26 @@ export default function ProviderPricing() {
 
   // Selected Category & Subcategory
   const parentCategoryObj =
-    categories.find((c) => String(c.id) === String(provider?.category_id)) || categories[0];
-  const selectedSubcategoryId = provider?.service_type_id
-    ? String(provider.service_type_id)
-    : provider?.sub_category?.id
-    ? String(provider.sub_category.id)
-    : null;
+    categories.find((c) => String(c.id) === String(provider?.category_id || provider?.category?.id)) ||
+    categories.find((c) => c.name === provider?.category?.name) ||
+    categories[0];
 
-  const selectedSubcategories =
-    parentCategoryObj?.service_types?.filter((sub) =>
-      selectedSubcategoryId ? String(sub.id) === selectedSubcategoryId : true
-    ) || parentCategoryObj?.service_types || [];
+  const selectedSubcategoryId =
+    provider?.service_type_id != null
+      ? String(provider.service_type_id)
+      : provider?.sub_category?.id != null
+      ? String(provider.sub_category.id)
+      : provider?.category?.service_types?.[0]?.id != null
+      ? String(provider.category.service_types[0].id)
+      : provider?.service_types?.[0]?.id != null
+      ? String(provider.service_types[0].id)
+      : null;
+
+  const selectedSubcategories = parentCategoryObj?.service_types
+    ? selectedSubcategoryId
+      ? parentCategoryObj.service_types.filter((sub) => String(sub.id) === selectedSubcategoryId)
+      : [parentCategoryObj.service_types[0]].filter(Boolean)
+    : [];
 
   const getConfig = (svcKey: string, defaultPrice = 100): ProviderServiceConfig => {
     return (
@@ -135,13 +175,28 @@ export default function ProviderPricing() {
   const handleSavePricing = async () => {
     try {
       setSaving(true);
-      // Collect all service names where offered === true
+      // Collect all service names where offered === true and map service_pricing object
       const offeredServiceNames: string[] = [];
+      const servicePricingObj: Record<string, ProviderServiceConfig> = {};
 
       selectedSubcategories.forEach((sub) => {
-        sub.services?.forEach((svc) => {
+        const rawServices =
+          sub.services && sub.services.length > 0
+            ? sub.services
+            : [
+                { id: 101, name: `General ${sub.name} Repair`, is_active: true },
+                { id: 102, name: `${sub.name} Installation & Setup`, is_active: true },
+                { id: 103, name: `Emergency ${sub.name} Service`, is_active: true },
+                { id: 104, name: `Routine ${sub.name} Maintenance`, is_active: true },
+              ];
+        const activeServices = rawServices.filter((svc: any) => svc.is_active !== false);
+
+        activeServices.forEach((svc: any) => {
           const svcKey = String(svc.id || svc.name);
           const cfg = getConfig(svcKey);
+          const nameKey = svc.name || svcKey;
+          servicePricingObj[nameKey] = cfg;
+
           if (cfg.offered) {
             offeredServiceNames.push(svc.name);
           }
@@ -151,6 +206,7 @@ export default function ProviderPricing() {
       await providerApi.updateMyMarketplaceProfile({
         offered_services: offeredServiceNames,
         services: offeredServiceNames,
+        service_pricing: servicePricingObj,
       });
 
       toast.success("Services & Pricing saved successfully!", {
@@ -173,7 +229,7 @@ export default function ProviderPricing() {
     );
   }
 
-  const parentName = parentCategoryObj?.name || "Home Services";
+  const parentName = parentCategoryObj?.name || provider?.category?.name || "Home Services";
   const selectedSubName = selectedSubcategories[0]?.name || "Service Area";
 
   return (
@@ -201,7 +257,7 @@ export default function ProviderPricing() {
           </div>
         </div>
         <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1">
-          1 Selected Service Area ({selectedSubName})
+          1 Selected Subcategory ({selectedSubName})
         </span>
       </div>
 
@@ -209,7 +265,16 @@ export default function ProviderPricing() {
       <div className="space-y-6">
         {selectedSubcategories.map((sub) => {
           const isOpen = openAccordions[String(sub.id)] ?? true;
-          const serviceItems = sub.services || [];
+          const rawServices =
+            sub.services && sub.services.length > 0
+              ? sub.services
+              : [
+                  { id: 101, name: `General ${sub.name} Repair`, is_active: true },
+                  { id: 102, name: `${sub.name} Installation & Setup`, is_active: true },
+                  { id: 103, name: `Emergency ${sub.name} Service`, is_active: true },
+                  { id: 104, name: `Routine ${sub.name} Maintenance`, is_active: true },
+                ];
+          const serviceItems = rawServices.filter((svc: any) => svc.is_active !== false);
           return (
             <Card key={sub.id} className="shadow-card overflow-hidden transition-all">
               {/* Accordion Header */}
@@ -223,7 +288,7 @@ export default function ProviderPricing() {
                       {sub.name}
                     </CardTitle>
                     <span className="text-xs font-semibold rounded-full bg-secondary px-2.5 py-0.5 text-foreground">
-                      {serviceItems.length} services
+                      {serviceItems.length} active services
                     </span>
                   </div>
                   <Button variant="ghost" size="icon" className="size-8">
@@ -257,10 +322,10 @@ export default function ProviderPricing() {
                                 <span className="font-semibold text-sm text-foreground">
                                   {svc.name}
                                 </span>
-                                <StatusPill status={config.offered ? "Active" : "Inactive"} />
+                                <StatusPill status={svc.is_active !== false ? "Active" : "Inactive"} />
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-2">
-                                Platform service available for provider pricing.
+                                {svc.description || "Platform service available for provider pricing."}
                               </p>
                             </div>
 

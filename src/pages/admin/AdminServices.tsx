@@ -119,7 +119,7 @@ export const AdminServicesPage: React.FC = () => {
               subcategoryName: st.name,
               parentCategoryId: cat.id,
               parentCategoryName: cat.name,
-              isActive: st.is_active !== false,
+              isActive: svc.is_active !== false,
               rawServiceType: st,
             });
           });
@@ -284,16 +284,26 @@ export const AdminServicesPage: React.FC = () => {
 
   const handleToggleStatus = async (item: ServiceFlatRow) => {
     try {
-      await catalogApi.updateServiceType(item.serviceId, {
+      await catalogApi.updateService(item.serviceId, {
         is_active: !item.isActive,
       });
       toast.success(
         item.isActive ? "Service deactivated." : "Service activated."
       );
       fetchCatalogData();
-    } catch (err) {
-      console.error("Failed to toggle service status", err);
-      toast.error("Failed to update status.");
+    } catch {
+      try {
+        await catalogApi.updateServiceType(item.serviceId, {
+          is_active: !item.isActive,
+        });
+        toast.success(
+          item.isActive ? "Service deactivated." : "Service activated."
+        );
+        fetchCatalogData();
+      } catch (err2) {
+        console.error("Failed to toggle service status", err2);
+        toast.error("Failed to update status.");
+      }
     }
   };
 
