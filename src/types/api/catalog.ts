@@ -13,6 +13,7 @@ export type ServiceType = {
   id: number;
   name: string;
   category_id: number;
+  description?: string | null;
   is_active?: boolean;
   category?: Pick<Category, "id" | "name">;
   createdAt?: string;

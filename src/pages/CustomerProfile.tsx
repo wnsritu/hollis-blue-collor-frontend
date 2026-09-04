@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  MapPin,
   ShieldCheck,
   Trash2,
   User,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Avatar } from "@/components/shared/primitives";
 import Spinner from "@/components/ui/spinner";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 
 import { authApi } from "@/api/modules/auth.api";
 import { customerApi } from "@/api/modules/customer.api";
@@ -66,6 +68,15 @@ const CustomerProfile = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [status, setStatus] = useState("active");
 
+  // Address fields (similar to Provider profile)
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [country, setCountry] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -106,7 +117,26 @@ const CustomerProfile = () => {
       const photo = profile.profile_image || profile.profile_photo;
       if (photo) {
         setAvatarPreview(resolveMediaUrl(String(photo)));
+      } else {
+        setAvatarPreview(null);
       }
+
+      // Populate address details
+      const primaryAddr = profile.address || profile.addresses?.[0]?.address_line || "";
+      const primaryCity = profile.city || profile.addresses?.[0]?.city || "";
+      const primaryState = profile.state || profile.addresses?.[0]?.state || "";
+      const primaryZip = profile.zip_code || profile.addresses?.[0]?.zip_code || "";
+      const primaryCountry = profile.country || profile.addresses?.[0]?.country || "";
+      const primaryLat = profile.latitude ?? profile.addresses?.[0]?.latitude ?? null;
+      const primaryLng = profile.longitude ?? profile.addresses?.[0]?.longitude ?? null;
+
+      setAddress(primaryAddr);
+      setCity(primaryCity);
+      setState(primaryState);
+      setZipCode(primaryZip);
+      setCountry(primaryCountry);
+      setLatitude(primaryLat !== null ? Number(primaryLat) : null);
+      setLongitude(primaryLng !== null ? Number(primaryLng) : null);
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load profile."));
     } finally {
@@ -142,10 +172,33 @@ const CustomerProfile = () => {
     }
   };
 
-  const handleRemovePhoto = () => {
-    setAvatarPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    toast.success("Photo cleared locally. Upload a new one to replace.");
+  const handleRemovePhoto = async () => {
+    try {
+      setAvatarPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await userApi.updateCustomerProfile({
+        full_name: fullName.trim() || undefined,
+        profile_photo: null,
+        profile_image: null,
+      });
+      try {
+        await customerApi.updateMyProfile({
+          full_name: fullName.trim() || undefined,
+          profile_photo: null,
+          profile_image: null,
+        });
+      } catch {
+        /* ignore fallback */
+      }
+      toast.success("Profile photo removed successfully.");
+      try {
+        await fetchMe();
+      } catch {
+        /* ignore */
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to remove profile photo."));
+    }
   };
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -157,16 +210,22 @@ const CustomerProfile = () => {
 
     try {
       setSaving(true);
-      await customerApi.updateMyProfile({
+      const profilePayload = {
         full_name: fullName.trim(),
         phone: mobileNumber.trim() || undefined,
-      });
-      // Also update legacy customer profile path for address-compatible clients
+        address: address.trim() || undefined,
+        address_line: address.trim() || undefined,
+        city: city.trim() || undefined,
+        state: state.trim() || undefined,
+        country: country.trim() || undefined,
+        zip_code: zipCode.trim() || undefined,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+      };
+
+      await userApi.updateCustomerProfile(profilePayload);
       try {
-        await userApi.updateCustomerProfile({
-          full_name: fullName.trim(),
-          phone: mobileNumber.trim() || undefined,
-        });
+        await customerApi.updateMyProfile(profilePayload);
       } catch {
         /* primary path already succeeded */
       }
@@ -232,7 +291,7 @@ const CustomerProfile = () => {
             My Profile
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your personal details and password security.
+            Manage your personal details, address, and password security.
           </p>
         </div>
         {activeTab === "profile" ? (
@@ -265,112 +324,195 @@ const CustomerProfile = () => {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           {activeTab === "profile" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Personal Information</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Update your contact details used for service bookings and
-                  communications.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveProfile} className="space-y-5">
-                  <div className="rounded-xl border border-border bg-surface p-4">
-                    <div className="flex flex-col items-center gap-4 sm:flex-row">
-                      <div className="relative">
-                        {avatarPreview ? (
-                          <img
-                            src={avatarPreview}
-                            alt={fullName}
-                            className="size-16 rounded-full object-cover"
-                          />
-                        ) : (
-                          <Avatar
-                            initials={initialsFrom(fullName)}
-                            size="lg"
-                          />
-                        )}
-                      </div>
-                      <div className="space-y-2 text-center sm:text-left">
-                        <p className="text-sm font-bold text-foreground">
-                          Profile Photo
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          JPG, PNG or GIF. Max size 5MB.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:justify-start">
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="hidden"
-                            id="avatar-upload-input"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5 text-xs"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Camera size={13} /> Change Photo
-                          </Button>
-                          {avatarPreview && (
+            <>
+              {/* Personal Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Personal Information</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Update your contact details used for service bookings and
+                    communications.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSaveProfile} className="space-y-5">
+                    <div className="rounded-xl border border-border bg-surface p-4">
+                      <div className="flex flex-col items-center gap-4 sm:flex-row">
+                        <div className="relative">
+                          {avatarPreview ? (
+                            <img
+                              src={avatarPreview}
+                              alt={fullName}
+                              className="size-16 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Avatar
+                              initials={initialsFrom(fullName)}
+                              size="lg"
+                            />
+                          )}
+                        </div>
+                        <div className="space-y-2 text-center sm:text-left">
+                          <p className="text-sm font-bold text-foreground">
+                            Profile Photo
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            JPG, PNG or GIF. Max size 5MB.
+                          </p>
+                          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:justify-start">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              className="hidden"
+                              id="avatar-upload-input"
+                            />
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
-                              onClick={handleRemovePhoto}
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={() => fileInputRef.current?.click()}
                             >
-                              <Trash2 size={13} /> Remove
+                              <Camera size={13} /> Change Photo
                             </Button>
-                          )}
+                            {avatarPreview && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
+                                onClick={handleRemovePhoto}
+                              >
+                                <Trash2 size={13} /> Remove
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. John Smith"
-                    />
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="e.g. John Smith"
+                      />
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      readOnly
-                    />
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        readOnly
+                      />
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="mobileNumber">Mobile Number</Label>
-                    <Input
-                      id="mobileNumber"
-                      type="tel"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      placeholder="e.g. (555) 234-5678"
-                    />
+                    <div className="grid gap-2">
+                      <Label htmlFor="mobileNumber">Mobile Number</Label>
+                      <Input
+                        id="mobileNumber"
+                        type="tel"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        placeholder="e.g. (555) 234-5678"
+                      />
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Address & Location Card (Reference from Provider Profile Settings) */}
+              <Card>
+                <CardHeader className="border-b border-border pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base font-bold">
+                    <MapPin size={18} className="text-primary" /> Address &amp; Location
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:col-span-2">
+                      <Label htmlFor="address">Street Address</Label>
+                      <GooglePlaceAutocomplete
+                        value={address}
+                        onChange={setAddress}
+                        placeholder="Enter street address..."
+                        onSelect={(place) => {
+                          setAddress(place.address);
+                          setLatitude(place.lat);
+                          setLongitude(place.lng);
+                          const comps = place.fullPlace?.address_components || [];
+                          const getComp = (type: string) =>
+                            comps.find((c) => c.types.includes(type))
+                              ?.long_name || "";
+                          const cityVal =
+                            getComp("locality") || getComp("sublocality") || city;
+                          const stateVal =
+                            getComp("administrative_area_level_1") || state;
+                          const zipVal = getComp("postal_code") || zipCode;
+                          const countryVal = getComp("country") || country;
+                          if (cityVal) setCity(cityVal);
+                          if (stateVal) setState(stateVal);
+                          if (zipVal) setZipCode(zipVal);
+                          if (countryVal) setCountry(countryVal);
+                        }}
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g. New York"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="state">State / Province</Label>
+                      <Input
+                        id="state"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="e.g. NY"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="zipCode">ZIP / Postal Code</Label>
+                      <Input
+                        id="zipCode"
+                        value={zipCode}
+                        onChange={(e) => setZipCode(e.target.value)}
+                        placeholder="e.g. 10001"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="e.g. USA"
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-2">
-                    <Button type="submit" disabled={saving}>
+                    <Button type="button" onClick={() => handleSaveProfile()} disabled={saving}>
                       {saving ? "Saving…" : "Save Changes"}
                     </Button>
                   </div>
-                </form>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {activeTab === "security" && (
@@ -515,6 +657,14 @@ const CustomerProfile = () => {
                     <span className="text-muted-foreground">Mobile</span>
                     <span className="font-semibold text-foreground">
                       {mobileNumber}
+                    </span>
+                  </div>
+                )}
+                {address && (
+                  <div className="flex items-start justify-between gap-2 border-t border-border pt-2">
+                    <span className="shrink-0 text-muted-foreground">Address</span>
+                    <span className="text-right font-medium text-foreground">
+                      {[address, city, state, zipCode].filter(Boolean).join(", ")}
                     </span>
                   </div>
                 )}
