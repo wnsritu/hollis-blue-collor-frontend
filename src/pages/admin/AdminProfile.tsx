@@ -116,7 +116,9 @@ const AdminProfile = () => {
     if (field === "email") {
       updated = value.replace(/\s/g, "");
     } else if (field === "phone") {
-      updated = value.replace(/\D/g, "").slice(0, 10);
+      const hasPlus = value.startsWith("+");
+      const digits = value.replace(/\D/g, "").slice(0, 15);
+      updated = hasPlus ? `+${digits}` : digits;
     } else if (field === "name") {
       updated = value.replace(/^\s+/, "");
     }
@@ -171,20 +173,25 @@ const AdminProfile = () => {
   const fetchProfile = async () => {
     try {
       const res = await getMyProfile();
+      const user = res.data?.data || res.data || res;
 
-      const user = res.data;
+      const roleName =
+        typeof user.role === "string"
+          ? user.role
+          : user.role?.name || user.role_name || "Admin";
 
       setProfile({
-        name: `${user.first_name || ""} ${user.last_name || ""}`,
+        name: `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.full_name || "Admin User",
         email: user.email || "",
         phone: user.phone || "",
-        role: user.role || "Admin",
+        role: roleName,
       });
-       if (user.profile_image) {
-         setImage(`${import.meta.env.VITE_API_BASE_URL}${user.profile_image}`);
-       }
 
-    } catch (err) {
+      if (user.profile_image || user.profile_photo || user.avatar) {
+        const photoUrl = user.profile_image || user.profile_photo || user.avatar;
+        setImage(photoUrl.startsWith("http") ? photoUrl : `${import.meta.env.VITE_API_BASE_URL || ""}${photoUrl}`);
+      }
+    } catch (err: any) {
       console.log("ADMIN PROFILE ERROR:", err);
       toast.error(err?.response?.data?.message || "Failed to load profile.");
     } finally {
@@ -231,7 +238,7 @@ const AdminProfile = () => {
       setProfileLoading(false);
     }
   };
-  
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
@@ -324,7 +331,7 @@ const AdminProfile = () => {
             </h2>
             <p className="text-sm text-muted-foreground">{profile.email}</p>
             <Badge className="mt-2 bg-primary/10 text-primary border-0">
-              <Shield size={12} className="mr-1" /> {profile.role}
+              <Shield size={12} className="mr-1" /> {typeof profile.role === "string" ? profile.role : (profile.role as any)?.name || "Admin"}
             </Badge>
             <p className="mt-3 text-sm text-muted-foreground">
               {profile.phone}
