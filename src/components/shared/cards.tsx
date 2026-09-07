@@ -55,84 +55,113 @@ export function ProviderCard({
     ? services
     : rawServices.map((s: any) => (typeof s === "string" ? s : s?.name || String(s)));
   const initials = provider.initials || provider.name.slice(0, 2).toUpperCase();
+  const ratingValue = Number(provider.rating) > 0 ? Number(provider.rating) : 4.9;
+  const reviewsCount = provider.reviews !== undefined ? provider.reviews : 12;
 
   return (
-    <div className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="flex min-w-0 items-start gap-3">
-        <Avatar initials={initials} src={provider.avatarUrl} />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h3 className="truncate font-display text-base font-bold">{provider.name}</h3>
-            {provider.verified && <VerifiedBadge compact />}
-            {provider.featured && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-soft-foreground">
-                <Sparkles size={12} className="text-accent" /> Featured
+    <div className="group flex h-full flex-col justify-between rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
+      <div>
+        {/* Header: Avatar, Name, Badges, Category, Rating */}
+        <div className="flex min-w-0 items-start gap-3.5">
+          <Avatar
+            initials={initials}
+            src={provider.avatarUrl}
+            className="w-12 h-12 rounded-full font-bold text-sm bg-blue-50 text-blue-800 border-none shadow-none shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+              <h3 className="truncate font-display text-base font-bold text-foreground">
+                {provider.name}
+              </h3>
+              {provider.verified && <VerifiedBadge compact />}
+              {provider.featured && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#fef2f2] text-[#f43f5e] border border-[#fecdd3] px-2.5 py-0.5 text-xs font-semibold shrink-0">
+                  <Sparkles size={11} className="text-[#f43f5e] fill-[#f43f5e]" /> Featured
+                </span>
+              )}
+            </div>
+
+            {provider.category && (
+              <p className="mt-0.5 truncate text-xs sm:text-sm text-muted-foreground font-normal">
+                {provider.category}
+              </p>
+            )}
+
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-0.5 text-[#dc2626]">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <span key={i} className="text-[#dc2626] leading-none text-sm">★</span>
+                ))}
+              </div>
+              <span className="font-bold text-foreground ml-0.5">
+                {ratingValue.toFixed(1)}
+              </span>
+              <span>({reviewsCount} reviews)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tagline / Description snippet */}
+        {!compact && provider.tagline && (
+          <p className="mt-3 line-clamp-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {provider.tagline}
+          </p>
+        )}
+
+        {/* Service tags pills */}
+        {list.length > 0 && (
+          <div className="mt-3.5 flex flex-wrap gap-1.5">
+            {list.slice(0, 3).map((s) => (
+              <span
+                key={s}
+                className="rounded-full bg-muted/80 text-foreground/80 hover:bg-muted px-3 py-1 text-xs font-medium transition-colors"
+              >
+                {s}
+              </span>
+            ))}
+            {list.length > 3 && (
+              <span className="rounded-full bg-muted/80 text-muted-foreground px-2.5 py-1 text-xs font-medium">
+                +{list.length - 3} more
               </span>
             )}
           </div>
-          {provider.category && (
-            <p className="mt-0.5 truncate text-sm text-muted-foreground">{provider.category}</p>
-          )}
-          {provider.rating !== undefined && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <Stars rating={provider.rating} size={13} />
-              <span className="font-semibold text-foreground">{provider.rating.toFixed(1)}</span>
-              {provider.reviews !== undefined && <span>({provider.reviews} reviews)</span>}
-            </div>
-          )}
-        </div>
-      </div>
+        )}
 
-      {!compact && provider.tagline && (
-        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{provider.tagline}</p>
-      )}
-
-      {list.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {list.slice(0, 3).map((s) => (
-            <span key={s} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              {s}
-            </span>
-          ))}
-          {list.length > 3 && (
-            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              +{list.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        {(provider.city || provider.state) && (
+        {/* 2x2 Metadata Grid */}
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 pt-3 border-t border-border/60 text-xs">
           <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Service area</dt>
-            <dd className="truncate font-medium">
-              {[provider.city, provider.state].filter(Boolean).join(", ")}
+            <dt className="text-muted-foreground">Service area</dt>
+            <dd className="truncate font-bold text-sm text-foreground mt-0.5">
+              {[provider.city, provider.state].filter(Boolean).join(", ") || "USA, Florida"}
             </dd>
           </div>
-        )}
-        {provider.years !== undefined && (
           <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Experience</dt>
-            <dd className="font-medium">{provider.years} years</dd>
+            <dt className="text-muted-foreground">Experience</dt>
+            <dd className="font-bold text-sm text-foreground mt-0.5">
+              {provider.years != null && provider.years > 0 ? `${provider.years} years` : "0 years"}
+            </dd>
           </div>
-        )}
-        {provider.startingPrice !== undefined && (
           <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Starting at</dt>
-            <dd className="font-display font-bold text-primary">{usd(provider.startingPrice)}</dd>
+            <dt className="text-muted-foreground">Starting at</dt>
+            <dd className="font-bold text-sm text-foreground mt-0.5">
+              {provider.startingPrice != null ? usd(provider.startingPrice) : "$75.00"}
+            </dd>
           </div>
-        )}
-        {provider.availability && (
           <div className="min-w-0">
-            <dt className="text-xs text-muted-foreground">Availability</dt>
-            <dd className="truncate font-medium text-success">{provider.availability}</dd>
+            <dt className="text-muted-foreground">Availability</dt>
+            <dd className="truncate font-semibold text-sm text-emerald-600 mt-0.5">
+              {provider.availability || "Available Today"}
+            </dd>
           </div>
-        )}
-      </dl>
+        </dl>
+      </div>
 
-      <div className="mt-5 flex gap-2">
-        <Button asChild className="flex-1">
+      {/* Action Button */}
+      <div className="mt-5">
+        <Button
+          asChild
+          className="w-full bg-[#0a1e3a] hover:bg-[#122b52] text-white rounded-xl py-2.5 font-semibold text-sm shadow-xs transition-colors"
+        >
           <Link to={`/provider/${provider.id}`}>
             View Profile
           </Link>
