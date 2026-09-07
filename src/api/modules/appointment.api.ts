@@ -20,7 +20,10 @@ export const appointmentApi = {
     http.get<ApiSuccess<Appointment>>(ENDPOINTS.appointment.byId(id)),
 
   updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) =>
-    http.put<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), payload),
+    http.patch<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), {
+      appointment_status: payload.appointment_status || payload.status,
+      status: payload.status || payload.appointment_status,
+    }),
 
   reschedule: (id: number | string, payload: RescheduleAppointmentPayload) =>
     http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.reschedule(id), payload),

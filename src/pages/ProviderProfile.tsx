@@ -275,8 +275,8 @@ export const ProviderProfile: React.FC = () => {
                 </Tooltip>
               </TooltipProvider>
 
-              <Button size="lg" onClick={() => setQuoteModalOpen(true)} className="gap-2 shadow-sm">
-                Book Now
+              <Button size="lg" onClick={() => navigate(`/book/${provider.id}`)} className="gap-2 shadow-sm">
+                Book Services
               </Button>
             </div>
           </div>
@@ -327,7 +327,16 @@ export const ProviderProfile: React.FC = () => {
                         )}
                       </p>
                     </div>
-                    <span className="size-2 rounded-full bg-success shrink-0" title="Available" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/book/${provider.id}?serviceId=${encodeURIComponent(s.name)}`)}
+                        className="text-xs h-8 px-2.5"
+                      >
+                        Book
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

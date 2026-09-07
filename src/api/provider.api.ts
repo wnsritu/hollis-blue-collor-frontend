@@ -32,9 +32,14 @@ export const verifyProviderApi = (data: {
 export const getTimeSlotsApi = () => {
   return api.get("/time-slots");
 };
+export const getTimeSlots = getTimeSlotsApi;
 
 export const getProviderTimeSlotsApi = () => {
   return api.get("/provider-availability");
+};
+
+export const getProviderAvailabilityByProviderIdApi = (providerId: number | string) => {
+  return api.get(`/provider-availability/provider/${providerId}`);
 };
 
 export const pauseProviderApi = (id: number, reason?: string) => {
@@ -79,7 +84,8 @@ export const addProviderServiceAmount = (data: any) => {
 };
 
 export const getProviderData = (data: any) => {
-  return api.post("/provider/get-provider", data);
+  const providerId = typeof data === "object" ? (data.id || data.providerId) : data;
+  return api.get(`/providers/${providerId}`);
 };
 
 export const getAllSlots = () => {

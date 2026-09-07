@@ -123,11 +123,25 @@ export const AppointmentsPage: React.FC = () => {
     }
   };
 
+  const handleConfirmReschedule = async (id: number) => {
+    setUpdatingId(id);
+    try {
+      await appointmentApi.confirmReschedule(id);
+      toast.success("Reschedule confirmed successfully.");
+      fetchAppointments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to confirm reschedule.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const filteredAppointments = appointments.filter((apt) => {
     const status = (apt.appointment_status || apt.status || "").toLowerCase();
     if (activeTab === "all") return true;
-    if (activeTab === "upcoming") return status === "requested" || status === "confirmed" || status === "scheduled";
-    if (activeTab === "in_progress") return status === "in_progress";
+    if (activeTab === "requested") return status === "requested";
+    if (activeTab === "confirmed") return status === "confirmed";
+    if (activeTab === "rescheduled") return status === "rescheduled";
     if (activeTab === "completed") return status === "completed";
     if (activeTab === "cancelled") return status === "cancelled" || status === "no-show";
     return true;
@@ -153,8 +167,9 @@ export const AppointmentsPage: React.FC = () => {
       <div className="flex overflow-x-auto gap-2 border-b border-border pb-3 mb-6 scrollbar-none">
         {[
           { id: "all", label: "All Appointments" },
-          { id: "upcoming", label: "Upcoming / Scheduled" },
-          { id: "in_progress", label: "In Progress" },
+          { id: "requested", label: "Requested" },
+          { id: "confirmed", label: "Confirmed" },
+          { id: "rescheduled", label: "Rescheduled" },
           { id: "completed", label: "Completed" },
           { id: "cancelled", label: "Cancelled / No-show" },
         ].map((tab) => (
@@ -190,13 +205,22 @@ export const AppointmentsPage: React.FC = () => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredAppointments.map((apt) => {
-            const status = apt.appointment_status || apt.status || "Confirmed";
+            const rawStatus = apt.appointment_status || apt.status || "Requested";
+            const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
             const otherPartyName = userIsCustomer
               ? apt.provider?.business_name || apt.provider?.user?.full_name || "Provider"
               : apt.customer?.full_name || "Customer";
             const dateStr = apt.booking_date
-              ? new Date(apt.booking_date).toLocaleDateString()
+              ? new Date(apt.booking_date).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
               : "Date TBD";
+
+            const canReschedule = ["Requested", "Confirmed", "Rescheduled"].includes(status);
+            const isRescheduleRequestedByMe = Number(apt.reschedule_requested_by) === Number(user?.id);
 
             return (
               <div
@@ -253,23 +277,25 @@ export const AppointmentsPage: React.FC = () => {
                       <MessageSquare size={13} /> Chat
                     </Button>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenReschedule(apt)}
-                      className="text-xs"
-                    >
-                      Reschedule
-                    </Button>
+                    {canReschedule && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenReschedule(apt)}
+                        className="text-xs"
+                      >
+                        Reschedule
+                      </Button>
+                    )}
                   </div>
 
-                  {/* Status Machine Actions */}
-                  {status === "Requested" && (
+                  {/* Role & Status Action Machine */}
+                  {status === "Requested" && (userIsProvider || !userIsCustomer) && (
                     <Button
                       size="sm"
                       onClick={() => handleUpdateStatus(apt.id, "Confirmed")}
                       disabled={updatingId === apt.id}
-                      className="w-full text-xs gap-1 bg-success hover:bg-success/90"
+                      className="w-full text-xs gap-1 bg-success hover:bg-success/90 text-white"
                     >
                       <CheckCircle size={13} /> Confirm Appointment
                     </Button>
@@ -278,22 +304,35 @@ export const AppointmentsPage: React.FC = () => {
                   {status === "Confirmed" && (
                     <Button
                       size="sm"
-                      onClick={() => handleUpdateStatus(apt.id, "In_progress")}
+                      onClick={() => handleUpdateStatus(apt.id, "Completed")}
                       disabled={updatingId === apt.id}
-                      className="w-full text-xs gap-1"
+                      className="w-full text-xs gap-1 bg-success hover:bg-success/90 text-white"
                     >
-                      Start Work (In Progress)
+                      <CheckCircle size={13} /> Mark Completed
                     </Button>
                   )}
 
-                  {status === "In_progress" && (
+                  {status === "Rescheduled" && !isRescheduleRequestedByMe && (
                     <Button
                       size="sm"
-                      onClick={() => handleUpdateStatus(apt.id, "Completed")}
+                      onClick={() => handleConfirmReschedule(apt.id)}
                       disabled={updatingId === apt.id}
-                      className="w-full text-xs gap-1 bg-success hover:bg-success/90"
+                      className="w-full text-xs gap-1 bg-primary text-primary-foreground"
                     >
-                      <CheckCircle size={13} /> Mark Completed
+                      <CheckCircle size={13} /> Accept Reschedule
+                    </Button>
+                  )}
+
+                  {/* Cancel Option for Active Non-Terminal Statuses */}
+                  {["Requested", "Confirmed", "Rescheduled"].includes(status) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleUpdateStatus(apt.id, "Cancelled")}
+                      disabled={updatingId === apt.id}
+                      className="w-full text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <XCircle size={13} className="mr-1" /> Cancel Appointment
                     </Button>
                   )}
                 </div>

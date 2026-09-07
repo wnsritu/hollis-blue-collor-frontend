@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
 import Booking from "./pages/Booking";
+import BookService from "./pages/BookService";
 import Checkout from "./pages/Checkout";
 import OrderTracking from "./pages/OrderTracking";
 import Messages from "./pages/Messages";
@@ -206,10 +207,18 @@ const App = () => (
             }
           />
           <Route
+            path="/book/:providerId"
+            element={
+              <PublicLayout>
+                <BookService />
+              </PublicLayout>
+            }
+          />
+          <Route
             path="/booking/:id"
             element={
               <PublicLayout>
-                <Booking />
+                <BookService />
               </PublicLayout>
             }
           />
