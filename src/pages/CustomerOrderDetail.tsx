@@ -30,6 +30,11 @@ import {
   ShieldCheck,
   User,
   Quote,
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  MapPin,
+  Check
 } from "lucide-react";
 import { saveOrderBookingState } from "@/utils/bookingState";
 import { getDisputeDetail, getOrderDetails, getRatingByBookingId } from "@/services/order.service";
@@ -445,70 +450,101 @@ const CustomerOrderDetail = () => {
   console.log(`${BASE_URL}${orderData.customer_completion_img}`)
 
   return (
-    <div className="container-grid py-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
-            {t("orderDetails")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {orderData.order_id ||
-              `ORD-${orderData.id.toString().padStart(3, "0")}`}
-          </p>
+    <div className="container-page py-8">
+      <div className="mb-6">
+        <Button variant="ghost" className="-ml-4 mb-2 text-muted-foreground hover:bg-transparent" onClick={() => navigate("/my-bookings")}>
+          <ArrowLeft size={16} className="mr-2" />
+          All bookings
+        </Button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              {orderData.project?.title || orderData.service_category || "Service Booking"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              BKG-{orderData.id} • Booked Service with {orderData.provider?.business_name || "Professional"}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge className={`w-fit border-0 px-3 py-1 text-sm ${getStatusColor(displayStatus)}`}>
+              {displayStatus}
+            </Badge>
+            <Button variant="outline" className="gap-2 bg-background shadow-sm">
+              <MessageSquare size={16} />
+              Message Pro
+            </Button>
+          </div>
         </div>
-        <Badge className={`w-fit border-0 ${getStatusColor(displayStatus)}`}>
-          {displayStatus}
-        </Badge>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="grid lg:grid-cols-[1fr_340px] gap-6">
         {/* Left column */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Provider info */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Provider Info</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Link
-                  to={`/provider/${orderData.provider?.id || orderData.provider_id || orderData.provider?.user_id}?from=orders&orderId=${orderData.id}&category=${orderData.category_id || (orderData.service_category === "House Cleaning" ? 2 : orderData.service_category === "Car Wash" ? 3 : 1)}`}
-                  onClick={() => saveOrderBookingState(orderData)}
-                >
-                  <img
-                    src={
-                      orderData?.provider?.profile_photo
-                        ? `${BASE_URL}${orderData?.provider?.profile_photo}`
-                        : "/default-profile.png"
-                    }
-                    alt={orderData.provider?.business_name || "Provider"}
-                    className="h-14 w-14 rounded-xl object-cover hover:opacity-90 transition-opacity"
-                  />
-                </Link>
-                <div>
-                  <Link
-                    to={`/provider/${orderData.provider?.id || orderData.provider_id || orderData.provider?.user_id}?from=orders&orderId=${orderData.id}&category=${orderData.category_id || (orderData.service_category === "House Cleaning" ? 2 : orderData.service_category === "Car Wash" ? 3 : 1)}`}
-                    onClick={() => saveOrderBookingState(orderData)}
-                  >
-                    <h3 className="font-heading text-base font-semibold text-foreground hover:text-primary transition-colors cursor-pointer hover:underline">
-                      {orderData.provider?.business_name || "Provider Name"}
-                    </h3>
-                  </Link>
-                  {!["finished", "delivered", "cancelled", "rejected"].includes(
-                    orderData?.status?.toLowerCase()
-                  ) && orderData?.payment_status === "paid" && (
-                      <p className="text-sm text-muted-foreground">
-                        {orderData?.provider?.service_location_address ||
-                          "Address not available"}
-                      </p>
-                    )}
-                  <p className="text-sm text-muted-foreground">
-                    ⭐ {orderData?.provider?.rating || "No rating"}
-                  </p>
+        <div className="space-y-6">
+          {/* Service Details Card */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="font-display text-lg font-bold text-foreground mb-4">Service Details</h3>
+            <p className="text-sm text-foreground mb-6">
+              {orderData.notes || orderData.description || `Service package for ${orderData.service_category || "Home Services"}.`}
+            </p>
+            
+            <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-6">
+              <div>
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                  <CalendarDays size={14} />
+                  <span className="text-xs font-medium">Date</span>
                 </div>
+                <p className="text-sm font-semibold text-foreground">
+                  {orderData.booking_date
+                    ? new Date(orderData.booking_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : "TBD"}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                  <Clock size={14} />
+                  <span className="text-xs font-medium">Time</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground">
+                  {orderData.time_slot ? `${orderData.time_slot.start_time}` : "TBD"}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                  <MapPin size={14} />
+                  <span className="text-xs font-medium">Location</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground line-clamp-2 pr-4">
+                  {orderData.address || orderData.delivery_address || orderData.pickup_address || "Address not provided"}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                  <Star size={14} />
+                  <span className="text-xs font-medium">Professional</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground">
+                  {orderData.provider?.business_name || "Service Pro"}
+                </p>
+              </div>
+            </div>
+            
+            {orderData.notes && (
+              <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground mt-4">
+                <span className="font-medium text-foreground">Notes:</span> {orderData.notes}
+              </div>
+            )}
+          </div>
+
+          {/* Rating & Review Locked */}
+          {!canReview(orderData.status) && (
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex gap-3 items-start">
+              <Star className="text-muted-foreground shrink-0 mt-0.5" size={18} />
+              <div>
+                <h4 className="text-sm font-bold text-foreground">Rating & Review Locked</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">Reviews can only be submitted once the provider marks the job as Completed.</p>
+              </div>
+            </div>
+          )}
 
           {/* Customer Info */}
           <Card>
@@ -735,67 +771,6 @@ const CustomerOrderDetail = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* Timeline */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t("orderStatus")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(orderData?.status === "cancelled" || orderData?.status === "rejected") ? (
-                <div className="flex flex-col items-center justify-center h-40 gap-2">
-                  <p className="text-lg font-semibold text-red-600">
-                    Booking {orderData?.status === "cancelled" ? "Cancelled" : "Rejected"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    This booking is no longer active.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between">
-                    {statusSteps.map((status, i) => (
-                      <div key={status} className="flex flex-1 items-center">
-                        <div className="flex flex-col items-center">
-                          <div
-                            title={orderData?.payment_status !== 'paid' ? "Please complete the payment first!" : undefined}
-                            className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold ${i <= activeIndex
-                              ? "border-secondary bg-secondary text-secondary-foreground"
-                              : "border-border bg-card text-muted-foreground"
-                              }`}
-                          >
-                            {i + 1}
-                          </div>
-                          <span
-                            className={`mt-2 text-xs font-medium text-center ${i <= activeIndex
-                              ? "text-foreground"
-                              : "text-muted-foreground"
-                              }`}
-                          >
-                            {status}
-                          </span>
-                          {i === activeIndex && orderData.booking_date && (
-                            <span className="mt-1 text-xs text-muted-foreground">
-                              {new Date(
-                                orderData.booking_date,
-                              ).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        {i < statusSteps.length - 1 && (
-                          <div
-                            className={`mx-2 h-0.5 flex-1 rounded ${i < activeIndex ? "bg-secondary" : "bg-border"
-                              }`}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-3">Note: Please make the payment first, then your booking will be confirmed.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {orderData?.status === "delivered" && (
             <div className="mt-6">
@@ -1035,81 +1010,49 @@ const CustomerOrderDetail = () => {
 
         {/* Right column */}
         <div className="space-y-6">
-          {/* Payment Info */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Payment Info</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Booking Date</span>
-                  <span className="text-foreground">
-                    {orderData.booking_date
-                      ? new Date(orderData.booking_date).toLocaleDateString()
-                      : "-"}
-                  </span>
-                </div>
-
-                {/* ✅ BULK ONLY */}
-                {orderData.order_type === "bulk" && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Weight</span>
-                      <span className="font-medium">
-                        {orderData.bulk_order?.weight || 0} lb
-                      </span>
+          {/* Status Timeline */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h3 className="font-display text-lg font-bold text-foreground mb-4">Status Timeline</h3>
+            <div className="space-y-4">
+              {statusSteps.map((step, i) => {
+                const isCompleted = i < activeIndex;
+                const isCurrent = i === activeIndex;
+                
+                return (
+                  <div key={i} className="flex gap-3 relative">
+                    {i !== statusSteps.length - 1 && (
+                      <div className={`absolute top-6 left-[11px] bottom-[-16px] w-[2px] ${isCompleted ? 'bg-primary' : 'bg-border'}`}></div>
+                    )}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 text-[10px] font-bold ${
+                      isCompleted ? "bg-primary text-primary-foreground" : 
+                      isCurrent ? "bg-foreground text-background" : 
+                      "bg-muted text-muted-foreground border border-border"
+                    }`}>
+                      {isCompleted ? <Check size={12} /> : i + 1}
                     </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Price / lb</span>
-                      <span className="font-medium">
-                        $
-                        {parseFloat(
-                          orderData.bulk_order?.price_per_lb || 0,
-                        ).toFixed(2)}
-                      </span>
+                    <div className={`text-sm pt-0.5 ${isCurrent ? 'font-bold text-foreground' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {step}
                     </div>
-                  </>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Order Type</span>
-                  <span className="text-foreground capitalize">
-                    {orderData.order_type?.replace("_", " ") || "-"}
-                  </span>
-                </div>
-                {orderData?.service_category === "House Cleaning" && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Estimated Duration</span>
-                    <span className="text-foreground font-medium">
-                      {orderData.estimated_duration ? `${parseFloat(orderData.estimated_duration).toFixed(1)} hours` : "Not set"}
-                    </span>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Payment Status</span>
-                  <Badge
-                    className={`border-0 ${orderData.payment_status === "paid" ||
-                      orderData.payment_status === "completed"
-                      ? "bg-secondary/10 text-secondary"
-                      : "bg-yellow-100 text-yellow-700"
-                      }`}
-                  >
-                    {orderData.payment_status === "paid" ||
-                      orderData.payment_status === "completed"
-                      ? "Paid"
-                      : orderData.payment_status || "Pending"}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-semibold text-foreground">
-                    ${orderAmount.toFixed(2)}
-                  </span>
-                </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Payment Breakdown */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h3 className="font-display text-lg font-bold text-foreground mb-4">Payment Breakdown</h3>
+            <div className="space-y-2 text-sm border-b border-border pb-3 mb-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal (Services)</span>
+                <span className="font-medium">${orderAmount.toFixed(2)}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-foreground text-base">Total Paid</span>
+              <span className="font-bold text-lg text-foreground">${orderAmount.toFixed(2)}</span>
+            </div>
+          </div>
 
           {/* Actions */}
           <Card>

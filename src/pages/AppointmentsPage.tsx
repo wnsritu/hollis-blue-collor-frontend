@@ -18,6 +18,11 @@ import {
   User as UserIcon,
   ShieldCheck,
   Info,
+  ShoppingBag,
+  ArrowLeft,
+  Check,
+  Star,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,19 +86,8 @@ export const AppointmentsPage: React.FC = () => {
     fetchAppointments();
   }, []);
 
-  const handleOpenBookingDetails = async (id: number) => {
-    setLoadingDetails(true);
-    setDetailsModalOpen(true);
-    try {
-      const res = await getBookingById(id);
-      const data = res?.data?.data || res?.data?.booking || res?.data || res;
-      setBookingDetails(data);
-    } catch (err: any) {
-      console.error("Failed to load booking details", err);
-      toast.error(err?.response?.data?.message || err?.message || "Failed to load booking details.");
-    } finally {
-      setLoadingDetails(false);
-    }
+  const handleOpenBookingDetails = (id: any) => {
+    navigate(`/order/${id}`);
   };
 
   const handleUpdateStatus = async (id: number, status: string) => {
@@ -167,11 +161,9 @@ export const AppointmentsPage: React.FC = () => {
   const filteredAppointments = appointments.filter((apt) => {
     const status = (apt.appointment_status || apt.status || "").toLowerCase();
     if (activeTab === "all") return true;
-    if (activeTab === "requested") return status === "requested";
-    if (activeTab === "confirmed") return status === "confirmed";
-    if (activeTab === "rescheduled") return status === "rescheduled";
-    if (activeTab === "completed") return status === "completed";
-    if (activeTab === "cancelled") return status === "cancelled" || status === "no-show";
+    if (activeTab === "upcoming") return ["requested", "confirmed", "rescheduled", "pending"].includes(status);
+    if (activeTab === "in-progress") return ["accepted", "in_process", "in progress"].includes(status);
+    if (activeTab === "completed") return ["completed", "delivered", "paid"].includes(status);
     return true;
   });
 
@@ -179,40 +171,44 @@ export const AppointmentsPage: React.FC = () => {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl font-bold">Appointments & Schedule</h1>
-          <p className="text-sm text-muted-foreground">
-            {userIsCustomer
-              ? "Track your scheduled service appointments and manage job progress."
-              : "Manage your client bookings, confirm appointments, and update service progress."}
+          <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">My Bookings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {appointments.length} services booked with professionals
           </p>
         </div>
-        <Button variant="outline" onClick={fetchAppointments} className="gap-2 text-xs">
-          <RefreshCw size={14} /> Refresh Schedule
+        <Button onClick={() => navigate("/search")} className="rounded-full px-6 font-semibold shadow-md">
+          Find a Professional
         </Button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex overflow-x-auto gap-2 border-b border-border pb-3 mb-6 scrollbar-none">
-        {[
-          { id: "all", label: "All Appointments" },
-          { id: "requested", label: "Requested" },
-          { id: "confirmed", label: "Confirmed" },
-          { id: "rescheduled", label: "Rescheduled" },
-          { id: "completed", label: "Completed" },
-          { id: "cancelled", label: "Cancelled / No-show" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        {/* Filter Tabs */}
+        <div className="flex overflow-x-auto gap-2 scrollbar-none">
+          {[
+            { id: "all", label: "All" },
+            { id: "upcoming", label: "Upcoming" },
+            { id: "in-progress", label: "In Progress" },
+            { id: "completed", label: "Completed" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
+                activeTab === tab.id
+                  ? "bg-muted/80 text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Search */}
+        <div className="relative w-full sm:w-64">
+           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+           <Input placeholder="Search bookings" className="pl-9 rounded-full bg-background border-border/60" />
+        </div>
       </div>
 
       {loading ? (
@@ -223,15 +219,11 @@ export const AppointmentsPage: React.FC = () => {
       ) : filteredAppointments.length === 0 ? (
         <EmptyState
           icon={FileQuestion}
-          title="No appointments found"
-          description={
-            activeTab === "all"
-              ? "You don't have any appointments scheduled yet. Appointments are generated automatically when a quote/proposal is accepted."
-              : `No appointments found under ${activeTab.replace("_", " ")}.`
-          }
+          title="No bookings found"
+          description={`No bookings found under ${activeTab.replace("-", " ")}.`}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredAppointments.map((apt: any) => {
             const rawStatus = apt.appointment_status || apt.status || "Requested";
             const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
@@ -253,60 +245,68 @@ export const AppointmentsPage: React.FC = () => {
             return (
               <div
                 key={apt.id}
-                className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift"
+                className="flex flex-col rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-all hover:shadow-md"
               >
-                {/* Top Row: Pills & ID */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="rounded-full bg-[#f0f4ff] text-[#2563eb] px-3 py-1 text-xs font-bold whitespace-nowrap">
-                    {apt.order_type === "fixed" ? "Fixed Service" : apt.order_type || "Fixed Service"}
-                  </span>
-                  <StatusPill status={status} />
-                  <span className="ml-auto text-xs font-medium text-muted-foreground">
-                    BKG-{apt.id}
-                  </span>
-                </div>
-
-                {/* Title & Subtitle */}
-                <h3 className="font-display text-lg font-bold text-foreground">
-                  {apt.project?.title || apt.service_category || "Service Appointment"}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {otherPartyName}
-                </p>
-
-                {/* Description */}
-                <p className="mt-3 text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-                  {apt.notes || apt.description || "Service details and requirements."}
-                </p>
-
-                {/* Date, Time, Price row */}
-                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <CalendarDays size={15} />
-                    <span>{dateStr}</span>
+                <div className="flex h-full flex-col">
+                  {/* Header: Service Type & Status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-xs font-semibold whitespace-nowrap">
+                        {apt.order_type === "fixed" ? "Fixed Service" : apt.order_type || "Fixed Service"}
+                      </span>
+                      <span className="rounded-full bg-orange-50 text-orange-600 px-3 py-1 text-xs font-semibold whitespace-nowrap">
+                        {status}
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-muted-foreground/80">
+                      BKG-{apt.id}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={15} />
-                    <span>{apt.time_slot?.start_time || "TBD"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Wallet size={15} />
-                    <span>{usd(apt.total_amount)}</span>
-                  </div>
-                </div>
 
-                {/* Address row */}
-                <div className="mt-3 flex items-start gap-1.5 text-sm text-muted-foreground">
-                  <MapPin size={15} className="mt-0.5 shrink-0" />
-                  <span className="line-clamp-1">{apt.address || apt.delivery_address || apt.pickup_address || "Address not provided"}</span>
-                </div>
+                  {/* Body: Title & Provider */}
+                  <div className="mb-3">
+                    <h3 className="font-display text-[17px] font-bold text-foreground">
+                      {apt.project?.title || apt.service_category || "Service Appointment"}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {otherPartyName}
+                    </p>
+                  </div>
 
-                {/* Action Button */}
-                <div className="mt-5 pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px] mb-6">
+                    {apt.notes || apt.description || "Service details and requirements."}
+                  </p>
+
+                  {/* Footer Info Grid */}
+                  <div className="flex flex-col gap-2.5 mb-5 mt-auto">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays size={14} />
+                        <span>{dateStr}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={14} />
+                        <span>{apt.time_slot?.start_time || "TBD"}</span>
+                      </div>
+                      <div className="font-medium text-foreground">
+                        {usd(apt.total_amount)}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <MapPin size={14} className="shrink-0" />
+                      <span className="truncate">{apt.address || apt.delivery_address || apt.pickup_address || "Address not provided"}</span>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-full border-t border-border/60 mb-4" />
+
+                  {/* Actions */}
                   <Button
                     variant="outline"
-                    className="w-full justify-center font-semibold text-foreground/80"
                     onClick={() => handleOpenBookingDetails(apt.id)}
+                    className="w-full rounded-xl py-5 font-semibold text-foreground/80 transition-all hover:bg-muted/50 border-border/60"
                   >
                     View booking
                   </Button>
@@ -317,235 +317,6 @@ export const AppointmentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Booking Details Modal (/booking/:booking_id) */}
-      <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3 pr-6">
-              <div>
-                <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
-                  <Receipt className="text-primary size-5" />
-                  Booking Details #{bookingDetails?.booking_number || bookingDetails?.id}
-                </DialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Full service breakdown and scheduled appointment data from API.
-                </p>
-              </div>
-              {bookingDetails && (
-                <StatusPill
-                  status={
-                    bookingDetails.appointment_status ||
-                    bookingDetails.status ||
-                    "Requested"
-                  }
-                />
-              )}
-            </div>
-          </DialogHeader>
-
-          {loadingDetails ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 size={32} className="animate-spin text-primary mb-3" />
-              <p className="text-sm text-muted-foreground">Loading booking details from API...</p>
-            </div>
-          ) : !bookingDetails ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              No booking details found.
-            </div>
-          ) : (
-            <div className="space-y-5 text-sm">
-              {/* Top Overview Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Date & Time Slot */}
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                    Appointment Schedule
-                  </span>
-                  <div className="flex items-center gap-2 text-foreground font-medium text-sm">
-                    <CalendarDays size={16} className="text-primary shrink-0" />
-                    <span>
-                      {bookingDetails.booking_date
-                        ? new Date(bookingDetails.booking_date).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "Date not specified"}
-                    </span>
-                  </div>
-                  {bookingDetails.time_slot && (
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                      <Clock size={14} className="text-primary shrink-0" />
-                      <span>
-                        {bookingDetails.time_slot.slot_name || "Slot"} (
-                        {bookingDetails.time_slot.start_time} - {bookingDetails.time_slot.end_time})
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Service Category */}
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                    Service Category
-                  </span>
-                  <div className="font-bold text-foreground text-base">
-                    {bookingDetails.service_type?.name ||
-                      bookingDetails.service_category ||
-                      bookingDetails.project?.title ||
-                      "Home Services"}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Order Type: <span className="font-medium text-foreground capitalize">{bookingDetails.order_type || "Standard"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Parties: Provider & Customer */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Provider Card */}
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                    Service Professional
-                  </span>
-                  <div className="font-bold text-foreground text-sm">
-                    {bookingDetails.provider?.business_name || "Provider"}
-                  </div>
-                  {bookingDetails.provider?.city && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <MapPin size={13} className="text-primary shrink-0" />
-                      <span>
-                        {[bookingDetails.provider.city, bookingDetails.provider.state]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Customer Card */}
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                    Customer Details
-                  </span>
-                  <div className="font-bold text-foreground text-sm">
-                    {bookingDetails.customer?.full_name || user?.full_name || "Customer"}
-                  </div>
-                  {bookingDetails.customer?.phone && (
-                    <div className="text-xs text-muted-foreground">
-                      Phone: <span className="font-medium text-foreground">{bookingDetails.customer.phone}</span>
-                    </div>
-                  )}
-                  {(bookingDetails.delivery_address || bookingDetails.pickup_address) && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
-                      <MapPin size={13} className="text-primary shrink-0" />
-                      <span className="truncate">{bookingDetails.delivery_address || bookingDetails.pickup_address}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Order Items / Services Table */}
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="bg-muted/50 px-4 py-2.5 border-b border-border flex items-center justify-between">
-                  <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground">
-                    Booked Services & Items
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {bookingDetails.items?.length || 0} item(s)
-                  </span>
-                </div>
-                <div className="divide-y divide-border/60">
-                  {bookingDetails.items && bookingDetails.items.length > 0 ? (
-                    bookingDetails.items.map((it: any, index: number) => {
-                      const itemName =
-                        it.custom_item_name ||
-                        it.item?.name ||
-                        it.service_name ||
-                        `Service Line Item ${index + 1}`;
-                      const qty = Number(it.quantity) || 1;
-                      const unitPrice = Number(it.price) || 0;
-                      const lineTotal = Number(it.total_price) || qty * unitPrice;
-
-                      return (
-                        <div key={it.id || index} className="p-3.5 flex items-center justify-between gap-3 text-xs">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-foreground text-sm">{itemName}</p>
-                            <p className="text-muted-foreground mt-0.5">
-                              Quantity: {qty} × {usd(unitPrice)}
-                            </p>
-                          </div>
-                          <span className="font-bold text-foreground text-sm shrink-0">
-                            {usd(lineTotal)}
-                          </span>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="p-4 text-xs text-muted-foreground text-center">
-                      Standard service package: {bookingDetails.service_category || "Home Services"}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Total & Payment Summary */}
-              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Payment Status:</span>
-                  <span className="font-bold uppercase tracking-wide text-foreground">
-                    {bookingDetails.payment_status || "Pending"}
-                  </span>
-                </div>
-                {bookingDetails.payment?.transaction_id && (
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Transaction ID:</span>
-                    <span className="font-mono text-foreground">{bookingDetails.payment.transaction_id}</span>
-                  </div>
-                )}
-                <div className="border-t border-border pt-2 flex items-center justify-between text-sm">
-                  <span className="font-bold text-foreground">Total Booking Amount:</span>
-                  <span className="font-bold text-base text-primary">
-                    {usd(bookingDetails.total_amount)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {bookingDetails.notes && (
-                <div className="rounded-xl border border-border bg-card p-3.5 space-y-1 text-xs">
-                  <span className="font-semibold text-muted-foreground block">Customer Notes / Instructions:</span>
-                  <p className="text-foreground leading-relaxed">{bookingDetails.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="pt-3 border-t border-border flex items-center justify-between sm:justify-between gap-2">
-            {bookingDetails && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDetailsModalOpen(false);
-                  handleOpenChat(bookingDetails);
-                }}
-                className="gap-1.5 text-xs"
-              >
-                <MessageSquare size={14} /> Open Chat
-              </Button>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setDetailsModalOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Reschedule Modal */}
       <Dialog open={rescheduleModalOpen} onOpenChange={setRescheduleModalOpen}>
