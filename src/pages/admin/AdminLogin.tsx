@@ -45,11 +45,19 @@ const LoginModal = ({
     e.preventDefault();
 
     let newErrors: any = {};
+    const trimmedEmail = email.trim();
 
-    if (!email) newErrors.email = "Email is required";
-    else if (!isValidEmail(email)) newErrors.email = "Invalid email";
+    if (!trimmedEmail) {
+      newErrors.email = "Email address is required.";
+    } else if (!isValidEmail(trimmedEmail)) {
+      newErrors.email = "Please enter a valid email address.";
+    }
 
-    if (!password) newErrors.password = "Password is required";
+    if (!password) {
+      newErrors.password = "Password is required.";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters long.";
+    }
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
@@ -60,7 +68,7 @@ const LoginModal = ({
 
     const res = await toast.promise(
       loginUser({
-        email,
+        email: trimmedEmail,
         password,
         role,
       }),
@@ -177,7 +185,7 @@ const LoginModal = ({
             </button>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" noValidate>
             {/* EMAIL */}
             <div className="space-y-1">
               <Label>
@@ -189,10 +197,14 @@ const LoginModal = ({
                 placeholder={
                   isAdmin ? "admin@unikclean.com" : "agent@unikclean.com"
                 }
-                onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: undefined });
+                }}
+                className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
               />
               {errors.email && (
-                <p className="text-xs text-red-500">{errors.email}</p>
+                <p className="text-xs text-red-500 font-medium">{errors.email}</p>
               )}
             </div>
 
@@ -204,8 +216,11 @@ const LoginModal = ({
               <Input
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value.replace(/\s/g, ""))}
-                className="pr-10"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors({ ...errors, password: undefined });
+                }}
+                className={`pr-10 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 placeholder="••••••••"
               />
               <button
@@ -216,7 +231,7 @@ const LoginModal = ({
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
               {errors.password && (
-                <p className="text-xs text-red-500">{errors.password}</p>
+                <p className="text-xs text-red-500 font-medium">{errors.password}</p>
               )}
             </div>
 

@@ -1,17 +1,6 @@
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`; 
-  }
-
-  return config;
-});
-
-export default api;
+/**
+ * @deprecated Import from `@/api` or `@/lib/api` instead.
+ * Kept so existing pages/services keep working without churn.
+ */
+export { default, apiClient as api } from "@/lib/api/client";
+export { default as apiClient } from "@/lib/api/client";

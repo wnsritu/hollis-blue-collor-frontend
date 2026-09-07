@@ -1,17 +1,12 @@
-"use client";
-
 import React, { useState } from "react";
-import { Eye, EyeOff, X, AlertCircle,Clock } from "lucide-react";
-
-import {
-  forgotPassword,
-  verifyOtp,
-  resetPassword,
-  resendOtp,
-} from "@/services/auth.service";
+import { Eye, EyeOff, X, KeyRound, Clock, AlertCircle } from "lucide-react";
+import { forgotPassword, verifyOtp, resetPassword, resendOtp } from "@/services/auth.service";
 import useCountdown from "@/hooks/useCountdown";
 import { toast } from "react-hot-toast";
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { OtpInput } from "@/components/ui/otp-input";
 
 const ForgotPasswordModal = ({
   open,
@@ -26,321 +21,229 @@ const ForgotPasswordModal = ({
 }) => {
   const [step, setStep] = useState<"email" | "otp" | "reset">("email");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
-  const { time, isExpired, reset, formatTime } = useCountdown(600);
+  const { isExpired, reset, formatTime } = useCountdown(600);
 
   if (!open) return null;
 
   const handleClose = () => {
     setStep("email");
     setEmail("");
-    setOtp(["", "", "", "", "", ""]);
+    setOtp("");
     setNewPassword("");
     setConfirmPassword("");
-    setErrors("");
+    setErrors({});
     onClose();
-  };
-
-  const handleOtpChange = (value: string, index: number) => {
-    if (!/^\d*$/.test(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // 👉 Move forward
-    if (value && index < 5) {
-      const next = document.getElementById(`otp-${index + 1}`);
-      next?.focus();
-    }
-  };
-
-  // ✅ NEW FUNCTION (IMPORTANT)
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === "Backspace") {
-      if (otp[index]) {
-        // 👉 just clear current box
-        const newOtp = [...otp];
-        newOtp[index] = "";
-        setOtp(newOtp);
-      } else if (index > 0) {
-        // 👉 move to previous box
-        const prev = document.getElementById(`otp-${index - 1}`);
-        prev?.focus();
-
-        const newOtp = [...otp];
-        newOtp[index - 1] = "";
-        setOtp(newOtp);
-      }
-    }
   };
 
   const handleResendOtp = async () => {
     try {
-      // setLoading(true);
       setErrors({});
-
       await toast.promise(resendOtp(email, roleId), {
         loading: "Resending OTP...",
         success: "OTP resent successfully.",
-        error: (err: any) =>
-          err?.response?.data?.message || "Failed to resend OTP",
+        error: (err: any) => err?.response?.data?.message || "Failed to resend OTP",
       });
       reset();
-
-      // setErrors({ otpSuccess: "OTP resent successfully" });
     } catch (err: any) {
-      // setErrors({
-      //   otp: err?.response?.data?.message || "Failed to resend OTP",
-      // });
-    } finally {
-      setLoading(false);
+      console.log(err);
     }
   };
 
-  const otpValue = otp.join("");
-
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-foreground/40 ">
-      <div className="w-full max-w-[460px] bg-white rounded-2xl p-8 shadow-[0_10px_30px_rgba(0,0,0,0.12)] relative">
-        {" "}
-        {/* CLOSE */}
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-pop relative">
         <button
           onClick={handleClose}
-          className="absolute right-5 top-5 text-gray-400 hover:text-black"
+          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <X size={22} />
+          <X size={20} />
         </button>
-        {/* ================= EMAIL ================= */}
-        {step === "email" && (
-          <>
-            <h2 className="text-[28px] font-bold text-center text-gray-700">
-              Forgot Password
-            </h2>
 
-            <p className="text-center text-gray-500 text-[14px] mt-2 mb-6 leading-5">
-              Enter your Email Address associated with your account
-            </p>
+        {/* STEP 1: EMAIL */}
+        {step === "email" && (
+          <div className="space-y-5">
+            <div className="flex flex-col items-center text-center">
+              <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+                <KeyRound size={22} />
+              </span>
+              <h2 className="mt-4 font-display text-2xl font-extrabold text-foreground">
+                Forgot Password
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                Enter your email address associated with your account
+              </p>
+            </div>
 
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-
-                let newErrors: any = {};
-
                 if (!email) {
-                  newErrors.email = "Email is required";
-                }
-
-                if (Object.keys(newErrors).length) {
-                  setErrors(newErrors);
+                  setErrors({ email: "Email is required" });
                   return;
                 }
 
                 try {
-                  // setLoading(true);
+                  setLoading(true);
                   setErrors({});
                   await toast.promise(forgotPassword(email, roleId), {
                     loading: "Sending OTP...",
                     success: "OTP sent successfully.",
-                    error: (err: any) =>
-                      err?.response?.data?.message || "Failed to send OTP",
+                    error: (err: any) => err?.response?.data?.message || "Failed to send OTP",
                   });
                   reset();
                   setStep("otp");
                 } catch (err: any) {
-                  setErrors({
-                    email: err?.response?.data?.message || "Failed to send OTP",
-                  });
+                  setErrors({ email: err?.response?.data?.message || "Failed to send OTP" });
                 } finally {
                   setLoading(false);
                 }
               }}
               className="space-y-4"
             >
-              <div className="space-y-1">
-                <label className="text-[14px] font-medium text-gray-700">
-                  Email <span className="text-red-500">*</span>
-                </label>
-
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email" className="text-xs font-bold uppercase tracking-wider">
+                  Email Address
+                </Label>
+                <Input
+                  id="forgot-email"
                   type="email"
                   value={email}
                   placeholder="you@example.com"
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    setErrors((prev) => ({ ...prev, email: "" }));
+                    setErrors((prev: any) => ({ ...prev, email: "" }));
                   }}
-                  className="w-full h-[44px] px-4 border border-gray-300 rounded-xl text-[14px] focus:ring-2 focus:ring-blue-500 outline-none"
                 />
-
-                {errors.email && (
-                  <p className="text-red-500 text-xs">{errors.email}</p>
-                )}
+                {errors.email && <p className="text-xs text-destructive font-medium">{errors.email}</p>}
               </div>
 
-              <button
-                className="w-full h-[40px] rounded-xl text-white font-normal text-[15px] 
-bg-gradient-to-r from-blue-500 to-blue-500 hover:opacity-95 transition"
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
                 disabled={loading}
               >
-                {loading ? "Sending..." : "Get OTP"}
-              </button>
+                {loading ? "Sending..." : "Get OTP Code"}
+              </Button>
             </form>
-
-            {/* <p className="text-center text-gray-500 text-[14px] mt-2 mb-7 leading-[20px]">
-              Don’t have an account?{" "}
-              <span className="text-blue-600 cursor-pointer font-medium">
-                Sign Up
-              </span>
-            </p> */}
-          </>
+          </div>
         )}
-        {/* ================= OTP ================= */}
-        {step === "otp" && (
-          <>
-            <h2 className="text-[26px] font-semibold text-center text-gray-800">
-              Verify Code
-            </h2>
 
-            <p className="text-center text-gray-500 text-[14px] mt-2 mb-6">
-              Enter the OTP (One Time Password) sent on{" "}
-              <span className="font-medium">{email}</span>
-            </p>
+        {/* STEP 2: OTP */}
+        {step === "otp" && (
+          <div className="space-y-5">
+            <div className="flex flex-col items-center text-center">
+              <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+                <KeyRound size={22} />
+              </span>
+              <h2 className="mt-4 font-display text-2xl font-extrabold text-foreground">
+                Verify Code
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                Enter the 6-digit code sent to <span className="font-semibold text-foreground">{email}</span>
+              </p>
+            </div>
 
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-
-                let newErrors: any = {};
-
-                if (!otpValue || otpValue.length !== 6) {
-                  newErrors.otp = "OTP is required";
-                  setErrors(newErrors);
+                if (!otp || otp.length !== 6) {
+                  setErrors({ otp: "Please enter all 6 digits of OTP" });
                   return;
                 }
 
                 try {
-                  // setLoading(true);
+                  setLoading(true);
                   setErrors({});
-                  await toast.promise(verifyOtp({ email, otp: otpValue, role_id:roleId }), {
+                  await toast.promise(verifyOtp({ email, otp, role_id: roleId }), {
                     loading: "Verifying OTP...",
                     success: "OTP verified successfully.",
-                    error: (err: any) =>
-                      err?.response?.data?.message || "Invalid OTP",
+                    error: (err: any) => err?.response?.data?.message || "Invalid OTP",
                   });
                   setStep("reset");
                 } catch (err: any) {
-                  setErrors({
-                    otp: err?.response?.data?.message || "Invalid OTP",
-                  });
+                  setErrors({ otp: err?.response?.data?.message || "Invalid OTP" });
                 } finally {
                   setLoading(false);
                 }
               }}
-              className="space-y-6"
+              className="space-y-4"
             >
-              {/* OTP BOXES */}
-              <div className="flex justify-center gap-2">
-                {otp.map((digit, i) => (
-                  <input
-                    key={i}
-                    id={`otp-${i}`}
-                    value={digit}
-                    maxLength={1}
-                    onChange={(e) => handleOtpChange(e.target.value, i)}
-                    onKeyDown={(e) => handleKeyDown(e, i)} // ✅ ADD THIS
-                    className="
-                    w-[36px] h-[38px]
-                    text-center
-                    border border-gray-300
-                    rounded-lg
-                    text-[15px] font-medium
-                    text-gray-700
-                    focus:border-blue-500
-                    focus:ring-1 focus:ring-blue-200
-                    outline-none
-                  "
-                  />
-                ))}
-              </div>
-              {errors.otp && (
-                <p className="text-red-500 text-xs text-center">{errors.otp}</p>
-              )}
-              {errors.otpSuccess && (
-                <p className="text-green-600 text-xs text-center">
-                  {errors.otpSuccess}
-                </p>
-              )}
+              <OtpInput
+                value={otp}
+                onChange={(val) => {
+                  setOtp(val);
+                  if (errors.otp) setErrors({});
+                }}
+              />
 
-              <p className="text-center text-sm mt-2">
+              <div className="flex justify-center text-xs font-medium">
                 {isExpired ? (
-                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-                    <AlertCircle size={14} />
-                    OTP Expired
+                  <span className="inline-flex items-center gap-1.5 text-destructive bg-destructive-soft px-3 py-1 rounded-full">
+                    <AlertCircle size={13} /> OTP Expired
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 font-medium">
-                    <Clock size={14} />
-                    Expires in
-                    <span className="font-semibold tracking-wide">
-                      {formatTime()}
-                    </span>
+                  <span className="inline-flex items-center gap-1.5 text-primary bg-primary-soft px-3 py-1 rounded-full">
+                    <Clock size={13} /> Expires in <span className="font-bold">{formatTime()}</span>
                   </span>
                 )}
-              </p>
-              <p className="text-center text-sm text-gray-500">
-                Don’t receive the OTP ?{" "}
+              </div>
+
+              {errors.otp && <p className="text-center text-xs font-semibold text-destructive">{errors.otp}</p>}
+
+              <p className="text-center text-xs text-muted-foreground">
+                Didn’t receive the code?{" "}
                 <button
                   type="button"
                   onClick={handleResendOtp}
                   disabled={loading}
-                  className="text-blue-600 cursor-pointer font-medium hover:underline disabled:opacity-50"
+                  className="font-semibold text-primary hover:underline focus:outline-none"
                 >
-                  {loading ? "Sending..." : "Resend"}
+                  Resend Code
                 </button>
               </p>
 
-              <button
-                className="w-full h-[40px] bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-normal text-[15px]"
-                disabled={loading}
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={loading || otp.length < 6}
               >
                 {loading ? "Verifying..." : "Verify & Proceed"}
-              </button>
+              </Button>
             </form>
-          </>
+          </div>
         )}
-        {/* ================= RESET ================= */}
-        {step === "reset" && (
-          <>
-            <h2 className="text-[26px] font-bold text-center text-gray-700">
-              Create New Password
-            </h2>
 
-            <p className="text-center text-gray-500 text-[14px] mt-2 mb-6">
-              Your new password must be different from your previous password
-            </p>
+        {/* STEP 3: RESET PASSWORD */}
+        {step === "reset" && (
+          <div className="space-y-5">
+            <div className="flex flex-col items-center text-center">
+              <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+                <KeyRound size={22} />
+              </span>
+              <h2 className="mt-4 font-display text-2xl font-extrabold text-foreground">
+                Create New Password
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                Your new password must be at least 6 characters
+              </p>
+            </div>
 
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-
                 let newErrors: any = {};
-
-                if (!newPassword) {
-                  newErrors.newPassword = "Password is required";
+                if (!newPassword || newPassword.length < 6) {
+                  newErrors.newPassword = "Minimum 6 characters required";
                 }
-
-                if (!confirmPassword) {
-                  newErrors.confirmPassword = "Confirm password is required";
-                }
-
                 if (newPassword !== confirmPassword) {
                   newErrors.confirmPassword = "Passwords do not match";
                 }
@@ -351,99 +254,87 @@ bg-gradient-to-r from-blue-500 to-blue-500 hover:opacity-95 transition"
                 }
 
                 try {
-                  // setLoading(true);
-                  setErrors("");
+                  setLoading(true);
+                  setErrors({});
                   await toast.promise(resetPassword({ email, newPassword, role_id: roleId }), {
                     loading: "Resetting password...",
                     success: "Password reset successfully.",
-                    error: (err: any) =>
-                      err?.response?.data?.message || "Reset failed",
+                    error: (err: any) => err?.response?.data?.message || "Reset failed",
                   });
                   handleClose();
                   onSuccess();
                 } catch (err: any) {
-                  setErrors(err?.response?.data?.message || "Reset failed");
+                  setErrors({ newPassword: err?.response?.data?.message || "Reset failed" });
                 } finally {
                   setLoading(false);
                 }
               }}
               className="space-y-4"
             >
-              {/* PASSWORD */}
-              <div className="space-y-2 relative">
-                <label className="text-sm font-medium text-gray-700">
-                  Password <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  type={showNew ? "text" : "password"} // ✅ FIX
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    setErrors((prev: any) => ({ ...prev, newPassword: "" })); // ✅ error remove
-                  }}
-                  className="w-full h-[44px] px-4 pr-10 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-
-                {/* 👁️ Eye */}
-                <button
-                  type="button"
-                  onClick={() => setShowNew((prev) => !prev)}
-                  className="absolute right-3 top-[38px] text-gray-500 hover:text-black"
-                >
-                  {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-
-                {errors.newPassword && (
-                  <p className="text-red-500 text-xs">{errors.newPassword}</p>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="new-pass" className="text-xs font-bold uppercase tracking-wider">
+                  New Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="new-pass"
+                    type={showNew ? "text" : "password"}
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setErrors((prev: any) => ({ ...prev, newPassword: "" }));
+                    }}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNew((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {errors.newPassword && <p className="text-xs text-destructive font-medium">{errors.newPassword}</p>}
               </div>
 
-              {/* CONFIRM PASSWORD */}
-              <div className="space-y-2 relative">
-                <label className="text-sm font-medium text-gray-700">
-                  Confirm Password <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  type={showConfirm ? "text" : "password"} // ✅ FIX
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setErrors((prev: any) => ({
-                      ...prev,
-                      confirmPassword: "",
-                    })); // ✅ error remove
-                  }}
-                  className="w-full h-[44px] px-4 pr-10 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-
-                {/* 👁️ Eye */}
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((prev) => !prev)}
-                  className="absolute right-3 top-[38px] text-gray-500 hover:text-black"
-                >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-xs">
-                    {errors.confirmPassword}
-                  </p>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="confirm-pass" className="text-xs font-bold uppercase tracking-wider">
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirm-pass"
+                    type={showConfirm ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setErrors((prev: any) => ({ ...prev, confirmPassword: "" }));
+                    }}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {errors.confirmPassword && <p className="text-xs text-destructive font-medium">{errors.confirmPassword}</p>}
               </div>
 
-              <button
-                className="w-full h-[40px] bg-blue-500 hover:bg-blue-500 text-white rounded-lg font-normal text-[15px]"
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
                 disabled={loading}
               >
                 {loading ? "Resetting..." : "Reset Password"}
-              </button>
+              </Button>
             </form>
-          </>
+          </div>
         )}
       </div>
     </div>

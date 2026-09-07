@@ -1,26 +1,34 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { LayoutDashboard, Users, User, ClipboardList, DollarSign, Shirt, Sparkles, Car, Activity } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import {
+  Users,
+  User,
+  ClipboardList,
+  DollarSign,
+  Percent,
+  Receipt,
+  Banknote,
+  Shirt,
+  Sparkles,
+  Car,
+} from "lucide-react";
+import { PageHeader, StatCard } from "@/components/shared/primitives";
+import { Button } from "@/components/ui/button";
 import { getAdminDashboardApi } from "@/api/admin.api";
-import { DashboardCard, ProgressCategoryChart, VerticalBarChart } from "@/components/DashboardWidgets";
 
 const AdminDashboard = () => {
-  const { t } = useTranslation();
-  const isDashboardAvailable = true; // Set to false to show Coming Soon view
   const [dashData, setDashData] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
-  // Fetch admin dashboard data
   const fetchDashboard = async () => {
     try {
       setLoading(true);
       const response = await getAdminDashboardApi();
-      if (response.data.success) {
+      if (response.data?.success) {
         setDashData(response.data.data || {});
       }
     } catch (error) {
-      console.error("Error fetching dashboard:", error);
+      console.error("Error fetching admin dashboard:", error);
     } finally {
       setLoading(false);
     }
@@ -30,120 +38,102 @@ const AdminDashboard = () => {
     fetchDashboard();
   }, []);
 
-  // Show Coming Soon if dashboard disabled
-  if (!isDashboardAvailable) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <div className="text-center space-y-5">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-            <LayoutDashboard size={24} />
-          </div>
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Admin Feature
-            </span>
-          </div>
-          <h2 className="text-lg font-semibold text-foreground">
-            Admin Dashboard Coming Soon
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            View analytics, track performance, and monitor platform activity from one place. This feature will be available soon.
-          </p>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto size-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading admin analytics...</p>
         </div>
       </div>
     );
   }
 
+  const totalUsers = dashData.totalUsers ?? 0;
+  const totalProviders = dashData.totalProviders ?? 0;
+  const activeBookings = dashData.activeBookings ?? 0;
+  const totalRevenue = dashData.totalRevenue ?? 0;
+
   return (
-    <div className="container-grid p-3 space-y-6">
-      <h1 className="font-heading text-2xl font-bold text-foreground">
-        {t("dashboard")}
-      </h1>
+    <div className="container-page py-6">
+      <PageHeader
+        title="Platform Console"
+        subtitle="Marketplace statistics, operational queues, and revenue metrics."
+        action={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/admin/providers">Review Providers</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/admin/orders">Manage Orders</Link>
+            </Button>
+          </>
+        }
+      />
 
-      {/* Primary Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          label="Total Customers"
-          value={dashData.totalUsers ?? 0}
-          icon={Users}
-          iconColorClass="text-primary bg-primary/10"
+      {/* Top Level Metric Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total Revenue"
+          value={`$${totalRevenue.toFixed(2)}`}
+          hint="Gross platform revenue"
+          icon={Receipt}
+          tone="brand"
         />
-        <DashboardCard
-          label="Total Providers"
-          value={dashData.totalProviders ?? 0}
-          icon={User}
-          iconColorClass="text-emerald-600 bg-emerald-50"
-        />
-        <DashboardCard
+        <StatCard
           label="Active Bookings"
-          value={dashData.activeBookings ?? 0}
+          value={activeBookings}
+          hint="Currently active jobs"
           icon={ClipboardList}
-          iconColorClass="text-yellow-600 bg-yellow-50"
+          tone="warning"
         />
-        <DashboardCard
-          label="Platform Revenue"
-          value={`$${(dashData.totalRevenue ?? 0).toFixed(2)}`}
-          icon={DollarSign}
-          iconColorClass="text-purple-600 bg-purple-50"
+        <StatCard
+          label="Total Customers"
+          value={totalUsers}
+          hint="Registered customer accounts"
+          icon={Users}
+          tone="accent"
         />
-      </div>
-
-      {/* Service breakdown */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <DashboardCard
-          label="Laundry Orders"
-          value={dashData.laundry_orders ?? 0}
-          icon={Shirt}
-          iconColorClass="text-primary bg-primary/10"
-        />
-        <DashboardCard
-          label="House Cleaning Orders"
-          value={dashData.house_cleaning_orders ?? 0}
-          icon={Sparkles}
-          iconColorClass="text-emerald-600 bg-emerald-50"
-        />
-        <DashboardCard
-          label="Car Wash Orders"
-          value={dashData.car_wash_orders ?? 0}
-          icon={Car}
-          iconColorClass="text-blue-600 bg-blue-50"
+        <StatCard
+          label="Verified Providers"
+          value={totalProviders}
+          hint="Approved service providers"
+          icon={User}
+          tone="success"
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Revenue by Service */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Revenue by Service</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProgressCategoryChart
-              data={dashData.revenue_by_service || [
-                { label: "Laundry", value: 0, colorClass: "bg-primary" },
-                { label: "House Cleaning", value: 0, colorClass: "bg-emerald-500" },
-                { label: "Car Wash", value: 0, colorClass: "bg-blue-500" }
-              ]}
-              valueFormatter={(val) => `$${val.toFixed(2)}`}
-            />
-          </CardContent>
-        </Card>
+      {/* Order Category Breakdown */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Laundry Orders</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-primary-soft text-primary">
+              <Shirt size={18} />
+            </span>
+          </div>
+          <p className="mt-3 font-display text-2xl font-bold">{dashData.laundry_orders ?? 0}</p>
+        </div>
 
-        {/* Orders Per Day Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Orders Per Day</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <VerticalBarChart
-              data={(dashData.orders_per_day || []).map((item: any) => ({
-                label: item.day,
-                value: item.orders
-              }))}
-              valueFormatter={(val) => String(val)}
-            />
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">House Cleaning</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-success-soft text-success">
+              <Sparkles size={18} />
+            </span>
+          </div>
+          <p className="mt-3 font-display text-2xl font-bold">{dashData.house_cleaning_orders ?? 0}</p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Car Wash Orders</span>
+            <span className="grid size-9 place-items-center rounded-xl bg-accent-soft text-accent-soft-foreground">
+              <Car size={18} />
+            </span>
+          </div>
+          <p className="mt-3 font-display text-2xl font-bold">{dashData.car_wash_orders ?? 0}</p>
+        </div>
       </div>
     </div>
   );

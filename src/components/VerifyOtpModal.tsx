@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Clock, AlertCircle, KeyRound, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OtpInput } from "@/components/ui/otp-input";
 import useCountdown from "@/hooks/useCountdown";
-import { Clock, AlertCircle } from "lucide-react";
+
 interface VerifyOtpModalProps {
   open: boolean;
   type: "email" | "mobile";
-  target: string; // email or phone masked
+  target: string;
   onClose: () => void;
   onVerify: (otp: string) => Promise<void>;
   onResend: () => void;
@@ -20,193 +21,121 @@ const VerifyOtpModal = ({
   onVerify,
   onResend,
 }: VerifyOtpModalProps) => {
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const { time, isExpired, reset, formatTime } = useCountdown(600); // 10 min
+  const { isExpired, reset, formatTime } = useCountdown(600);
 
   useEffect(() => {
     if (!open) return;
-
-    setOtp(["", "", "", "", "", ""]);
+    setOtp("");
     setError("");
     setSuccessMsg("");
+    reset();
+  }, [open, type]);
 
-    reset(); // ✅ direct call (no timeout)
-  }, [type]); // 🔥 ONLY type change pe reset
   if (!open) return null;
 
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === "Backspace") {
-      e.preventDefault();
-
-      const newOtp = [...otp];
-
-      if (otp[index]) {
-        newOtp[index] = "";
-        setOtp(newOtp);
-      } else if (index > 0) {
-        const prev = document.getElementById(`otp-${index - 1}`);
-        prev?.focus();
-
-        newOtp[index - 1] = "";
-        setOtp(newOtp);
-      }
-    }
-  };
-  const handleChange = (value: string, index: number) => {
-    if (!/^\d*$/.test(value)) return;
-
-    setError("");
-    setSuccessMsg("");
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    if (value && index < 5) {
-      document.getElementById(`otp-${index + 1}`)?.focus();
-    }
-  };
   const handleSubmit = async () => {
-    const finalOtp = otp.join("");
-
-    if (finalOtp.length !== 6) {
-      setError("Please enter 6 digit OTP");
+    if (otp.length !== 6) {
+      setError("Please enter all 6 digits of the verification code.");
       return;
     }
     if (isExpired) {
-      setError("OTP expired, please resend");
+      setError("OTP expired, please resend.");
       return;
     }
 
     try {
       setLoading(true);
       setError("");
-
-      await onVerify(finalOtp);
-      // setSuccessMsg("Verified successfully");
+      await onVerify(otp);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Invalid OTP");
+      setError(err?.response?.data?.message || err?.message || "Invalid verification code.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg relative">
-        {/* Close */}
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-pop relative">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-black"
+          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
         >
           <X size={20} />
         </button>
 
-        {/* Title */}
-        <h2 className="text-xl font-semibold text-center">
-          Verify {type === "email" ? "Email" : "Mobile"} OTP
-        </h2>
-
-        <p className="text-sm text-gray-500 text-center mt-1">
-          Enter the OTP sent to {target}
-        </p>
-
-        {/* OTP Boxes */}
-        <div className="flex justify-center gap-3 mt-6">
-          {otp.map((digit, i) => (
-            <input
-              key={i}
-              id={`otp-${i}`}
-              value={digit}
-              maxLength={1}
-              onChange={(e) => handleChange(e.target.value, i)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              className="
-        w-10 h-10
-        text-center
-        text-base font-medium
-        rounded-xl
-        bg-gray-100
-        text-gray-600
-
-        border border-gray-200
-        outline-none
-
-        transition-all duration-150
-
-        focus:bg-white
-        focus:border-blue-400
-        focus:ring-2 focus:ring-blue-100
-      "
-            />
-          ))}
+        <div className="flex flex-col items-center text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+            <KeyRound size={22} />
+          </span>
+          <h2 className="mt-4 font-display text-2xl font-extrabold text-foreground">
+            Verify {type === "email" ? "Email" : "Mobile"}
+          </h2>
+          <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+            Enter the 6-digit code sent to{" "}
+            <span className="font-semibold text-foreground">{target}</span>
+          </p>
         </div>
 
-        <p className="text-center text-sm mt-3">
-          {isExpired ? (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium">
-              <AlertCircle size={14} />
-              OTP Expired
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 font-medium">
-              <Clock size={14} />
-              Expires in
-              <span className="font-semibold tracking-wide">
-                {formatTime()}
-              </span>
-            </span>
-          )}
-        </p>
-        {error ? (
-          <p className="text-red-500 text-sm text-center mt-2">{error}</p>
-        ) : successMsg ? (
-          <p className="text-green-600 text-sm text-center mt-2">
-            {successMsg}
-          </p>
-        ) : null}
-
-        {/* Resend */}
-        <p className="text-sm text-center mt-4 text-gray-500">
-          Don’t receive the OTP?{" "}
-          <button
-            onClick={async () => {
-              try {
-                setError("");
-                setSuccessMsg("");
-
-                await onResend();
-                reset();
-                setOtp(["", "", "", "", "", ""]);
-
-                setSuccessMsg("OTP sent successfully");
-
-                // auto clear success after 2 sec
-                setTimeout(() => {
-                  setSuccessMsg("");
-                }, 2000);
-              } catch (err: any) {
-                setSuccessMsg("");
-                setError(err?.message || "Failed to resend OTP");
-              }
+        <div className="mt-6 space-y-4">
+          <OtpInput
+            value={otp}
+            onChange={(val) => {
+              setOtp(val);
+              if (error) setError("");
             }}
-            className="text-blue-600 font-medium hover:underline"
-          >
-            Resend
-          </button>
-        </p>
+          />
 
-        {/* Button */}
-        <Button
-          onClick={handleSubmit}
-          className="w-full mt-5"
-          disabled={loading} 
-        >
-          {loading ? "Verifying..." : "Verify & Proceed"}
-        </Button>
+          <div className="flex justify-center text-xs font-medium">
+            {isExpired ? (
+              <span className="inline-flex items-center gap-1.5 text-destructive bg-destructive-soft px-3 py-1 rounded-full">
+                <AlertCircle size={13} /> OTP Expired
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-primary bg-primary-soft px-3 py-1 rounded-full">
+                <Clock size={13} /> Expires in <span className="font-bold">{formatTime()}</span>
+              </span>
+            )}
+          </div>
+
+          {error && <p className="text-center text-xs font-semibold text-destructive">{error}</p>}
+          {successMsg && <p className="text-center text-xs font-semibold text-success">{successMsg}</p>}
+
+          <p className="text-center text-xs text-muted-foreground pt-1">
+            Didn’t receive the code?{" "}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setError("");
+                  await onResend();
+                  reset();
+                  setOtp("");
+                  setSuccessMsg("Verification code resent.");
+                  setTimeout(() => setSuccessMsg(""), 3000);
+                } catch (err: any) {
+                  setError(err?.message || "Failed to resend code.");
+                }
+              }}
+              className="font-semibold text-primary hover:underline focus:outline-none"
+            >
+              Resend Code
+            </button>
+          </p>
+
+          <Button
+            onClick={handleSubmit}
+            size="lg"
+            className="w-full mt-2"
+            disabled={loading || otp.length < 6}
+          >
+            {loading ? "Verifying..." : "Verify & Continue"}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -37,13 +37,8 @@ export const updateProfile = async (payload: any) => {
 export const uploadProfilePhotoApi = async (file: File) => {
   const formData = new FormData();
   formData.append("profile_photo", file);
-
-  const res = await api.put("/user/profile/photo", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
+  // Let the browser set multipart boundary — do not force Content-Type
+  const res = await api.put("/user/profile/photo", formData);
   return res.data;
 };
 

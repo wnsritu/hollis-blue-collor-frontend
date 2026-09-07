@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Header from "@/components/Header";
+import PublicLayout from "./components/layout/PublicLayout";
+import { ProviderPortal, CustomerPortal, RolePortal } from "./components/layout/portals";
 import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
@@ -17,6 +18,8 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
@@ -30,6 +33,8 @@ import AdminLayout from "./components/AdminLayout";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProviders from "./pages/admin/AdminProviders";
+import AdminProviderDetail from "./pages/admin/AdminProviderDetail";
+import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminDisputes from "./pages/admin/AdminDisputes";
 import AdminSponsored from "./pages/admin/AdminSponsored";
@@ -47,6 +52,7 @@ import SupportDashboard from "./pages/support/SupportAgent";
 import SupportLayout from "./components/SupportLayout";
 import SupportRequestsPage from "./pages/admin/SupportRequest";
 import ProviderFeatured from "./pages/ProviderFeatured";
+import ProviderOnboarding from "./pages/ProviderOnboarding";
 import AdminFeaturedPricing from "./pages/admin/AdminFeaturedPricing";
 import ReportIssue from "./pages/ReportIssue";
 import HowItWorks from "./pages/HowItWorks";
@@ -87,6 +93,8 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="services" element={<AdminServices />} />
             <Route path="providers" element={<AdminProviders />} />
+            <Route path="providers/:id" element={<AdminProviderDetail />} />
+            <Route path="customers" element={<AdminCustomers />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="disputes/:id" element={<AdminDisputeDetail />} />
@@ -130,104 +138,100 @@ const App = () => (
           <Route
             path="/"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Index />
-              </>
+              </PublicLayout>
             }
           />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ForgotPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/verify-otp" element={<VerifyEmail />} />
+          <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
           <Route
             path="/how-it-works"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <HowItWorks />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/about"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <About />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/search"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <SearchProviders />
-              </>
+              </PublicLayout>
             }
           />
 
           <Route
             path="/provider/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <ProviderProfile />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/cleaning"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CleaningBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/carwash"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <CarWashBookingWizard />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/booking/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Booking />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/checkout"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <Checkout />
-              </>
+              </PublicLayout>
             }
           />
           <Route
             path="/rating/:id"
             element={
-              <>
-                <Header />
+              <PublicLayout>
                 <RatingPage />
-              </>
+              </PublicLayout>
             }
           />
 
-          {/* ================= CUSTOMER (PROTECTED) ================= */}
+          {/* ================= CUSTOMER (PROTECTED) — service-connect portal shell ================= */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerDashboard />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -236,11 +240,9 @@ const App = () => (
             path="/orders"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <OrderTracking />
-                  {/* <CustomerOrderDetail /> */}
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -249,10 +251,9 @@ const App = () => (
             path="/order/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerOrderDetail />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -260,10 +261,9 @@ const App = () => (
             path="/report-issue/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <ReportIssue />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
@@ -272,10 +272,9 @@ const App = () => (
             path="/messages"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <RolePortal>
                   <Messages />
-                </>
+                </RolePortal>
               </ProtectedRoute>
             }
           />
@@ -284,23 +283,21 @@ const App = () => (
             path="/profile"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <CustomerPortal>
                   <CustomerProfile />
-                </>
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />
 
-          {/* ================= PROVIDER (PROTECTED) ================= */}
+          {/* ================= PROVIDER (PROTECTED) — service-connect portal shell ================= */}
           <Route
             path="/provider/dashboard"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderDashboard />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -309,10 +306,9 @@ const App = () => (
             path="/provider/orders"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderOrders />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -321,10 +317,9 @@ const App = () => (
             path="/provider/order/:id"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderOrderDetail />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -333,10 +328,9 @@ const App = () => (
             path="/provider/pricing"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderPricing />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -345,10 +339,9 @@ const App = () => (
             path="/provider/availability"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderAvailability />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -357,10 +350,9 @@ const App = () => (
             path="/provider/earnings"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderEarnings />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -368,10 +360,9 @@ const App = () => (
             path="/provider/featured"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderFeatured />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
@@ -380,10 +371,9 @@ const App = () => (
             path="/provider/profile"
             element={
               <ProtectedRoute>
-                <>
-                  <Header />
+                <ProviderPortal>
                   <ProviderProfileSettings />
-                </>
+                </ProviderPortal>
               </ProtectedRoute>
             }
           />
