@@ -1,6 +1,6 @@
+import React, { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BadgeCheck, Star, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Logo({
@@ -90,6 +90,8 @@ export function StatusPill({
 }) {
   const auto: Record<string, keyof typeof toneMap> = {
     Active: "success",
+    Provided: "success",
+    "Not Provided": "neutral",
     Paid: "success",
     Completed: "success",
     Confirmed: "success",
@@ -246,13 +248,44 @@ export function EmptyState({
   );
 }
 
-export function Avatar({ initials, size = "md" }: { initials: string; size?: "sm" | "md" | "lg" }) {
+import { resolveMediaUrl } from "@/utils/mediaUrl";
+
+export function Avatar({
+  initials,
+  src,
+  size = "md",
+  className,
+}: {
+  initials: string;
+  src?: string | null;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
   const sizes = { sm: "size-9 text-xs", md: "size-12 text-sm", lg: "size-16 text-lg" };
+  const fullUrl = src ? resolveMediaUrl(src) : null;
+  const [imgError, setImgError] = useState(false);
+
+  if (fullUrl && !imgError) {
+    return (
+      <img
+        src={fullUrl}
+        alt={initials}
+        onError={() => setImgError(true)}
+        className={cn(
+          "shrink-0 rounded-2xl object-cover border border-border shadow-xs",
+          sizes[size],
+          className
+        )}
+      />
+    );
+  }
+
   return (
     <span
       className={cn(
         "grid shrink-0 place-items-center rounded-2xl bg-primary-soft font-display font-bold text-primary",
         sizes[size],
+        className
       )}
     >
       {initials}

@@ -37,6 +37,7 @@ import { customerApi } from "@/api/modules/customer.api";
 import { userApi } from "@/api/modules/user.api";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
+/** Provider nav — M3 Marketplace ready. */
 function checkIsVerified(verifiedRaw: unknown, statusRaw: unknown): boolean {
   if (verifiedRaw === true || verifiedRaw === 1) return true;
   const dbVerified = String(verifiedRaw || "").toLowerCase().trim();
@@ -198,15 +199,13 @@ function ProviderRestrictedState({
     </div>
   );
 }
-
-/** Service-connect provider nav — Hollis route aliases where needed. */
 export const providerNav: NavItem[] = [
   { to: "/provider/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/provider/pricing", label: "Services & Pricing", icon: Tags },
   { to: "/provider/availability", label: "Availability", icon: CalendarDays },
-  { to: "/provider/orders", label: "Schedule", icon: CalendarDays },
-  { to: "/provider/orders", label: "Custom Requests", icon: ListChecks },
-  { to: "/provider/orders", label: "Active Jobs", icon: Briefcase },
+  { to: "/appointments", label: "Schedule", icon: CalendarDays },
+  { to: "/provider/opportunities", label: "Custom Requests", icon: ListChecks },
+  { to: "/provider/jobs", label: "Active Jobs", icon: Briefcase },
   { to: "/messages", label: "Messages", icon: MessageSquare },
   { to: "/provider/earnings", label: "Earnings", icon: Wallet },
   { to: "/provider/featured", label: "Subscription", icon: CreditCard },
@@ -218,10 +217,10 @@ export const providerNav: NavItem[] = [
 export const customerNav: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/search", label: "Find a Pro", icon: Search },
-  { to: "/orders", label: "My Bookings", icon: Briefcase },
-  { to: "/orders", label: "Custom Requests", icon: PlusCircle },
+  { to: "/appointments", label: "My Bookings", icon: Briefcase },
+  { to: "/projects", label: "Custom Requests", icon: PlusCircle },
   { to: "/messages", label: "Messages", icon: MessageSquare },
-  { to: "/orders", label: "Payments", icon: CreditCard },
+  { to: "/appointments", label: "Payments", icon: CreditCard },
   { to: "/dashboard", label: "Reviews", icon: Star },
   { to: "/profile", label: "My Profile", icon: User },
 ];

@@ -62,10 +62,13 @@ export const ENDPOINTS = {
     tree: "/catalog",
     categories: "/categories",
     serviceTypes: "/service-types",
+    services: "/services",
     adminCategories: "/admin/categories",
     adminCategoryById: (id: number | string) => `/admin/categories/${id}`,
     adminServiceTypes: "/admin/service-types",
     adminServiceTypeById: (id: number | string) => `/admin/service-types/${id}`,
+    adminServices: "/admin/services",
+    adminServiceById: (id: number | string) => `/admin/services/${id}`,
   },
 
   // ─── Providers (legacy + marketplace) ──────────────────
@@ -235,6 +238,7 @@ export const ENDPOINTS = {
     unsuspendProvider: (id: number | string) => `/admin/providers/${id}/unsuspend`,
     customers: "/admin/customers",
     customerDetails: (id: number | string) => `/admin/customers/${id}`,
+    updateCustomerStatus: (id: number | string) => `/admin/customers/${id}/status`,
     activateCustomer: (id: number | string) => `/admin/customers/${id}/activate`,
     deactivateCustomer: (id: number | string) => `/admin/customers/${id}/deactivate`,
     plansAll: "/admin/plans/all",

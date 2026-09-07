@@ -1,503 +1,308 @@
-import { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
-import { Send, Image, ArrowLeft } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Send,
+  Paperclip,
+  ShieldAlert,
+  UserX,
+  Loader2,
+  MessageSquare,
+  FileQuestion,
+  Check,
+  CheckCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  getProviderChats,
-  getChatMessages,
-  sendMessage,
-  uploadImage,
-  createChat,
-} from "@/services/chat.service";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { CustomerPortal, ProviderPortal, RolePortal } from "@/components/layout/portals";
+import { EmptyState } from "@/components/shared/primitives";
+import { chatApi } from "@/api/modules/chat.api";
+import { useAuthSession } from "@/hooks/useAuth";
+import { isCustomer, isProvider } from "@/constants/roles";
+import type { ChatMessage, ChatThread } from "@/types/api/misc";
 import toast from "react-hot-toast";
 
-const Messages = () => {
-  const SHOW_FEATURED_UI = true;
-  const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [chats, setChats] = useState([]);
-  const [activeChat, setActiveChat] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+export const Messages: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuthSession();
+
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<number | string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
-  const [showList, setShowList] = useState(true);
-  const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImagePreview, setSelectedImagePreview] = useState(null);
 
-  // Read URL params for order-based chat
-  const orderIdParam = searchParams.get("order");
-  const providerIdParam = searchParams.get("provider");
-  const customerIdParam = searchParams.get("customer");
+  // Report modal state
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
 
-  const loggedInUserId = localStorage.getItem("id");
-  const loggedInUserRole =
-    localStorage.getItem("role_id") || localStorage.getItem("userRole");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const userIsCustomer = isCustomer(user?.role_id);
+  const userIsProvider = isProvider(user?.role_id);
+
+  // Fetch conversations list
+  const fetchThreads = async () => {
+    setLoadingThreads(true);
+    try {
+      const res = await chatApi.listUserChats();
+      const list = (res as any)?.data || res || [];
+      const validThreads = Array.isArray(list) ? list : [];
+      setThreads(validThreads);
+
+      // Select thread from navigation state if available
+      const stateSelectedId = (location.state as any)?.selectedChatId;
+      if (stateSelectedId) {
+        setActiveThreadId(stateSelectedId);
+      } else if (validThreads.length > 0 && !activeThreadId) {
+        setActiveThreadId(validThreads[0].id || validThreads[0].chat_id);
+      }
+    } catch (err) {
+      console.error("Failed to load chat threads", err);
+      toast.error("Failed to load conversations.");
+    } finally {
+      setLoadingThreads(false);
+    }
+  };
 
   useEffect(() => {
-    fetchChats();
-  }, [orderIdParam]);
-
-  useEffect(() => {
-    // Reset window scroll to top first to ensure header/navbar is visible
-    window.scrollTo(0, 0);
-    const timer = setTimeout(() => {
-      window.scrollTo(0, 0);
-    }, 100);
-
-    // Disable body & html scroll when Messages page is active
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      clearTimeout(timer);
-      // Restore default overflow on unmount
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    };
+    fetchThreads();
   }, []);
 
+  // Fetch messages for active thread
   useEffect(() => {
-    scrollToBottom();
+    if (!activeThreadId) return;
+    let cancelled = false;
+
+    (async () => {
+      setLoadingMessages(true);
+      try {
+        const res = await chatApi.getMessages(activeThreadId);
+        const list = (res as any)?.data || res || [];
+        if (!cancelled) {
+          setMessages(Array.isArray(list) ? list : []);
+          // Mark read
+          try {
+            await chatApi.markAsRead({ chat_id: activeThreadId });
+          } catch (mErr) {}
+        }
+      } catch (err) {
+        console.error("Failed to load messages", err);
+      } finally {
+        if (!cancelled) setLoadingMessages(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeThreadId || !inputText.trim() || sending) return;
 
-  const fetchChats = async () => {
+    const textToSend = inputText.trim();
+    setInputText("");
+    setSending(true);
+
     try {
-      setLoading(true);
-      const response = await getProviderChats();
-      const chatsData = response?.data || response || [];
-      // debugger
-      const chatsWithUnread = chatsData.map((chat) => ({
-        ...chat,
-        unread:
-          chat.last_message_time &&
-          String(chat.last_sender_id) !== String(loggedInUserId),
-      }));
-
-      setChats(chatsWithUnread);
-
-      // Handle order-based chat from URL params
-      if (orderIdParam) {
-        // Find existing chat for this booking/order
-        let orderChat = chatsWithUnread.find(
-          (chat) => String(chat.booking_id) === String(orderIdParam),
-        );
-
-        if (orderChat) {
-          // Chat exists, select it
-          setActiveChat({ ...orderChat, unread: false });
-          setShowList(false);
-          fetchMessages(orderChat.booking_id);
-          // Clear URL params after selecting
-          setSearchParams({});
-        } else if (providerIdParam && customerIdParam) {
-          // No chat exists, create one
-          try {
-            const newChatResponse = await createChat(
-              orderIdParam,
-              customerIdParam,
-              providerIdParam,
-            );
-            const newChat = newChatResponse?.data || newChatResponse;
-
-            if (newChat && newChat.id) {
-              // 🔥 FIX: Extract names from nested provider and customer objects
-              const formattedNewChat = {
-                id: newChat.id,
-                booking_id: newChat.booking_id || Number(orderIdParam),
-                customer_id: newChat.customer_id || Number(customerIdParam),
-                provider_id: newChat.provider_id || Number(providerIdParam),
-                activeChat: newChat.is_active || true,
-                // Extract names from nested objects
-                customer_name: newChat.customer
-                  ? `${newChat.customer.first_name || ''} ${newChat.customer.last_name || ''}`.trim()
-                  : "Customer",
-                provider_name: newChat.provider?.business_name || "Provider",
-                customer_image: newChat.customer_image || null,
-                provider_image: newChat.provider_image || null,
-                last_message: null,
-                last_message_time: null,
-              };
-
-              setChats((prev) => [formattedNewChat, ...prev]);
-              setActiveChat(formattedNewChat);
-              setShowList(false);
-
-              fetchMessages(formattedNewChat.booking_id);
-            }
-            // Clear URL params after creating
-            setSearchParams({});
-          } catch (createError) {
-            console.error("Failed to create chat:", createError);
-            toast.error("Failed to create chat. Please try again.");
-          }
-        }
-      } else if (chatsWithUnread.length > 0 && !activeChat) {
-        // Default behavior: select first chat if no order param
-        setActiveChat(chatsWithUnread[0]);
-        fetchMessages(chatsWithUnread[0].booking_id);
-      }
-    } catch (error) {
-      console.error("Failed to fetch chats:", error);
-      toast.error("Failed to load conversations");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMessages = async (chatId) => {
-    // debugger
-    try {
-      const response = await getChatMessages(chatId);
-      const messagesData =
-        response?.data?.data || response?.data || response || [];
-      setMessages(messagesData);
-    } catch (error) {
-      console.error("Failed to fetch messages:", error);
-    }
-  };
-
-  const handleChatSelect = (chat) => {
-    setChats((prev) =>
-      prev.map((c) =>
-        c.booking_id === chat.booking_id ? { ...c, unread: false } : c
-      ),
-    );
-    setActiveChat({ ...chat, unread: false });
-    setShowList(false);
-    fetchMessages(chat.booking_id);
-  };
-
-  const handleSend = async () => {
-    if (!activeChat || sending) return;
-    const text = newMessage.trim();
-    if (!text && !selectedImage) return;
-    // debugger
-    try {
-      setSending(true);
-      let newMsg;
-
-      if (selectedImage) {
-        const response = await uploadImage(activeChat.id, selectedImage);
-        newMsg = response?.data || response;
-        setSelectedImage(null);
-        setSelectedImagePreview(null);
-      } else {
-        const response = await sendMessage(activeChat.id, text);
-        newMsg = response?.data || response;
-        setNewMessage("");
-      }
-
-      if (newMsg && newMsg.id) {
-        setMessages((prev) => [...prev, newMsg]);
-
-        // update chat preview locally
-        setChats((prev) =>
-          prev.map((chat) =>
-            chat.id === activeChat.id
-              ? {
-                ...chat,
-                last_message: selectedImage ? "📷 Image" : newMsg.message,
-                last_message_time: newMsg.createdAt || newMsg.created_at,
-              }
-              : chat
-          )
-        );
-      }
-    } catch (error) {
-      // console.error("Send failed:", error);
-      toast.error(error?.message || "Failed to send message");
+      const res = await chatApi.sendMessage({
+        chatId: activeThreadId,
+        message: textToSend,
+        sender_role: userIsCustomer ? "customer" : "provider",
+      });
+      const newMsg = (res as any)?.data || res;
+      setMessages((prev) => [...prev, newMsg]);
+      fetchThreads(); // Refresh thread last message snippet
+    } catch (err: any) {
+      toast.error("Failed to send message.");
     } finally {
       setSending(false);
     }
   };
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setSelectedImage(file);
-    setSelectedImagePreview(URL.createObjectURL(file));
-    event.target.value = "";
-  };
-
-  const formatTime = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const messageDate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-    );
-
-    if (messageDate.getTime() === today.getTime()) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } else if (messageDate.getTime() === yesterday.getTime()) {
-      return "Yesterday";
-    } else {
-      return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  const handleReportChat = async () => {
+    if (!activeThreadId) return;
+    try {
+      await chatApi.report(activeThreadId, { reason: reportReason });
+      toast.success("Conversation reported to platform support.");
+      setReportModalOpen(false);
+      setReportReason("");
+    } catch (err) {
+      toast.error("Failed to submit report.");
     }
   };
 
-  const formatBubbleTime = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
-  const getImageUrl = (fileUrl) => {
-    if (!fileUrl) return null;
-    if (fileUrl.startsWith("http")) return fileUrl;
-    if (fileUrl.startsWith("/")) return `${BASE_URL}${fileUrl}`;
-    return `${BASE_URL}/${fileUrl}`;
-  };
-
-  // Get display name based on logged-in user role
-  const getDisplayName = (chat) => {
-    // Customer (role 3) sees provider name, Provider (role 4) sees customer name
-    const isCustomer = String(loggedInUserRole) === "3";
-    if (isCustomer) {
-      return `${chat?.provider_name} #${chat?.booking_id}` || "Provider";
+  const handleBlockUser = async () => {
+    if (!activeThreadId) return;
+    if (!window.confirm("Are you sure you want to block this user?")) return;
+    try {
+      await chatApi.block(activeThreadId);
+      toast.success("User blocked.");
+      fetchThreads();
+    } catch (err) {
+      toast.error("Failed to block user.");
     }
-    return `${chat?.customer_name} #${chat?.booking_id}` || "Customer";
   };
 
-  // Get profile image based on logged-in user role
-  const getProfileImage = (chat) => {
-    const isCustomer = String(loggedInUserRole) === "3";
-    if (isCustomer) {
-      return chat.provider_image;
-    }
-    return chat.customer_image;
-  };
-
-  const isMyMessage = (msg) => {
-    const isCustomer = String(loggedInUserRole) === "3";
-
-    return isCustomer
-      ? msg.sender_role === "customer"
-      : msg.sender_role === "provider";
-  };
-
-  if (loading) {
-    return (
-      <div className="container-grid py-8">
-        <div className="flex h-[calc(100vh-14rem)] items-center justify-center">
-          <p className="text-muted-foreground">Loading conversations...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!SHOW_FEATURED_UI) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <div className="text-center space-y-5">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-            <Send size={24} />
-          </div>
-
-          <h2 className="text-lg font-semibold text-foreground">
-            Messaging Feature Coming Soon
-          </h2>
-
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Chat with customers and providers in real-time. We're building a
-            seamless messaging experience for you.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const activeThread = threads.find(
+    (t) => String(t.id || t.chat_id) === String(activeThreadId)
+  );
 
   return (
-    <div className="container-grid py-8">
-      <style dangerouslySetInnerHTML={{__html: `
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}} />
-      <h1 className="font-heading text-2xl font-bold text-foreground mb-3">
-        {t("messages")}
-      </h1>
-      {chats?.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center min-h-[60vh] px-6">
-          <div className="text-center space-y-4">
-            <div className="text-2xl font-semibold text-foreground">
-              Welcome to Your Messages
+    <div>
+      <div className="mb-4">
+        <h1 className="font-display text-2xl font-bold">Project Messaging & Support</h1>
+        <p className="text-sm text-muted-foreground">
+          Communicate directly with your project customer/provider regarding quotes, scheduling, and updates.
+        </p>
+      </div>
+
+      <div className="grid gap-4 rounded-2xl border border-border bg-card shadow-card lg:grid-cols-[300px_1fr] min-h-[600px]">
+        {/* Sidebar: Thread List */}
+        <div className="border-r border-border p-4">
+          <h3 className="font-display font-bold text-sm mb-3">Conversations</h3>
+          {loadingThreads ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={24} className="animate-spin text-primary" />
             </div>
-            <p className="text-base text-muted-foreground max-w-md mx-auto">
-              Once you book a service, your chats will appear here. You can view and
-              respond to messages from customers and providers in real-time. All your
-              conversations will be neatly organized and accessible from this
-              dashboard.
-            </p>
-          </div>
+          ) : threads.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              <MessageSquare size={24} className="mx-auto text-muted-foreground/60 mb-2" />
+              No active conversations yet.
+            </div>
+          ) : (
+            <div className="space-y-1 overflow-y-auto max-h-[520px]">
+              {threads.map((t) => {
+                const threadId = t.id || t.chat_id;
+                const isActive = String(threadId) === String(activeThreadId);
+                const title = t.project?.title || t.other_user?.full_name || `Chat #${threadId}`;
+
+                return (
+                  <button
+                    key={threadId}
+                    onClick={() => setActiveThreadId(threadId)}
+                    className={`w-full rounded-xl p-3 text-left transition-all ${
+                      isActive
+                        ? "bg-primary-soft/80 text-primary font-semibold"
+                        : "hover:bg-muted/60 text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="truncate font-bold">{title}</span>
+                      {t.updatedAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="line-clamp-1 text-xs text-muted-foreground">
+                      {t.last_message || "Start messaging..."}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      ) : (
-        // Main Container - Fixed Height
-        <div 
-          style={{ height: "calc(100vh - 13.5rem)", minHeight: "450px" }}
-          className="mt-6 overflow-hidden rounded-xl border border-border bg-card"
-        >
-          {/* <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card"> */}
-          <div className="flex h-full overflow-hidden">
 
-            {/* LEFT SIDEBAR - Conversations */}
-            <div
-              className={`w-full shrink-0 border-r border-border sm:w-80 ${!showList ? "hidden sm:block" : ""
-                } flex flex-col h-full`}
-            >
-              {/* Sticky Header for Conversations */}
-              <div className="sticky top-0 z-10 border-b border-border bg-card p-4">
-                <h2 className="font-heading text-sm font-semibold text-foreground">
-                  {t("conversations")}
-                </h2>
-              </div>
-
-              {/* Scrollable Chat List */}
-              <div 
-                style={{ height: "calc(100% - 60px)" }}
-                className="pt-3 overflow-y-scroll no-scrollbar"
-              >
-                {chats?.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    No conversations yet
-                  </div>
-                ) : (
-                  chats.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => handleChatSelect(chat)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent ${activeChat?.id === chat.id ? "bg-accent" : ""
-                        }`}
-                    >
-                      <div className="relative flex-shrink-0">
-                        {getProfileImage(chat) ? (
-                          <img
-                            src={`${BASE_URL}${getProfileImage(chat)}`}
-                            alt={getDisplayName(chat)}
-                            className="h-10 w-10 rounded-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                            {getDisplayName(chat).charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-foreground truncate">
-                            {getDisplayName(chat)}
-                          </span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
-                            {formatTime(chat.last_message_time)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {chat.last_message === "📷 Image"
-                            ? "📷 Image"
-                            : chat.last_message || "No messages yet"}
-                        </p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* RIGHT SIDEBAR - Chat Area */}
-            <div
-              className={`flex flex-1 flex-col h-full ${showList ? "hidden sm:flex" : "flex"
-                }`}
-            >
-              {/* Sticky Chat Header */}
-              <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-                <button
-                  className="text-muted-foreground sm:hidden"
-                  onClick={() => setShowList(true)}
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium overflow-hidden flex-shrink-0">
-                  {activeChat && getProfileImage(activeChat) ? (
-                    <img
-                      src={`${BASE_URL}${getProfileImage(activeChat)}`}
-                      alt={getDisplayName(activeChat)}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : activeChat ? (
-                    getDisplayName(activeChat).charAt(0).toUpperCase()
-                  ) : (
-                    "?"
-                  )}
+        {/* Chat Thread View */}
+        <div className="flex flex-col h-full min-h-[550px]">
+          {activeThread ? (
+            <>
+              {/* Thread Header */}
+              <div className="flex items-center justify-between border-b border-border p-4 bg-muted/20">
+                <div>
+                  <h3 className="font-display font-bold text-base">
+                    {activeThread.project?.title || activeThread.other_user?.full_name || "Project Chat"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Project #{activeThread.project_id || "Direct"}
+                  </p>
                 </div>
-                <span className="text-sm font-semibold text-foreground truncate">
-                  {activeChat ? getDisplayName(activeChat) : "Select a chat"}
-                </span>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setReportModalOpen(true)}
+                    className="text-xs gap-1 text-muted-foreground hover:text-destructive"
+                  >
+                    <ShieldAlert size={14} /> Report
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleBlockUser}
+                    className="text-xs gap-1 text-muted-foreground hover:text-destructive"
+                  >
+                    <UserX size={14} /> Block
+                  </Button>
+                </div>
               </div>
 
-              {/* Scrollable Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-                {messages.length === 0 ? (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="text-muted-foreground">No messages yet</p>
+              {/* Messages Body */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/10 max-h-[420px]">
+                {loadingMessages ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 size={28} className="animate-spin text-primary" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-muted-foreground">
+                    Send a message to introduce yourself and discuss project details.
                   </div>
                 ) : (
-                  messages.map((msg) => {
-                    const isMyMsg = isMyMessage(msg);
-                    const isImage = msg.type === "image";
-                    const imageUrl = isImage ? getImageUrl(msg.file_url) : null;
+                  messages.map((m, idx) => {
+                    const isMine =
+                      Number(m.sender_id) === Number(user?.id) ||
+                      m.sender_role === (userIsCustomer ? "customer" : "provider");
 
                     return (
                       <div
-                        key={msg.id}
-                        className={`flex ${isMyMsg ? "justify-end" : "justify-start"}`}
+                        key={m.id || idx}
+                        className={`flex flex-col ${
+                          isMine ? "items-end" : "items-start"
+                        }`}
                       >
                         <div
-                          className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${isMyMsg
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-accent text-foreground"
-                            }`}
+                          className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs shadow-sm ${
+                            isMine
+                              ? "bg-primary text-primary-foreground rounded-br-none"
+                              : "bg-card border border-border text-foreground rounded-bl-none"
+                          }`}
                         >
-                          {isImage && imageUrl ? (
+                          <p className="whitespace-pre-line leading-relaxed">{m.message}</p>
+                          {m.attachment_url && (
                             <img
-                              src={imageUrl}
-                              alt="Shared"
-                              className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer object-cover"
-                              onClick={() => window.open(imageUrl, "_blank")}
+                              src={m.attachment_url}
+                              alt="Attachment"
+                              className="mt-2 rounded-lg max-h-48 object-cover"
                             />
-                          ) : (
-                            <p className="break-words">{msg.message}</p>
                           )}
-                          <p
-                            className={`mt-1 text-xs ${isMyMsg ? "text-primary-foreground/70" : "text-muted-foreground"}`}
-                          >
-                            {formatBubbleTime(msg.createdAt || msg.created_at)}
-                          </p>
                         </div>
+                        <span className="mt-1 text-[10px] text-muted-foreground px-1">
+                          {m.createdAt
+                            ? new Date(m.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""}
+                        </span>
                       </div>
                     );
                   })
@@ -505,67 +310,61 @@ const Messages = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Sticky Input Area (at bottom) */}
-              <div className="sticky bottom-0 border-t border-border bg-card p-3">
-                {selectedImagePreview && (
-                  <div className="mb-2 px-2 relative inline-block">
-                    <img
-                      src={selectedImagePreview}
-                      alt="Preview"
-                      className="h-16 w-16 rounded-lg object-cover border border-border"
-                    />
-                    <button
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                      onClick={() => {
-                        setSelectedImage(null);
-                        setSelectedImagePreview(null);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-                  <button
-                    className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 flex-shrink-0"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={!activeChat || sending}
-                  >
-                    <Image size={18} />
-                  </button>
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={t("typeMessage")}
-                    className="flex-1"
-                    disabled={!activeChat || sending}
-                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSend}
-                    disabled={
-                      (!newMessage.trim() && !selectedImage) ||
-                      !activeChat ||
-                      sending
-                    }
-                    className="gap-1.5 flex-shrink-0"
-                  >
-                    <Send size={14} /> {t("send")}
-                  </Button>
-                </div>
-              </div>
+              {/* Message Input Bar */}
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-center gap-2 p-3 border-t border-border bg-card"
+              >
+                <Input
+                  placeholder="Type your message..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className="flex-1 text-xs"
+                />
+                <Button type="submit" size="sm" disabled={sending || !inputText.trim()}>
+                  {sending ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Send size={15} />
+                  )}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center flex-1 p-8 text-center text-muted-foreground">
+              <MessageSquare size={36} className="text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-semibold">Select a conversation</p>
+              <p className="text-xs">Choose a chat thread from the left to start messaging.</p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Report Modal */}
+      <Dialog open={reportModalOpen} onOpenChange={setReportModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display font-bold text-lg">
+              Report Conversation
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input
+              placeholder="Reason for reporting (e.g. inappropriate language, fraud)..."
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setReportModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReportChat} variant="destructive">
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

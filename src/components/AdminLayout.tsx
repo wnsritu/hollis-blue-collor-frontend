@@ -20,7 +20,15 @@ import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
-  { label: "Services", to: "/admin/services", icon: LayoutGrid },
+  {
+    label: "Category Management",
+    to: "/admin/categories",
+    icon: LayoutGrid,
+    children: [
+      { label: "Subcategories", to: "/admin/categories" },
+      { label: "Services", to: "/admin/services" },
+    ],
+  },
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Providers", to: "/admin/providers", icon: Building2 },
   { label: "Orders", to: "/admin/orders", icon: ClipboardList },
