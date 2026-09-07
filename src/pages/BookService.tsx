@@ -409,6 +409,8 @@ export default function BookService() {
       const bookingPayload = {
         provider_id: Number(providerId),
         service_type_id: provider?.service_type_id || provider?.sub_category_id || provider?.category_id || 1,
+        service_category: provider?.category?.name || "Home Services",
+        order_type: "item_based",
         booking_date: selectedDate,
         time_slot_id: selectedTimeSlotId,
         total_amount: grandTotal,
@@ -424,9 +426,9 @@ export default function BookService() {
       };
 
       const res = await addProviderBookApi(bookingPayload);
-      const bookingData = res?.data || res?.booking || res;
+      const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
 
-      if (bookingData) {
+      if (bookingData && (bookingData.id || bookingData.data?.id || bookingData.booking?.id)) {
         toast.success("Booking created successfully! Proceeding to payment...");
         setCreatedBooking(bookingData);
         setStripeModalOpen(true);

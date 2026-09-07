@@ -33,21 +33,43 @@ export default function StripeBookingModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const normalizedBooking =
+    bookingData?.data || bookingData?.booking || bookingData || {};
+
+  const bookingId =
+    normalizedBooking?.id ||
+    normalizedBooking?.booking_id ||
+    bookingData?.id ||
+    bookingData?.booking_id;
+
+  const proposalId =
+    normalizedBooking?.proposal_id ||
+    bookingData?.proposal_id;
+
   // Step 1: Create payment intent when modal opens
   useEffect(() => {
-    if (isOpen && bookingData) {
+    if (isOpen && (bookingId || proposalId || bookingData)) {
       createBookingPayment();
     }
-  }, [isOpen, bookingData]);
+  }, [isOpen, bookingId, proposalId, bookingData]);
 
   const createBookingPayment = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const req = {
-        booking_id: bookingData?.id,
-      };
+      const bId = bookingId;
+      const pId = proposalId;
+
+      if (!bId && !pId) {
+        setError("Invalid booking or proposal reference for payment.");
+        setLoading(false);
+        return;
+      }
+
+      const req: any = {};
+      if (bId) req.booking_id = Number(bId);
+      if (pId) req.proposal_id = Number(pId);
 
       const response = await createPaymentIntent(req);
       const result = response?.data;
@@ -57,9 +79,9 @@ export default function StripeBookingModal({
       } else {
         setError(result?.message || "Failed to initialize payment");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating payment:", err);
-      setError("Network error. Please try again.");
+      setError(err?.response?.data?.message || err?.message || "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -175,30 +197,51 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
     }
   };
 
+  const normalized =
+    bookingData?.data || bookingData?.booking || bookingData || {};
+
+  const bId =
+    normalized?.id ||
+    normalized?.booking_id ||
+    bookingData?.id ||
+    bookingData?.booking_id;
+
+  const dateStr = normalized?.booking_date
+    ? new Date(normalized.booking_date).toLocaleDateString()
+    : "Date TBD";
+
+  const svcName =
+    normalized?.service_type?.name ||
+    normalized?.service_category ||
+    normalized?.project?.title ||
+    "Home Services";
+
+  const totalAmt = parseFloat(normalized?.total_amount || 0).toFixed(2);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       {/* Order Summary */}
       <div className="bg-gray-50 rounded-lg p-4 mb-1">
         <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
         <div className="space-y-2">
+          {bId && (
+            <div className="flex justify-between text-sm">
+              <span>Booking Reference</span>
+              <span className="font-mono font-bold">#{bId}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
-            <span>Booking ID</span>
-            <span className="font-mono">#{bookingData?.id}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Service Type</span>
-            <span>{bookingData?.service_type?.name || "Laundry Service"}</span>
+            <span>Service</span>
+            <span>{svcName}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Booking Date</span>
-            <span>
-              {new Date(bookingData?.booking_date).toLocaleDateString()}
-            </span>
+            <span>{dateStr}</span>
           </div>
           <div className="flex justify-between text-sm font-bold pt-2 border-t">
             <span>Total Amount</span>
-            <span className="text-primary">
-              ${parseFloat(bookingData?.total_amount || 0).toFixed(2)}
+            <span className="text-primary font-bold text-base">
+              ${totalAmt}
             </span>
           </div>
         </div>
@@ -228,7 +271,7 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
             Processing...
           </>
         ) : (
-          `Pay $${parseFloat(bookingData?.total_amount || 0).toFixed(2)}`
+          `Pay $${totalAmt}`
         )}
       </Button>
 
