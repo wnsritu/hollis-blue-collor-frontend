@@ -205,7 +205,7 @@ export const providerNav: NavItem[] = [
   { to: "/provider/availability", label: "Availability", icon: CalendarDays },
   { to: "/appointments", label: "Schedule", icon: CalendarDays },
   { to: "/provider/opportunities", label: "Custom Requests", icon: ListChecks },
-  { to: "/provider/orders", label: "Active Jobs", icon: Briefcase },
+  { to: "/provider/jobs", label: "Active Jobs", icon: Briefcase },
   { to: "/messages", label: "Messages", icon: MessageSquare },
   { to: "/provider/earnings", label: "Earnings", icon: Wallet },
   { to: "/provider/featured", label: "Subscription", icon: CreditCard },
