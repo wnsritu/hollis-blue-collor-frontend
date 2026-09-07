@@ -238,7 +238,7 @@ const AdminProfile = () => {
       setProfileLoading(false);
     }
   };
-  
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {

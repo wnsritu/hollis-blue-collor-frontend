@@ -23,6 +23,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
+import ProviderJobs from "./pages/ProviderJobs";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
 import ProviderPricing from "./pages/ProviderPricing";
 import ProviderAvailability from "./pages/ProviderAvailability";
@@ -362,12 +363,19 @@ const App = () => (
           />
 
           <Route
+            path="/provider/jobs"
+            element={
+              <ProtectedRoute>
+                <ProviderJobs />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/provider/orders"
             element={
               <ProtectedRoute>
-                <ProviderPortal>
-                  <ProviderOrders />
-                </ProviderPortal>
+                <ProviderJobs />
               </ProtectedRoute>
             }
           />
