@@ -90,6 +90,8 @@ export function StatusPill({
 }) {
   const auto: Record<string, keyof typeof toneMap> = {
     Active: "success",
+    Provided: "success",
+    "Not Provided": "neutral",
     Paid: "success",
     Completed: "success",
     Confirmed: "success",

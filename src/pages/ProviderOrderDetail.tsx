@@ -208,20 +208,12 @@ const ProviderOrderDetail = () => {
 
   const fetchDataRating = async (id) => {
     try {
-      setLoading(true);
       const response: any = await getRatingByBookingId(id);
       if (response?.data?.success) {
-        // console.log(response?.data);
-        
         setProviderRating(response?.data);
-        // toast.success(response?.data?.message || "Rating fetched");
       }
-      // console.log(providerRating);
-      
     } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
+      // Silently fail if not authorized to fetch rating
     }
   };
 
@@ -289,7 +281,8 @@ const ProviderOrderDetail = () => {
   };
 
   function formatSlot(start, end) {
-    const getHour = (time) => parseInt(time.split(":")[0]);
+    if (!start || !end) return "-";
+    const getHour = (time) => parseInt(String(time).split(":")[0]);
     let startHour = getHour(start);
     let endHour = getHour(end);
     const ampm = endHour >= 12 ? "PM" : "AM";

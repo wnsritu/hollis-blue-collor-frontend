@@ -29,6 +29,10 @@ interface CreateProjectModalProps {
   onProjectCreated?: (projectId: number) => void;
   initialCategoryId?: number;
   initialServiceTypeId?: number;
+  providerId?: number;
+  providerName?: string;
+  categoryName?: string;
+  subCategoryName?: string;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
@@ -37,6 +41,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   onProjectCreated,
   initialCategoryId,
   initialServiceTypeId,
+  providerId,
+  providerName,
+  categoryName,
+  subCategoryName,
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
@@ -93,6 +101,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   );
   const serviceTypes: ServiceType[] = selectedCategory?.service_types || [];
 
+  const isFixedCategory = Boolean(initialCategoryId || providerId);
+  const displayCategoryName = categoryName || selectedCategory?.name || "";
+  const displaySubCategoryName =
+    subCategoryName ||
+    serviceTypes.find((s) => String(s.id) === serviceTypeId)?.name ||
+    "";
+
   const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -129,6 +144,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         title: title.trim(),
         category_id: Number(categoryId),
         service_type_id: serviceTypeId ? Number(serviceTypeId) : undefined,
+        invited_provider_id: providerId ? Number(providerId) : undefined,
+        request_type: providerId ? ("direct_quote" as const) : ("open_match" as const),
         description: description.trim(),
         address_line: addressLine.trim(),
         city: city.trim() || undefined,
@@ -159,7 +176,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       }
 
       toast.success(
-        "Project posted successfully! Providers are being matched to your request."
+        providerId
+          ? "Quote request sent! The professional has been notified."
+          : "Project posted successfully! Providers are being matched to your request."
       );
       onOpenChange(false);
       if (onProjectCreated && projectId) {
@@ -177,10 +196,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="font-display text-xl font-bold">
-            Post a Project & Get Custom Proposals
+            {providerName ? `Request a Quote from ${providerName}` : "Post a Project & Get Custom Proposals"}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Describe what you need, set your budget, and matched verified local professionals will send you quotes.
+            {providerName
+              ? "Describe your project details and budget. The professional will receive your request directly."
+              : "Describe what you need, set your budget, and matched verified local professionals will send you quotes."}
           </p>
         </DialogHeader>
 
@@ -199,57 +220,73 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             />
           </div>
 
-          {/* Category & Service Type */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="font-medium">
-                Category <span className="text-destructive">*</span>
-              </Label>
-              <Select value={categoryId} onValueChange={(val) => {
-                setCategoryId(val);
-                setServiceTypeId("");
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingCatalog ? "Loading..." : "Select category"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Category & Service Type (Fixed Banner or Interactive Select) */}
+          {isFixedCategory ? (
+            <div className="rounded-xl border border-primary/20 bg-primary-soft/30 p-4 flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground font-semibold">
+                  {providerName ? `Direct Request to ${providerName}` : "Fixed Category"}
+                </p>
+                <h4 className="text-sm font-extrabold text-foreground">
+                  {displayCategoryName || "Service Category"} {displaySubCategoryName ? `• ${displaySubCategoryName}` : ""}
+                </h4>
+              </div>
+              <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1 shrink-0">
+                Pre-selected
+              </span>
             </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="font-medium">
+                  Category <span className="text-destructive">*</span>
+                </Label>
+                <Select value={categoryId} onValueChange={(val) => {
+                  setCategoryId(val);
+                  setServiceTypeId("");
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingCatalog ? "Loading..." : "Select category"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label className="font-medium">Specific Sub-Category / Service</Label>
-              <Select
-                value={serviceTypeId}
-                onValueChange={setServiceTypeId}
-                disabled={!categoryId || serviceTypes.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !categoryId
-                        ? "Select category first"
-                        : serviceTypes.length === 0
-                        ? "No specific sub-category"
-                        : "Select sub-category"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {serviceTypes.map((st) => (
-                    <SelectItem key={st.id} value={String(st.id)}>
-                      {st.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-1.5">
+                <Label className="font-medium">Specific Sub-Category / Service</Label>
+                <Select
+                  value={serviceTypeId}
+                  onValueChange={setServiceTypeId}
+                  disabled={!categoryId || serviceTypes.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !categoryId
+                          ? "Select category first"
+                          : serviceTypes.length === 0
+                          ? "No specific sub-category"
+                          : "Select sub-category"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceTypes.map((st) => (
+                      <SelectItem key={st.id} value={String(st.id)}>
+                        {st.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Description */}
           <div className="space-y-1.5">

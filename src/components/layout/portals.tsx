@@ -291,61 +291,17 @@ function ProviderRestrictedState({
  * Provider nav — M3 Marketplace / Service-connect routes.
  */
 export const providerNav: NavItem[] = [
-  {
-    to: "/provider/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    to: "/provider/pricing",
-    label: "Services & Pricing",
-    icon: Tags,
-  },
-  {
-    to: "/provider/availability",
-    label: "Availability",
-    icon: CalendarDays,
-  },
-  {
-    to: "/appointments",
-    label: "Schedule",
-    icon: CalendarDays,
-  },
-  {
-    to: "/provider/opportunities",
-    label: "Custom Requests",
-    icon: ListChecks,
-  },
-  {
-    to: "/provider/orders",
-    label: "Active Jobs",
-    icon: Briefcase,
-  },
-  {
-    to: "/messages",
-    label: "Messages",
-    icon: MessageSquare,
-  },
-  {
-    to: "/provider/earnings",
-    label: "Earnings",
-    icon: Wallet,
-  },
-  {
-    to: "/provider/featured",
-    label: "Subscription",
-    icon: CreditCard,
-  },
-  {
-    to: "/provider/featured",
-    label: "Featured Listings",
-    icon: Sparkles,
-  },
-  {
-    to: "/provider/profile",
-    label: "Business Profile",
-    icon: BadgeCheck,
-  },
+  { to: "/provider/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/provider/pricing", label: "Services & Pricing", icon: Tags },
+  { to: "/provider/availability", label: "Availability", icon: CalendarDays },
+  { to: "/appointments", label: "Schedule", icon: CalendarDays },
+  { to: "/provider/opportunities", label: "Custom Requests", icon: ListChecks },
+  { to: "/provider/jobs", label: "Active Jobs", icon: Briefcase },
+  { to: "/messages", label: "Messages", icon: MessageSquare },
+  { to: "/provider/earnings", label: "Earnings", icon: Wallet },
+  { to: "/provider/featured", label: "Subscription", icon: CreditCard },
+  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles },
+  { to: "/provider/profile", label: "Business Profile", icon: BadgeCheck },
 ];
 
 /**

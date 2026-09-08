@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import SearchProviders from "./pages/SearchProviders";
 import ProviderProfile from "./pages/ProviderProfile";
 import Booking from "./pages/Booking";
+import BookService from "./pages/BookService";
 import Checkout from "./pages/Checkout";
 import OrderTracking from "./pages/OrderTracking";
 import Messages from "./pages/Messages";
@@ -22,6 +23,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderOrders from "./pages/ProviderOrders";
+import ProviderJobs from "./pages/ProviderJobs";
 import ProviderOrderDetail from "./pages/ProviderOrderDetail";
 import ProviderPricing from "./pages/ProviderPricing";
 import ProviderAvailability from "./pages/ProviderAvailability";
@@ -206,10 +208,18 @@ const App = () => (
             }
           />
           <Route
+            path="/book/:providerId"
+            element={
+              <PublicLayout>
+                <BookService />
+              </PublicLayout>
+            }
+          />
+          <Route
             path="/booking/:id"
             element={
               <PublicLayout>
-                <Booking />
+                <BookService />
               </PublicLayout>
             }
           />
@@ -255,6 +265,16 @@ const App = () => (
 
           <Route
             path="/order/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerPortal>
+                  <CustomerOrderDetail />
+                </CustomerPortal>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/bookings/:id"
             element={
               <ProtectedRoute>
                 <CustomerPortal>
@@ -328,6 +348,16 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/customer/bookings"
+            element={
+              <ProtectedRoute>
+                <RolePortal>
+                  <AppointmentsPage />
+                </RolePortal>
+              </ProtectedRoute>
+            }
+          />
 
           {/* ================= PROVIDER (PROTECTED) — service-connect portal shell ================= */}
           <Route
@@ -353,12 +383,19 @@ const App = () => (
           />
 
           <Route
+            path="/provider/jobs"
+            element={
+              <ProtectedRoute>
+                <ProviderJobs />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/provider/orders"
             element={
               <ProtectedRoute>
-                <ProviderPortal>
-                  <ProviderOrders />
-                </ProviderPortal>
+                <ProviderJobs />
               </ProtectedRoute>
             }
           />

@@ -193,7 +193,7 @@ const ProviderDashboard = () => {
                       <StatusPill status={order.status || "Pending"} />
                     </td>
                     <td className="px-4 py-3.5 text-right font-display font-bold text-primary">
-                      ${(order.total_amount || 0).toFixed(2)}
+                      {/* ${(order?.total_amount || 0).toFixed(2)} */}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <Button asChild variant="outline" size="sm">

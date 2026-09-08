@@ -69,7 +69,7 @@ export const SearchProviders: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await catalogApi.getCategories();
+        const res = await catalogApi.getTree();
         const list = (res as any)?.data || res || [];
         if (!cancelled) setCategories(Array.isArray(list) ? list : []);
       } catch (err) {
@@ -102,6 +102,11 @@ export const SearchProviders: React.FC = () => {
       if (radius[0]) params.miles = radius[0];
       if (Number(minRating) > 0) params.rating_min = Number(minRating);
       if (priceMax[0] < 2000) params.price_max = priceMax[0];
+      if (Number(minYears) > 0) params.experience_min = Number(minYears);
+      if (availableNow) {
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        params.availability_day = days[new Date().getDay()];
+      }
       if (verifiedOnly) params.verified = "verified";
       if (sort) params.sort = sort;
 
@@ -109,45 +114,72 @@ export const SearchProviders: React.FC = () => {
       const rawData = (res as any)?.data || res || [];
       const list = Array.isArray(rawData) ? rawData : rawData.data || [];
 
-      // Map backend Provider models to GenericProvider card shape
+      // Map backend Provider models to GenericProvider card shape strictly from real data
       const mapped: GenericProvider[] = list.map((p: any) => {
-        const subCatName =
-          p.sub_category?.name ||
-          (Array.isArray(p.service_categories) && p.service_categories[0]) ||
-          "";
+        const catName = p.category?.name || (Array.isArray(p.service_categories) && p.service_categories[0]) || "Home Services";
+        const subCatName = p.sub_category?.name || "";
 
+        // Parse custom services strictly from provider data (no static/dummy fallbacks)
         let servicesList: string[] = [];
-        const rawOffered = p.offered_services || p.selected_services || p.services;
-        if (Array.isArray(rawOffered) && rawOffered.length > 0) {
-          servicesList = rawOffered.map((item: any) => (typeof item === "string" ? item : item?.name || String(item)));
-        } else if (subCatName) {
-          servicesList = [`${subCatName} Service`];
+        if (p.service_pricing) {
+          try {
+            const pricingMap = typeof p.service_pricing === "string" ? JSON.parse(p.service_pricing) : p.service_pricing;
+            if (pricingMap && typeof pricingMap === "object") {
+              servicesList = Object.keys(pricingMap).filter(Boolean);
+            }
+          } catch (e) {}
         }
 
         if (servicesList.length === 0) {
-          servicesList = ["General Service"];
+          const rawOffered = p.offered_services || p.selected_services || p.services;
+          if (Array.isArray(rawOffered) && rawOffered.length > 0) {
+            servicesList = rawOffered.map((item: any) => (typeof item === "string" ? item : item?.name || String(item))).filter(Boolean);
+          } else if (typeof rawOffered === "string") {
+            try {
+              const parsed = JSON.parse(rawOffered);
+              if (Array.isArray(parsed)) servicesList = parsed.filter(Boolean);
+            } catch (e) {
+              if (rawOffered.trim()) servicesList = [rawOffered.trim()];
+            }
+          }
         }
 
-        let price = Number(p.starting_price) || 0;
-        if (!price && p.category?.service_types && Array.isArray(p.category.service_types)) {
-          for (const st of p.category.service_types) {
-            const amt = Number(st.provider_services?.amount);
+        if (servicesList.length === 0 && Array.isArray(p.service_types) && p.service_types.length > 0) {
+          servicesList = p.service_types.map((st: any) => st?.name || st).filter(Boolean);
+        }
+
+        if (servicesList.length === 0 && p.category?.service_types && Array.isArray(p.category.service_types) && p.category.service_types.length > 0) {
+          servicesList = p.category.service_types.map((st: any) => st?.name || st).filter(Boolean);
+        }
+
+        // Calculate starting price purely from dynamic provider data
+        let price: number | null = Number(p.starting_price) || null;
+        if (!price && p.service_pricing) {
+          try {
+            const pricingMap = typeof p.service_pricing === "string" ? JSON.parse(p.service_pricing) : p.service_pricing;
+            const prices = Object.values(pricingMap).map((v: any) => Number(v?.price || v)).filter((n) => !isNaN(n) && n > 0);
+            if (prices.length > 0) price = Math.min(...prices);
+          } catch (e) {}
+        }
+        if (!price && Array.isArray(p.service_types)) {
+          for (const st of p.service_types) {
+            const amt = Number(st.ProviderService?.amount || st.provider_services?.amount);
             if (amt > 0) {
               price = amt;
               break;
             }
           }
         }
-        if (!price) price = 75;
+        if (!price && p.pricing?.min) {
+          price = Number(p.pricing.min);
+        }
 
         const photo = p.profile_photo || p.user?.profile_image || p.profile_image || null;
-        const yearsVal = p.years_of_experience ?? p.experience ?? 0;
+        const yearsVal = Number(p.years_of_experience ?? p.experience ?? 0);
         const ratingVal = Number(p.rating) || 0;
-        const reviewsVal = p.review_count ?? p.reviews_count ?? 0;
+        const reviewsVal = Number(p.review_count ?? p.reviews_count ?? 0);
 
-        const catDisplay = subCatName
-          ? `${p.category?.name || "Service"} • ${subCatName}`
-          : p.category?.name || "General Service";
+        const catDisplay = subCatName ? `${catName} • ${subCatName}` : catName;
 
         return {
           id: String(p.id || p.provider_id),
@@ -157,16 +189,25 @@ export const SearchProviders: React.FC = () => {
           featured: Boolean(p.is_featured || p.featured),
           category: catDisplay,
           rating: ratingVal,
-          reviews: Number(reviewsVal),
+          reviews: reviewsVal,
           tagline: p.service_description || "",
           services: servicesList,
           city: p.city || "",
           state: p.state || "",
-          years: Number(yearsVal),
-          startingPrice: price,
-          availability: p.availability ? "Available Today" : "Available",
+          service_location_address: p.service_location_address || "",
+          years: yearsVal > 0 ? yearsVal : undefined,
+          startingPrice: price && price > 0 ? price : undefined,
+          availability: p.availability ? "Available today" : undefined,
         };
       });
+
+      if (sort === "rating") {
+        mapped.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+      } else if (sort === "reviews") {
+        mapped.sort((a, b) => (Number(b.reviews) || 0) - (Number(a.reviews) || 0));
+      } else if (sort === "price") {
+        mapped.sort((a, b) => (Number(a.startingPrice) || 999999) - (Number(b.startingPrice) || 999999));
+      }
 
       setProviders(mapped);
     } catch (err) {
@@ -329,7 +370,7 @@ export const SearchProviders: React.FC = () => {
       <Button
         variant="outline"
         onClick={handleResetFilters}
-        className="w-full rounded-xl"
+        className="w-full"
       >
         Reset filters
       </Button>
@@ -337,139 +378,124 @@ export const SearchProviders: React.FC = () => {
   );
 
   return (
-    <div className="container py-8 max-w-7xl mx-auto px-4">
-        {/* Search Header Banner */}
-        <div className="rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-background to-accent/10 p-6 sm:p-8 shadow-card mb-8">
-          <h1 className="font-display text-2xl font-bold sm:text-3xl">
-            Find Verified Local Service Professionals
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Search by service category, city, zip code, rating, or budget range.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <div className="relative">
+    <div>
+      {/* Search Header Banner */}
+      <div className="border-b border-border bg-surface">
+        <div className="container-page py-6">
+          <h1 className="font-display text-2xl font-bold">Find a professional</h1>
+          <div className="mt-4 grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
+            <div className="relative min-w-0">
               <SearchIcon
                 size={16}
-                className="absolute left-3 top-3 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="What service do you need? (e.g. Plumber, Electrician)"
+                placeholder="What service do you need?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 bg-card"
+                onKeyDown={(e) => e.key === "Enter" && fetchProviders()}
+                className="h-11 bg-card pl-9"
               />
             </div>
-            <div className="relative">
+            <div className="relative min-w-0">
               <MapPin
                 size={16}
-                className="absolute left-3 top-3 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="City or Zip Code"
+                placeholder="ZIP Code or City"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="pl-9 bg-card"
+                onKeyDown={(e) => e.key === "Enter" && fetchProviders()}
+                className="h-11 bg-card pl-9"
               />
             </div>
-            <Button onClick={fetchProviders} className="gap-2">
-              <SearchIcon size={16} /> Search
+            <Button onClick={fetchProviders} className="h-11">
+              Search
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* Main Grid: Sidebar + Results */}
-        <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-          {/* Desktop Filters */}
-          <aside className="hidden lg:block rounded-2xl border border-border bg-card p-6 shadow-card h-fit sticky top-24">
-            <div className="pb-4 mb-2">
-              <h3 className="font-display font-bold text-lg text-foreground">
-                Filters
-              </h3>
-            </div>
-            <FiltersContent />
-          </aside>
+      {/* Main Grid: Sidebar + Results */}
+      <div className="container-page grid gap-8 py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Desktop Filters */}
+        <aside className="hidden h-max rounded-2xl border border-border bg-card p-5 shadow-card lg:sticky lg:top-24 lg:block">
+          <h2 className="mb-4 font-display text-base font-bold">Filters</h2>
+          <FiltersContent />
+        </aside>
 
-          {/* Search Results Area */}
-          <div>
-            {/* Results Top Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 mb-6">
-              <div className="flex items-center gap-3">
-                {/* Mobile Filter Sheet */}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm" className="lg:hidden gap-2">
-                      <Filter size={15} /> Filters
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-80 overflow-y-auto">
-                    <h3 className="font-display font-bold text-lg mb-4">Search Filters</h3>
-                    <FiltersContent />
-                  </SheetContent>
-                </Sheet>
+        {/* Search Results Area */}
+        <div className="min-w-0">
+          {/* Results Top Bar */}
+          <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <p className="min-w-0 truncate text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {loading ? "Searching..." : providers.length}
+              </span>{" "}
+              {providers.length === 1 ? "professional matches" : "professionals match"} your search
+            </p>
 
-                <p className="text-sm font-semibold text-foreground">
-                  {loading
-                    ? "Searching..."
-                    : `${providers.length} verified pros found`}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Label className="text-xs font-semibold text-muted-foreground">
-                  Sort by:
-                </Label>
-                <Select value={sort} onValueChange={setSort}>
-                  <SelectTrigger className="h-9 w-[160px] text-xs bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recommended">Recommended</SelectItem>
-                    <SelectItem value="rating">Highest Rated</SelectItem>
-                    <SelectItem value="reviews">Most Reviews</SelectItem>
-                    <SelectItem value="price">Lowest Price</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Results Grid */}
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 size={36} className="animate-spin text-primary mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Searching for local professionals...
-                </p>
-              </div>
-            ) : providers.length === 0 ? (
-              <EmptyState
-                icon={FileQuestion}
-                title="No professionals match your search"
-                description="Try broadening your category or expanding your location/radius search."
-                action={
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setQuery("");
-                      setLocation("");
-                      setCategoryId("all");
-                      setVerifiedOnly(false);
-                    }}
-                  >
-                    Clear Search Filters
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Mobile Filter Sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="lg:hidden">
+                    <SlidersHorizontal size={15} /> Filters
                   </Button>
-                }
-              />
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {providers.map((p) => (
-                  <ProviderCard key={p.id} provider={p} />
-                ))}
-              </div>
-            )}
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[86vw] max-w-sm overflow-y-auto p-6">
+                  <h2 className="mb-4 mt-6 font-display text-lg font-bold">Filters</h2>
+                  <FiltersContent />
+                </SheetContent>
+              </Sheet>
+
+              <Select value={sort} onValueChange={setSort}>
+                <SelectTrigger className="h-9 w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                  <SelectItem value="rating">Highest rated</SelectItem>
+                  <SelectItem value="reviews">Most reviews</SelectItem>
+                  <SelectItem value="price">Lowest price</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {/* Results Grid */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 size={36} className="animate-spin text-primary mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Searching for local professionals...
+              </p>
+            </div>
+          ) : providers.length === 0 ? (
+            <EmptyState
+              icon={SearchIcon}
+              title="No professionals match those filters"
+              description="Try widening the radius, lowering the minimum rating or clearing the price cap."
+              action={
+                <Button
+                  variant="outline"
+                  onClick={handleResetFilters}
+                >
+                  Reset filters
+                </Button>
+              }
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {providers.map((p) => (
+                <ProviderCard key={p.id} provider={p} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
+    </div>
   );
 };
 
