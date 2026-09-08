@@ -12,6 +12,7 @@ import {
   Search,
   Star,
   XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -251,7 +252,7 @@ export const CustomerOrderDetail: React.FC = () => {
                 <Button
                   variant="outline"
                   className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                  onClick={() => toast.info("Price counter-offer declined.")}
+                  onClick={() => toast("Price counter-offer declined.", { icon: "ℹ️" })}
                 >
                   <XCircle size={15} className="mr-1" /> Decline Price
                 </Button>
@@ -396,7 +397,7 @@ function Detail({
   label,
   value,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
