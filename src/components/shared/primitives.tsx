@@ -253,16 +253,19 @@ import { resolveMediaUrl } from "@/utils/mediaUrl";
 export function Avatar({
   initials,
   src,
+  image,
   size = "md",
   className,
 }: {
   initials: string;
   src?: string | null;
+  image?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const sizes = { sm: "size-9 text-xs", md: "size-12 text-sm", lg: "size-16 text-lg" };
-  const fullUrl = src ? resolveMediaUrl(src) : null;
+  const targetSrc = src || image;
+  const fullUrl = targetSrc ? resolveMediaUrl(targetSrc) : null;
   const [imgError, setImgError] = useState(false);
 
   if (fullUrl && !imgError) {
