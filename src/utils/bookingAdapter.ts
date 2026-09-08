@@ -307,6 +307,8 @@ export function mapBookingToGeneric(
     date: n.formattedDate,
     time: n.formattedTime,
     address: n.address,
+    paymentStatus: n.paymentStatus,
+    isPaid: n.isPaid,
   };
 }
 
