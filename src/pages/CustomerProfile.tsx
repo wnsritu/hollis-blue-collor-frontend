@@ -216,6 +216,8 @@ const CustomerProfile = () => {
       setAvatarPreview(URL.createObjectURL(file));
 
       const formData = new FormData();
+      formData.append("profile_photo", file);
+
       const res: any = await userApi.updateProfilePhoto(formData);
       const newPhotoPath =
         res?.profile_photo ||
