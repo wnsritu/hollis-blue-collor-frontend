@@ -15,6 +15,11 @@ export type AuthUser = {
   /** Backend string enum from getProviderOnboardingStatus */
   onboarding_status?: string;
   profile_photo?: string | null;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
   [key: string]: unknown;
 };
 

@@ -167,7 +167,7 @@ const ProviderEarnings = () => {
                 <tr key={i} className="border-b border-border last:border-0">
                   <td className="py-2.5 text-muted-foreground">{tx?.booking_date}</td>
                   <td className="py-2.5 font-medium">{"ORD-"}{tx?.id}</td>
-                  <td className="py-2.5 text-left">${tx?.total_amount.toFixed(2)}</td>
+                  <td className="py-2.5 text-left">${Number(tx?.total_amount || 0).toFixed(2)}</td>
                   <td className="py-2.5">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1.5 text-xs font-medium ${

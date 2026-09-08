@@ -198,25 +198,38 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
   };
 
   const normalized =
-    bookingData?.data || bookingData?.booking || bookingData || {};
+    bookingData?.data?.booking ||
+    bookingData?.data ||
+    bookingData?.booking ||
+    bookingData || {};
 
-  const bId =
-    normalized?.id ||
-    normalized?.booking_id ||
-    bookingData?.id ||
-    bookingData?.booking_id;
+  const bookingNum =
+    normalized?.booking_number ||
+    (normalized?.id ? `#${normalized.id}` : null);
 
-  const dateStr = normalized?.booking_date
-    ? new Date(normalized.booking_date).toLocaleDateString()
+  const dateValue = normalized?.schedule?.date || normalized?.booking_date;
+  const dateStr = dateValue
+    ? new Date(dateValue).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
     : "Date TBD";
 
   const svcName =
+    normalized?.service?.service_type?.name ||
     normalized?.service_type?.name ||
+    normalized?.service?.category_name ||
     normalized?.service_category ||
     normalized?.project?.title ||
     "Home Services";
 
-  const totalAmt = parseFloat(normalized?.total_amount || 0).toFixed(2);
+  const rawTotal =
+    normalized?.pricing?.total ??
+    normalized?.total_amount ??
+    0;
+
+  const totalAmt = parseFloat(String(rawTotal)).toFixed(2);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
@@ -224,10 +237,10 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
       <div className="bg-gray-50 rounded-lg p-4 mb-1">
         <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
         <div className="space-y-2">
-          {bId && (
+          {bookingNum && (
             <div className="flex justify-between text-sm">
               <span>Booking Reference</span>
-              <span className="font-mono font-bold">#{bId}</span>
+              <span className="font-mono font-bold">{bookingNum}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">

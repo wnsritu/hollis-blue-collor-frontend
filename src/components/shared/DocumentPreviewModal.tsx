@@ -40,6 +40,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     lowerUrl.includes("/images/") ||
     lowerUrl.includes("/uploads/");
 
+  const [imgError, setImgError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [documentUrl]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
@@ -57,15 +63,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 title={title}
                 className="w-full h-[500px] rounded-lg border border-border bg-white"
               />
-            ) : isImage ? (
+            ) : isImage && !imgError ? (
               <img
                 src={fullUrl}
                 alt={title}
                 className="max-h-[500px] w-full object-contain rounded-lg shadow-sm"
-                onError={(e) => {
-                  // Fallback for broken images
-                  (e.target as HTMLElement).style.display = "none";
-                }}
+                onError={() => setImgError(true)}
               />
             ) : (
               <div className="space-y-3 py-10">
@@ -78,7 +81,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 )}
                 <Button size="sm" asChild variant="outline" className="gap-1.5 text-xs">
                   <a href={fullUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink size={14} /> Open in New Tab
+                    <ExternalLink size={14} /> Open Attachment in New Tab
                   </a>
                 </Button>
               </div>
