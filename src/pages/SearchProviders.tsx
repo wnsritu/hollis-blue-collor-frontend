@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   MapPin,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,12 +29,20 @@ import type { Category } from "@/types/api/catalog";
 import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
+import { getStoredLocation, setStoredLocation, detectAndStoreUserLocation } from "@/utils/userLocation";
+
 export const SearchProviders: React.FC = () => {
   const [searchParams,] = useSearchParams();
+  const storedLoc = getStoredLocation();
 
   // Filter States
   const [query, setQuery] = useState(searchParams.get("query") || "");
-  const [location, setLocation] = useState(searchParams.get("location") || "");
+  const [location, setLocation] = useState(searchParams.get("location") || storedLoc?.city || "");
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    storedLoc?.lat != null && storedLoc?.lng != null
+      ? { lat: storedLoc.lat, lng: storedLoc.lng }
+      : null
+  );
   const [categoryId, setCategoryId] = useState<string>(
     searchParams.get("category_id") || "all"
   );
@@ -67,6 +76,17 @@ export const SearchProviders: React.FC = () => {
   const [providers, setProviders] = useState<GenericProvider[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Auto-detect browser location on mount if no stored coordinates or location
+  useEffect(() => {
+    if (!userCoords) {
+      detectAndStoreUserLocation().then((loc) => {
+        if (loc && loc.lat != null && loc.lng != null) {
+          setUserCoords({ lat: loc.lat, lng: loc.lng });
+        }
+      });
+    }
+  }, []);
+
   // Load Categories
   useEffect(() => {
     let cancelled = false;
@@ -99,8 +119,15 @@ export const SearchProviders: React.FC = () => {
         limit: 50,
       };
 
-      if (q) params.query = q;
-      if (loc) params.city = loc;
+      if (q) {
+        params.query = q;
+      }
+      if (loc) {
+        params.city = loc;
+      } else if (userCoords) {
+        params.lat = userCoords.lat;
+        params.lng = userCoords.lng;
+      }
       if (categoryId !== "all") {
         if (categoryId.startsWith("st_")) {
           params.service_type_id = categoryId.replace("st_", "");
@@ -110,7 +137,7 @@ export const SearchProviders: React.FC = () => {
       }
       if (rad) params.miles = rad;
       if (Number(minRating) > 0) params.rating_min = Number(minRating);
-      if (pMax < 2000) params.price_max = pMax;
+      if (pMax < 5000) params.price_max = pMax;
       if (yMin > 0) params.experience_min = yMin;
       if (availableNow) {
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -243,6 +270,25 @@ export const SearchProviders: React.FC = () => {
     setVerifiedOnly(false);
     setAvailableNow(false);
     setBackgroundChecked(true);
+  };
+
+  const handleUseMyLocation = () => {
+    if ("geolocation" in navigator) {
+      toast.loading("Detecting your location...", { id: "geo" });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords({ lat, lng });
+          setLocation("");
+          setStoredLocation({ lat, lng, city: "" });
+          toast.success("Location updated to your position!", { id: "geo" });
+        },
+        () => {
+          toast.error("Could not fetch location. Please enter your city or ZIP.", { id: "geo" });
+        }
+      );
+    }
   };
 
   useEffect(() => {
@@ -413,12 +459,20 @@ export const SearchProviders: React.FC = () => {
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="ZIP Code or City"
+                placeholder={userCoords && !location ? "Near your location" : "ZIP Code or City"}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && fetchProviders(query, location)}
-                className="h-11 bg-card pl-9"
+                className="h-11 bg-card pl-9 pr-10"
               />
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                title="Use my current location"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Sparkles size={16} />
+              </button>
             </div>
             <Button onClick={() => fetchProviders(query, location)} className="h-11">
               Search
