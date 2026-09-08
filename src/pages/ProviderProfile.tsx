@@ -228,11 +228,18 @@ export const ProviderProfile: React.FC = () => {
                 {tagline && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{tagline}</p>}
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5 text-foreground font-semibold">
-                    <Stars rating={rating} />
-                    <span>{rating.toFixed(1)}</span>
-                    <span className="font-normal text-muted-foreground">({reviewsCount} reviews)</span>
-                  </span>
+                  {reviewsCount > 0 && rating > 0 ? (
+                    <span className="flex items-center gap-1.5 text-foreground font-semibold">
+                      <Stars rating={rating} />
+                      <span>{rating.toFixed(1)}</span>
+                      <span className="font-normal text-muted-foreground">({reviewsCount} {reviewsCount === 1 ? "review" : "reviews"})</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Stars rating={0} />
+                      <span>No reviews yet</span>
+                    </span>
+                  )}
 
                   {locationText && (
                     <span className="flex items-center gap-1.5">

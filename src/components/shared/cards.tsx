@@ -24,6 +24,7 @@ export interface GenericProvider {
   services?: (string | { name: string })[];
   city?: string;
   state?: string;
+  service_location_address?: string;
   years?: number;
   startingPrice?: number;
   availability?: string;
@@ -53,74 +54,84 @@ export function ProviderCard({
 
   const list = services.length
     ? services
-    : rawServices.map((s: any) => (typeof s === "string" ? s : s?.name || String(s)));
+    : rawServices.map((s: any) => (typeof s === "string" ? s : s?.name || String(s))).filter(Boolean);
   const initials = provider.initials || provider.name.slice(0, 2).toUpperCase();
-  const ratingValue = Number(provider.rating) > 0 ? Number(provider.rating) : 4.9;
-  const reviewsCount = provider.reviews !== undefined ? provider.reviews : 12;
+  const ratingValue = Number(provider.rating) || 0;
+  const reviewsCount = Number(provider.reviews) || 0;
+  const hasReviews = reviewsCount > 0 && ratingValue > 0;
+
+  const locationText =
+    [provider.city, provider.state].filter(Boolean).join(", ") ||
+    provider.service_location_address ||
+    "Not specified";
 
   return (
-    <div className="group flex h-full flex-col justify-between rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
+    <div className="group flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
       <div>
         {/* Header: Avatar, Name, Badges, Category, Rating */}
-        <div className="flex min-w-0 items-start gap-3.5">
+        <div className="flex min-w-0 items-start gap-3">
           <Avatar
             initials={initials}
             src={provider.avatarUrl}
-            className="w-12 h-12 rounded-full font-bold text-sm bg-blue-50 text-blue-800 border-none shadow-none shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="truncate font-display text-base font-bold text-foreground">
                 {provider.name}
               </h3>
               {provider.verified && <VerifiedBadge compact />}
               {provider.featured && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#fef2f2] text-[#f43f5e] border border-[#fecdd3] px-2.5 py-0.5 text-xs font-semibold shrink-0">
-                  <Sparkles size={11} className="text-[#f43f5e] fill-[#f43f5e]" /> Featured
+                <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-soft-foreground">
+                  <Sparkles size={12} className="text-accent" /> Featured
                 </span>
               )}
             </div>
 
             {provider.category && (
-              <p className="mt-0.5 truncate text-xs sm:text-sm text-muted-foreground font-normal">
+              <p className="mt-0.5 truncate text-sm text-muted-foreground font-normal">
                 {provider.category}
               </p>
             )}
 
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              <div className="flex items-center gap-0.5 text-[#dc2626]">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <span key={i} className="text-[#dc2626] leading-none text-sm">★</span>
-                ))}
-              </div>
-              <span className="font-bold text-foreground ml-0.5">
-                {ratingValue.toFixed(1)}
-              </span>
-              <span>({reviewsCount} reviews)</span>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              {hasReviews ? (
+                <>
+                  <Stars rating={ratingValue} size={13} />
+                  <span className="font-semibold text-foreground">
+                    {ratingValue.toFixed(1)}
+                  </span>
+                  <span>({reviewsCount} {reviewsCount === 1 ? "review" : "reviews"})</span>
+                </>
+              ) : (
+                <>
+                  <Stars rating={0} size={13} />
+                  <span className="text-muted-foreground">No reviews yet</span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* Tagline / Description snippet */}
-        {!compact && provider.tagline && (
-          <p className="mt-3 line-clamp-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+        {!compact && provider.tagline && provider.tagline.trim() && (
+          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
             {provider.tagline}
           </p>
         )}
 
         {/* Service tags pills */}
         {list.length > 0 && (
-          <div className="mt-3.5 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {list.slice(0, 3).map((s) => (
               <span
                 key={s}
-                className="rounded-full bg-muted/80 text-foreground/80 hover:bg-muted px-3 py-1 text-xs font-medium transition-colors"
+                className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
               >
                 {s}
               </span>
             ))}
             {list.length > 3 && (
-              <span className="rounded-full bg-muted/80 text-muted-foreground px-2.5 py-1 text-xs font-medium">
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 +{list.length - 3} more
               </span>
             )}
@@ -128,39 +139,43 @@ export function ProviderCard({
         )}
 
         {/* 2x2 Metadata Grid */}
-        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 pt-3 border-t border-border/60 text-xs">
+        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="min-w-0">
-            <dt className="text-muted-foreground">Service area</dt>
-            <dd className="truncate font-bold text-sm text-foreground mt-0.5">
-              {[provider.city, provider.state].filter(Boolean).join(", ") || "USA, Florida"}
+            <dt className="text-xs text-muted-foreground">Service area</dt>
+            <dd className="truncate font-medium mt-0.5" title={locationText}>
+              {locationText}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-muted-foreground">Experience</dt>
-            <dd className="font-bold text-sm text-foreground mt-0.5">
-              {provider.years != null && provider.years > 0 ? `${provider.years} years` : "0 years"}
+            <dt className="text-xs text-muted-foreground">Experience</dt>
+            <dd className="font-medium mt-0.5">
+              {provider.years != null && Number(provider.years) > 0
+                ? `${provider.years} ${Number(provider.years) === 1 ? "year" : "years"}`
+                : "Not specified"}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-muted-foreground">Starting at</dt>
-            <dd className="font-bold text-sm text-foreground mt-0.5">
-              {provider.startingPrice != null ? usd(provider.startingPrice) : "$75.00"}
+            <dt className="text-xs text-muted-foreground">Starting at</dt>
+            <dd className="font-display font-bold text-primary mt-0.5">
+              {provider.startingPrice != null && Number(provider.startingPrice) > 0
+                ? usd(Number(provider.startingPrice))
+                : "Custom quote"}
             </dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-muted-foreground">Availability</dt>
-            <dd className="truncate font-semibold text-sm text-emerald-600 mt-0.5">
-              {provider.availability || "Available Today"}
+            <dt className="text-xs text-muted-foreground">Availability</dt>
+            <dd className={`truncate font-medium mt-0.5 ${provider.availability ? "text-success" : "text-muted-foreground"}`}>
+              {provider.availability || "Check schedule"}
             </dd>
           </div>
         </dl>
       </div>
 
       {/* Action Button */}
-      <div className="mt-5">
+      <div className="mt-5 flex gap-2">
         <Button
           asChild
-          className="w-full bg-[#0a1e3a] hover:bg-[#122b52] text-white rounded-xl py-2.5 font-semibold text-sm shadow-xs transition-colors"
+          className="flex-1"
         >
           <Link to={`/provider/${provider.id}`}>
             View Profile
@@ -172,14 +187,14 @@ export function ProviderCard({
 }
 
 export interface GenericBooking {
-  id: string;
+  id: string | number;
   status: string;
   serviceName: string;
   provider?: string;
   customer?: string;
   serviceDescription?: string;
-  proposedPrice?: number;
-  price?: number;
+  proposedPrice?: number | string;
+  price?: number | string;
   kind?: string;
   requestKind?: string;
   date?: string;
@@ -196,63 +211,72 @@ export function BookingCard({
   side?: "customer" | "provider";
   action?: React.ReactNode;
 }) {
-  const isPriceUpdated = booking.status === "Price Updated";
+  const isPriceUpdated = booking.status === "Price Updated" || booking.status === "price_updated";
   const displayPrice = booking.proposedPrice || booking.price || 0;
-  const isFixed = booking.kind === "Standard" || booking.requestKind === "Fixed Service";
+  const isFixed =
+    booking.kind === "Standard" ||
+    booking.requestKind === "Fixed Service" ||
+    booking.kind === "fixed" ||
+    booking.kind === "item_based" ||
+    (!booking.kind && !booking.requestKind);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-            isFixed
-              ? "bg-primary-soft text-primary"
-              : "bg-accent-soft text-accent-soft-foreground font-bold"
-          }`}
-        >
-          {isFixed ? "Fixed Service" : "Request a Quote"}
-        </span>
-        <StatusPill status={booking.status} />
-        <span className="ml-auto text-xs text-muted-foreground">{booking.id}</span>
-      </div>
-
-      <h3 className="mt-3 font-display text-base font-bold leading-snug">{booking.serviceName}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {side === "customer" ? booking.provider : booking.customer}
-      </p>
-      {booking.serviceDescription && (
-        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{booking.serviceDescription}</p>
-      )}
-
-      {isPriceUpdated && (
-        <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-300 p-2.5 text-xs text-amber-900">
-          <p className="font-bold">Provider updated price to {usd(displayPrice)}</p>
-          <p className="text-[11px] opacity-80">Awaiting your approval</p>
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              isFixed
+                ? "bg-primary-soft text-primary"
+                : "bg-accent-soft text-accent-soft-foreground font-bold"
+            }`}
+          >
+            {isFixed ? "Fixed Service" : "Request a Quote"}
+          </span>
+          <StatusPill status={booking.status} />
+          <span className="ml-auto text-xs text-muted-foreground">
+            {typeof booking.id === "string" && booking.id.startsWith("BKG-") ? booking.id : `BKG-${booking.id}`}
+          </span>
         </div>
-      )}
 
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
-        {booking.date && (
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays size={14} /> {booking.date}
-          </span>
+        <h3 className="mt-3 font-display text-base font-bold leading-snug">{booking.serviceName}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {side === "customer" ? booking.provider : booking.customer}
+        </p>
+        {booking.serviceDescription && (
+          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{booking.serviceDescription}</p>
         )}
-        {booking.time && (
-          <span className="inline-flex items-center gap-1.5">
-            <Clock size={14} /> {booking.time}
-          </span>
+
+        {isPriceUpdated && (
+          <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-300 p-2.5 text-xs text-amber-900">
+            <p className="font-bold">Provider updated price to {usd(displayPrice)}</p>
+            <p className="text-[11px] opacity-80">Awaiting your approval</p>
+          </div>
         )}
-        {displayPrice > 0 && (
-          <span className="inline-flex items-center gap-1.5">
-            <Wallet size={14} /> {usd(displayPrice)}
-          </span>
+
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+          {booking.date && (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays size={14} /> {booking.date}
+            </span>
+          )}
+          {booking.time && (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock size={14} /> {booking.time}
+            </span>
+          )}
+          {Number(displayPrice) > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <Wallet size={14} /> {usd(displayPrice)}
+            </span>
+          )}
+        </div>
+        {booking.address && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MapPin size={13} className="shrink-0" /> <span className="truncate">{booking.address}</span>
+          </p>
         )}
       </div>
-      {booking.address && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin size={13} /> {booking.address}
-        </p>
-      )}
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         {action ?? (
@@ -263,11 +287,11 @@ export function BookingCard({
             className="w-full justify-center text-xs"
           >
             {side === "customer" ? (
-              <Link to={`/order/${booking.id}`}>
-                {isPriceUpdated ? "Review & Accept Price" : "View order"}
+              <Link to={`/customer/bookings/${booking.id}`}>
+                {isPriceUpdated ? "Review & Accept Price" : "View booking"}
               </Link>
             ) : (
-              <Link to={`/provider/order/${booking.id}`}>Manage</Link>
+              <Link to={`/provider/jobs`}>Manage</Link>
             )}
           </Button>
         )}
@@ -275,3 +299,4 @@ export function BookingCard({
     </div>
   );
 }
+

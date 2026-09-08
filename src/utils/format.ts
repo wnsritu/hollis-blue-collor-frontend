@@ -57,5 +57,30 @@ export const formatStatus = (status: string) => {
     .join(" ");
 };
 
+export const formatDisplayDate = (dateStr?: string | null): string => {
+  if (!dateStr) return "Date TBD";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+export const formatDisplayTime = (timeStr?: string | null): string => {
+  if (!timeStr) return "TBD";
+  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+  const parts = timeStr.split(":");
+  if (parts.length >= 2) {
+    let h = parseInt(parts[0], 10);
+    const m = parts[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
+  return timeStr;
+};
+
 export const SERVICE_CATEGORIES = ["Laundry", "House Cleaning", "Car Wash"];
-export const ALL_SERVICE_CATEGORIES = ["All", ...SERVICE_CATEGORIES];
+export const ALL_SERVICE_CATEGORIES = ["All", ...SERVICE_CATEGORIES];
