@@ -23,7 +23,7 @@ import { appointmentApi } from "@/api/modules/appointment.api";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
-import { formatDisplayDate, formatDisplayTime } from "@/utils/format";
+import { normalizeBooking, mapBookingToGeneric } from "@/utils/bookingAdapter";
 import toast from "react-hot-toast";
 
 const FILTERS = ["All", "Upcoming", "In Progress", "Completed"];
@@ -65,8 +65,9 @@ export const AppointmentsPage: React.FC = () => {
   }, []);
 
   const handleOpenReschedule = (apt: Appointment) => {
+    const normalized = normalizeBooking(apt);
     setSelectedAppointment(apt);
-    setRescheduleDate(apt.booking_date || "");
+    setRescheduleDate(normalized.date || "");
     setRescheduleReason("");
     setRescheduleModalOpen(true);
   };
@@ -95,7 +96,8 @@ export const AppointmentsPage: React.FC = () => {
 
   const filteredAppointments = appointments
     .filter((apt) => {
-      const status = (apt.appointment_status || apt.status || "").toLowerCase();
+      const normalized = normalizeBooking(apt);
+      const status = normalized.rawStatus;
       if (activeTab === "All") return true;
       if (activeTab === "Upcoming") {
         return ["requested", "confirmed", "rescheduled", "pending", "payment pending", "paid", "scheduled"].includes(status);
@@ -104,26 +106,22 @@ export const AppointmentsPage: React.FC = () => {
         return ["accepted", "in_process", "in progress", "en route", "arrived"].includes(status);
       }
       if (activeTab === "Completed") {
-        return ["completed", "delivered", "paid", "reviewed"].includes(status);
+        return ["completed", "delivered", "paid", "reviewed", "finished", "work completed"].includes(status);
       }
       return true;
     })
     .filter((apt: any) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
-      const sName = apt.project?.title || apt.service_type?.name || apt.service_category || "";
-      const other = userIsCustomer
-        ? apt.provider?.business_name || apt.provider?.user?.full_name || ""
-        : apt.customer?.full_name || "";
-      const idStr = `bkg-${apt.id} ${apt.id}`;
-      const desc = apt.notes || apt.description || "";
-      const addr = apt.address || apt.delivery_address || apt.pickup_address || "";
+      const n = normalizeBooking(apt);
+      const other = userIsCustomer ? n.providerName : n.customerName;
+      const idStr = `${n.displayId} ${n.id}`;
       return (
-        sName.toLowerCase().includes(q) ||
+        n.serviceName.toLowerCase().includes(q) ||
         other.toLowerCase().includes(q) ||
         idStr.toLowerCase().includes(q) ||
-        desc.toLowerCase().includes(q) ||
-        addr.toLowerCase().includes(q)
+        n.serviceDescription.toLowerCase().includes(q) ||
+        n.address.toLowerCase().includes(q)
       );
     });
 
@@ -186,28 +184,7 @@ export const AppointmentsPage: React.FC = () => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredAppointments.map((apt: any) => {
-            const rawStatus = apt.appointment_status || apt.status || "Requested";
-            const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
-            const otherPartyName = userIsCustomer
-              ? apt.provider?.business_name || apt.provider?.user?.full_name || "Provider"
-              : apt.customer?.full_name || "Customer";
-
-            const bookingItem: GenericBooking = {
-              id: apt.id,
-              status: status,
-              serviceName: apt.project?.title || apt.service_type?.name || apt.service_category || "Home Services",
-              provider: userIsCustomer ? otherPartyName : undefined,
-              customer: !userIsCustomer ? otherPartyName : undefined,
-              serviceDescription: apt.notes || apt.description || apt.service_description || "Service details and requirements.",
-              price: apt.total_amount,
-              proposedPrice: apt.proposed_amount || apt.proposed_price,
-              kind: apt.order_type || (apt.proposal_id ? "Custom Request" : "Standard"),
-              requestKind: apt.order_type === "custom" || apt.order_type === "quote" ? "Request a Quote" : "Fixed Service",
-              date: formatDisplayDate(apt.booking_date),
-              time: formatDisplayTime(apt.time_slot?.start_time || apt.time),
-              address: apt.address || apt.delivery_address || apt.pickup_address || "",
-            };
-
+            const bookingItem = mapBookingToGeneric(apt, userIsCustomer ? "customer" : "provider");
             return (
               <BookingCard
                 key={apt.id}

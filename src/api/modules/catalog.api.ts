@@ -43,6 +43,10 @@ export const catalogApi = {
   listCategories: () =>
     http.get<ApiSuccess<Category[]>>(ENDPOINTS.catalog.categories),
 
+  /** Alias for listCategories */
+  getCategories: () =>
+    http.get<ApiSuccess<Category[]>>(ENDPOINTS.catalog.categories),
+
   listServiceTypes: (params?: ServiceTypeListParams) =>
     http.get<ApiSuccess<ServiceType[]>>(ENDPOINTS.catalog.serviceTypes, params),
 

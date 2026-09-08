@@ -26,6 +26,7 @@ import { Avatar } from "@/components/shared/primitives";
 import { sanitizePhoneInput } from "@/utils/format";
 import Spinner from "@/components/ui/spinner";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
+import { parseGooglePlace } from "@/utils/googlePlaces";
 
 import { authApi } from "@/api/modules/auth.api";
 import { customerApi } from "@/api/modules/customer.api";
@@ -613,54 +614,14 @@ const CustomerProfile = () => {
                         onChange={setAddress}
                         placeholder="Enter street address..."
                         onSelect={(place) => {
-                          setAddress(place.address);
-                          setLatitude(place.lat);
-                          setLongitude(place.lng);
-
-                          const comps =
-                            place.fullPlace
-                              ?.address_components || [];
-
-                          const getComp = (
-                            type: string
-                          ) =>
-                            comps.find((c) =>
-                              c.types.includes(type)
-                            )?.long_name || "";
-
-                          const cityVal =
-                            getComp("locality") ||
-                            getComp("sublocality") ||
-                            city;
-
-                          const stateVal =
-                            getComp(
-                              "administrative_area_level_1"
-                            ) || state;
-
-                          const zipVal =
-                            getComp("postal_code") ||
-                            zipCode;
-
-                          const countryVal =
-                            getComp("country") ||
-                            country;
-
-                          if (cityVal) {
-                            setCity(cityVal);
-                          }
-
-                          if (stateVal) {
-                            setState(stateVal);
-                          }
-
-                          if (zipVal) {
-                            setZipCode(zipVal);
-                          }
-
-                          if (countryVal) {
-                            setCountry(countryVal);
-                          }
+                          const parsed = parseGooglePlace(place);
+                          setAddress(parsed.address);
+                          setLatitude(parsed.lat);
+                          setLongitude(parsed.lng);
+                          if (parsed.city) setCity(parsed.city);
+                          if (parsed.state) setState(parsed.state);
+                          if (parsed.zip) setZipCode(parsed.zip);
+                          if (parsed.country) setCountry(parsed.country);
                         }}
                       />
                     </div>

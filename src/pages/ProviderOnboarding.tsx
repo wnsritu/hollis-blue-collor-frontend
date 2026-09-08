@@ -29,6 +29,8 @@ import {
 } from "@/pages/SignUp";
 import { getErrorMessage } from "@/lib/api/errors";
 import toast from "react-hot-toast";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
+import { parseGooglePlace } from "@/utils/googlePlaces";
 
 const OnboardingHeader = () => (
   <header className="border-b border-border/80 bg-background/95 backdrop-blur-md">
@@ -601,13 +603,31 @@ export default function ProviderOnboarding() {
                   <Label htmlFor="address">
                     Street Address <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="address"
-                    placeholder="Start typing your street address..."
+                  <GooglePlaceAutocomplete
                     value={form.address}
-                    onChange={(e) => {
-                      set({ address: e.target.value });
-                      if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: undefined });
+                    placeholder="Start typing your street address..."
+                    onChange={(val) => {
+                      set({ address: val });
+                      if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: undefined }));
+                    }}
+                    onSelect={(place) => {
+                      const parsed = parseGooglePlace(place);
+                      set({
+                        address: parsed.address,
+                        city: parsed.city || form.city,
+                        state: parsed.state || form.state,
+                        zip: parsed.zip || form.zip,
+                        country: parsed.country || form.country,
+                      });
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.address;
+                        if (parsed.city) delete next.city;
+                        if (parsed.state) delete next.state;
+                        if (parsed.zip) delete next.zip;
+                        if (parsed.country) delete next.country;
+                        return next;
+                      });
                     }}
                     className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                   />

@@ -35,6 +35,7 @@ import { appointmentApi } from "@/api/modules/appointment.api";
 import { bookingApi } from "@/api/modules/booking.api";
 import { chatApi } from "@/api/modules/chat.api";
 import type { Appointment } from "@/types/api/appointment";
+import { normalizeBooking } from "@/utils/bookingAdapter";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -236,14 +237,15 @@ export function ProviderJobs() {
       ) : (
         <div className="space-y-4">
           {filteredBookings.map((b: any) => {
-            const isFixed = !isQuoteJob(b);
-            const price = Number(b.pricing?.total ?? b.total_amount ?? 0);
-            const serviceFee = Number(b.pricing?.service_fee ?? Math.round(price * 0.1));
+            const n = normalizeBooking(b);
+            const isFixed = !n.isCustom;
+            const price = Number(n.totalAmount ?? b.pricing?.total ?? b.total_amount ?? 0);
+            const serviceFee = Number(b.pricing?.service_fee ?? (n.serviceFee > 0 ? n.serviceFee : Math.round(price * 0.1)));
             const providerPayable = Math.max(0, price - serviceFee);
             const commissionRate = price > 0 ? Math.round((serviceFee / price) * 100) : 10;
 
-            const aptStatus = b.appointment_status || b.status || "Requested";
-            const isPriceUpdated = b.status === "price_updated";
+            const aptStatus = n.appointmentStatus;
+            const isPriceUpdated = n.isPriceUpdated;
 
             const isPendingAcceptance =
               aptStatus === "Requested" || aptStatus === "pending" || aptStatus === "Pending Acceptance";
@@ -274,6 +276,7 @@ export function ProviderJobs() {
             ];
 
             const title =
+              n.serviceName ||
               b.service?.service_type?.name ||
               b.service_type?.name ||
               b.project?.title ||
@@ -283,22 +286,30 @@ export function ProviderJobs() {
               b.service_category ||
               "Service Job";
 
-            const customerName = b.customer?.full_name || "Customer";
+            const customerName = n.customerName || b.customer?.full_name || "Customer";
             const address =
-              b.service_address?.address ||
-              b.pickup_address ||
-              b.delivery_address ||
-              "Address provided upon booking";
+              n.address && n.address !== "Address not provided"
+                ? n.address
+                : b.service_address?.address ||
+                  b.pickup_address ||
+                  b.delivery_address ||
+                  "Address provided upon booking";
 
-            const bookingRef = b.booking_number || `#BK-${b.id}`;
+            const bookingRef = b.booking_number || (n.displayId.startsWith("#") ? n.displayId : `#${n.displayId}`);
 
-            const dateLabel = b.schedule?.date || b.booking_date || "";
+            const dateLabel =
+              n.formattedDate && n.formattedDate !== "Date to be confirmed"
+                ? n.formattedDate
+                : b.schedule?.date || b.booking_date || "";
             const slotLabel =
+              n.timeSlotName ||
               b.schedule?.time_slot?.name ||
               b.time_slot?.slot_name ||
               (b.time_slot?.start_time
                 ? `${b.time_slot.start_time} - ${b.time_slot.end_time || ""}`
-                : "");
+                : "") ||
+              n.formattedTime ||
+              "";
 
             return (
               <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
@@ -428,7 +439,7 @@ export function ProviderJobs() {
                         Booking Date &amp; Time
                       </span>
                       <span className="font-semibold text-foreground text-xs">
-                        {dateLabel} {slotLabel ? `(${slotLabel})` : ""}
+                        {dateLabel ? `${dateLabel} ${slotLabel ? `(${slotLabel})` : ""}` : (n.formattedDate || "Date to be confirmed")}
                       </span>
                     </div>
 

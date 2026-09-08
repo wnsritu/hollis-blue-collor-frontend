@@ -180,16 +180,7 @@ export default function ProviderPricing() {
       const servicePricingObj: Record<string, ProviderServiceConfig> = {};
 
       selectedSubcategories.forEach((sub) => {
-        const rawServices =
-          sub.services && sub.services.length > 0
-            ? sub.services
-            : [
-                { id: 101, name: `General ${sub.name} Repair`, is_active: true },
-                { id: 102, name: `${sub.name} Installation & Setup`, is_active: true },
-                { id: 103, name: `Emergency ${sub.name} Service`, is_active: true },
-                { id: 104, name: `Routine ${sub.name} Maintenance`, is_active: true },
-              ];
-        const activeServices = rawServices.filter((svc: any) => svc.is_active !== false);
+        const activeServices = (sub.services || []).filter((svc: any) => svc.is_active !== false);
 
         activeServices.forEach((svc: any) => {
           const svcKey = String(svc.id || svc.name);
@@ -265,16 +256,7 @@ export default function ProviderPricing() {
       <div className="space-y-6">
         {selectedSubcategories.map((sub) => {
           const isOpen = openAccordions[String(sub.id)] ?? true;
-          const rawServices =
-            sub.services && sub.services.length > 0
-              ? sub.services
-              : [
-                  { id: 101, name: `General ${sub.name} Repair`, is_active: true },
-                  { id: 102, name: `${sub.name} Installation & Setup`, is_active: true },
-                  { id: 103, name: `Emergency ${sub.name} Service`, is_active: true },
-                  { id: 104, name: `Routine ${sub.name} Maintenance`, is_active: true },
-                ];
-          const serviceItems = rawServices.filter((svc: any) => svc.is_active !== false);
+          const serviceItems = (sub.services || []).filter((svc: any) => svc.is_active !== false);
           return (
             <Card key={sub.id} className="shadow-card overflow-hidden transition-all">
               {/* Accordion Header */}
@@ -288,7 +270,7 @@ export default function ProviderPricing() {
                       {sub.name}
                     </CardTitle>
                     <span className="text-xs font-semibold rounded-full bg-secondary px-2.5 py-0.5 text-foreground">
-                      {serviceItems.length} active services
+                      {serviceItems.length} active service{serviceItems.length === 1 ? "" : "s"}
                     </span>
                   </div>
                   <Button variant="ghost" size="icon" className="size-8">
@@ -300,11 +282,16 @@ export default function ProviderPricing() {
               {/* Accordion Content with Fixed Height & Vertical Internal Scroll */}
               {isOpen && (
                 <CardContent className="p-0">
-                  <div className="max-h-[300px] overflow-y-auto divide-y divide-border pr-1">
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-border pr-1">
                     {serviceItems.length === 0 ? (
-                      <p className="p-6 text-xs text-muted-foreground text-center">
-                        No active services listed under this subcategory.
-                      </p>
+                      <div className="py-10 px-6 text-center space-y-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          No services added yet under {sub.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                          Services added dynamically by administrators in the Admin Panel will appear here for you to set pricing and availability.
+                        </p>
+                      </div>
                     ) : (
                       serviceItems.map((svc, idx) => {
                         const svcKey = String(svc.id || svc.name);
@@ -325,7 +312,7 @@ export default function ProviderPricing() {
                                 <StatusPill status={svc.is_active !== false ? "Active" : "Inactive"} />
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-2">
-                                {svc.description || "Platform service available for provider pricing."}
+                                {(svc.description as string) || "Platform service available for provider pricing."}
                               </p>
                             </div>
 

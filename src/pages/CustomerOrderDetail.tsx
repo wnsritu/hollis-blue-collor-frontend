@@ -23,7 +23,7 @@ import { usd } from "@/components/shared/cards";
 import { getOrderDetails } from "@/services/order.service";
 import { appointmentApi } from "@/api/modules/appointment.api";
 import { chatApi } from "@/api/modules/chat.api";
-import { formatDisplayDate, formatDisplayTime } from "@/utils/format";
+import { normalizeBooking, getTimelineStep } from "@/utils/bookingAdapter";
 import toast from "react-hot-toast";
 
 const BOOKING_FLOW = [
@@ -117,53 +117,28 @@ export const CustomerOrderDetail: React.FC = () => {
   }
 
   // Formatting & Mapping dynamic fields
-  const bkgDisplayId = typeof id === "string" && id.startsWith("BKG-") ? id : `BKG-${booking.id}`;
-  const rawStatus = booking.appointment_status || booking.status || "Requested";
-  const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
-  const isCancelled = status.toLowerCase() === "cancelled";
-  const isCompleted = ["completed", "delivered", "reviewed", "finished"].includes(status.toLowerCase());
-  const isPriceUpdated = status.toLowerCase() === "price updated" || status.toLowerCase() === "price_updated";
+  const normalized = normalizeBooking(booking);
 
-  const serviceName =
-    booking.project?.title ||
-    booking.service_type?.name ||
-    booking.service_category ||
-    "Service Details";
-  const providerName =
-    booking.provider?.business_name ||
-    booking.provider?.user?.full_name ||
-    booking.provider_name ||
-    "Professional";
-  const isCustom = booking.order_type === "custom" || booking.order_type === "quote" || Boolean(booking.proposal_id);
-  const serviceDescription =
-    booking.notes ||
-    booking.description ||
-    booking.service_description ||
-    "Service details and requirements.";
+  const bkgDisplayId = typeof id === "string" && id.startsWith("BKG-") ? id : normalized.displayId;
+  const status = normalized.status;
+  const isCancelled = normalized.isCancelled;
+  const isCompleted = normalized.isCompleted;
+  const isPriceUpdated = normalized.isPriceUpdated;
 
-  const formattedDate = formatDisplayDate(booking.booking_date);
-  const formattedTime = formatDisplayTime(booking.time_slot?.start_time || booking.time);
-  const formattedAddress =
-    booking.address || booking.delivery_address || booking.pickup_address || "Address not provided";
+  const serviceName = normalized.serviceName;
+  const providerName = normalized.providerName;
+  const isCustom = normalized.isCustom;
+  const serviceDescription = normalized.serviceDescription;
+
+  const formattedDate = normalized.formattedDate;
+  const formattedTime = normalized.formattedTime;
+  const formattedAddress = normalized.address;
 
   // Price calculations
-  const totalAmountNum = Number(booking.total_amount || booking.price || 0);
-  const subtotalNum = totalAmountNum > 0 ? Math.round((totalAmountNum / 1.1) * 100) / 100 : 75;
-  const serviceFeeNum = totalAmountNum > 0 ? Math.round((totalAmountNum - subtotalNum) * 100) / 100 : 8;
-  const isPaid = booking.payment_status === "paid" || booking.paid || totalAmountNum > 0;
-
-  // Timeline Step mapping
-  const getTimelineCurrent = (st: string) => {
-    const s = (st || "").toLowerCase();
-    if (["requested", "pending", "pending review", "pending acceptance"].includes(s)) return "Pending Acceptance";
-    if (["confirmed", "accepted"].includes(s)) return "Confirmed";
-    if (["paid", "payment pending"].includes(s)) return "Paid";
-    if (["scheduled"].includes(s)) return "Scheduled";
-    if (["in_process", "in progress", "en route", "arrived"].includes(s)) return "In Progress";
-    if (["finished", "completed", "delivered"].includes(s)) return "Completed";
-    if (["reviewed"].includes(s)) return "Reviewed";
-    return "Scheduled";
-  };
+  const totalAmountNum = normalized.totalAmount;
+  const subtotalNum = normalized.subtotal;
+  const serviceFeeNum = normalized.serviceFee;
+  const isPaid = normalized.isPaid;
 
   const handleOpenChat = async () => {
     try {
@@ -243,7 +218,7 @@ export const CustomerOrderDetail: React.FC = () => {
                 <div className="flex justify-between items-center text-base font-extrabold text-foreground pt-1">
                   <span>Proposed New Price</span>
                   <span className="text-primary text-xl font-display">
-                    {usd(booking.proposed_amount || booking.proposed_price || totalAmountNum)}
+                    {usd(booking.proposed_amount || booking.proposed_price || booking.pricing?.proposed_price || totalAmountNum)}
                   </span>
                 </div>
               </div>
@@ -362,27 +337,38 @@ export const CustomerOrderDetail: React.FC = () => {
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <h2 className="font-display text-lg font-bold">Status Timeline</h2>
             <div className="mt-4">
-              <Timeline steps={BOOKING_FLOW} current={getTimelineCurrent(status)} />
+              <Timeline steps={BOOKING_FLOW} current={getTimelineStep(status)} />
             </div>
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <h2 className="font-display text-lg font-bold">Payment Breakdown</h2>
             <dl className="mt-4 space-y-3 text-sm">
+              {normalized.servicesList.length > 0 ? (
+                normalized.servicesList.map((svc) => (
+                  <div key={svc.id} className="flex justify-between">
+                    <dt className="text-muted-foreground">
+                      {svc.name} {svc.quantity > 1 ? `(x${svc.quantity})` : ""}
+                    </dt>
+                    <dd className="font-medium">{usd(svc.total || svc.unit_price * svc.quantity)}</dd>
+                  </div>
+                ))
+              ) : (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Subtotal (Services)</dt>
+                  <dd className="font-medium">{usd(subtotalNum)}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">Subtotal (Services)</dt>
-                <dd className="font-medium">{usd(subtotalNum)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Service Fee (10%)</dt>
+                <dt className="text-muted-foreground">Service Fee</dt>
                 <dd className="font-medium">{usd(serviceFeeNum)}</dd>
               </div>
             </dl>
             <Separator className="my-4" />
             <div className="flex items-center justify-between">
-              <span className="font-semibold">Total Paid</span>
+              <span className="font-semibold">Total Amount</span>
               <span className="font-display text-xl font-bold">
-                {isPaid ? usd(totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum) : "—"}
+                {usd(totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum)}
               </span>
             </div>
           </section>
