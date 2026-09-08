@@ -69,7 +69,7 @@ export const SearchProviders: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await catalogApi.getCategories();
+        const res = await catalogApi.getTree();
         const list = (res as any)?.data || res || [];
         if (!cancelled) setCategories(Array.isArray(list) ? list : []);
       } catch (err) {

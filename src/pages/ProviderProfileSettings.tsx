@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
+import { parseGooglePlace } from "@/utils/googlePlaces";
 import Spinner from "@/components/ui/spinner";
 
 import { userApi } from "@/api/modules/user.api";
@@ -710,23 +711,14 @@ const ProviderProfileSettings = () => {
                         onChange={setAddress}
                         placeholder="Enter street address..."
                         onSelect={(place) => {
-                          setAddress(place.address);
-                          setLat(place.lat);
-                          setLng(place.lng);
-                          const comps = place.fullPlace?.address_components || [];
-                          const get = (type: string) =>
-                            comps.find((c) => c.types.includes(type))
-                              ?.long_name || "";
-                          const cityVal =
-                            get("locality") || get("sublocality") || city;
-                          const stateVal =
-                            get("administrative_area_level_1") || state;
-                          const zipVal = get("postal_code") || zip;
-                          const countryVal = get("country") || country;
-                          if (cityVal) setCity(cityVal);
-                          if (stateVal) setState(stateVal);
-                          if (zipVal) setZip(zipVal);
-                          if (countryVal) setCountry(countryVal);
+                          const parsed = parseGooglePlace(place);
+                          setAddress(parsed.address);
+                          setLat(parsed.lat);
+                          setLng(parsed.lng);
+                          if (parsed.city) setCity(parsed.city);
+                          if (parsed.state) setState(parsed.state);
+                          if (parsed.zip) setZip(parsed.zip);
+                          if (parsed.country) setCountry(parsed.country);
                         }}
                       />
                     </div>

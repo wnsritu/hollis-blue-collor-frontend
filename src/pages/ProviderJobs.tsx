@@ -35,6 +35,7 @@ import { appointmentApi } from "@/api/modules/appointment.api";
 import { bookingApi } from "@/api/modules/booking.api";
 import { chatApi } from "@/api/modules/chat.api";
 import type { Appointment } from "@/types/api/appointment";
+import { normalizeBooking } from "@/utils/bookingAdapter";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -236,14 +237,15 @@ export function ProviderJobs() {
       ) : (
         <div className="space-y-4">
           {filteredBookings.map((b: any) => {
-            const isFixed = !isQuoteJob(b);
-            const price = Number(b.total_amount) || 0;
+            const n = normalizeBooking(b);
+            const isFixed = !n.isCustom;
+            const price = n.totalAmount;
             const commissionRate = 10; // 10% platform fee
-            const serviceFee = Math.round(price * 0.1);
-            const providerPayable = price - serviceFee;
+            const serviceFee = n.serviceFee > 0 ? n.serviceFee : Math.round(price * 0.1);
+            const providerPayable = Math.max(0, price - serviceFee);
 
-            const aptStatus = b.appointment_status || b.status || "Requested";
-            const isPriceUpdated = b.status === "price_updated";
+            const aptStatus = n.appointmentStatus;
+            const isPriceUpdated = n.isPriceUpdated;
 
             const isPendingAcceptance =
               aptStatus === "Requested" || aptStatus === "pending" || aptStatus === "Pending Acceptance";
@@ -273,15 +275,9 @@ export function ProviderJobs() {
               "Completed",
             ];
 
-            const title =
-              b.service_type?.name ||
-              b.project?.title ||
-              b.items?.[0]?.custom_item_name ||
-              b.service_category ||
-              "Service Job";
-
-            const customerName = b.customer?.full_name || "Customer";
-            const address = b.pickup_address || b.delivery_address || "Address provided upon booking";
+            const title = n.serviceName;
+            const customerName = n.customerName;
+            const address = n.address;
 
             return (
               <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
@@ -301,7 +297,7 @@ export function ProviderJobs() {
                           {isFixed ? "Fixed Service" : "Request a Quote"}
                         </span>
                         <span className="text-xs font-mono text-muted-foreground">
-                          #BKG-{b.id}
+                          #{n.displayId}
                         </span>
                       </div>
                       <h3 className="font-heading text-lg font-bold text-foreground mt-1">
@@ -411,11 +407,11 @@ export function ProviderJobs() {
                         Booking Date &amp; Time
                       </span>
                       <span className="font-semibold text-foreground text-xs">
-                        {b.booking_date}
-                        {b.time_slot?.slot_name
-                          ? ` (${b.time_slot.slot_name})`
-                          : b.time_slot?.start_time
-                          ? ` (${b.time_slot.start_time} - ${b.time_slot.end_time || ""})`
+                        {n.formattedDate}
+                        {n.timeSlotName
+                          ? ` (${n.timeSlotName})`
+                          : n.formattedTime
+                          ? ` (${n.formattedTime})`
                           : ""}
                       </span>
                     </div>

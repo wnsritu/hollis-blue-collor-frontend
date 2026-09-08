@@ -24,6 +24,7 @@ import { PageHeader, StatCard, StatusPill, Avatar } from "@/components/shared/pr
 import { getOrderList, getOrderDetails, updateOrderStatus } from "@/services/order.service";
 import { getDashboardApi } from "@/api/booking.api";
 import { saveOrderBookingState } from "@/utils/bookingState";
+import { normalizeBooking } from "@/utils/bookingAdapter";
 
 const CustomerDashboard = () => {
   const { id } = useParams();
@@ -95,7 +96,8 @@ const CustomerDashboard = () => {
       const response: any = await getOrderDetails(id);
       if (response.success) {
         setSelectedOrder(response.data);
-        const stepIndex = trackingSteps.findIndex((s) => s.status === response.data.status);
+        const st = (response.data.appointment_status || response.data.status || "").toLowerCase();
+        const stepIndex = trackingSteps.findIndex((s) => s.status.toLowerCase() === st);
         setCurrentStep(stepIndex >= 0 ? stepIndex : 0);
       }
     } catch (error) {
@@ -116,13 +118,13 @@ const CustomerDashboard = () => {
     );
   }
 
-  // Single Order Detail Tracking View
   if (id && selectedOrder) {
+    const normalizedOrder = normalizeBooking(selectedOrder);
     return (
       <div className="container-page py-8">
         <PageHeader
-          title={`Order Tracking — ${selectedOrder.order_id || `ORD-${selectedOrder.id}`}`}
-          subtitle={`Placed on ${selectedOrder.booking_date ? new Date(selectedOrder.booking_date).toLocaleDateString() : 'N/A'}`}
+          title={`Order Tracking — ${normalizedOrder.displayId}`}
+          subtitle={`Placed on ${normalizedOrder.formattedDate}`}
           action={
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
               Back to Dashboard
@@ -163,10 +165,10 @@ const CustomerDashboard = () => {
               <CardContent className="p-6">
                 <h3 className="font-display text-base font-bold">Provider Information</h3>
                 <div className="mt-4 flex items-center gap-3">
-                  <Avatar initials={selectedOrder.provider?.business_name?.slice(0, 2).toUpperCase() || "PR"} />
+                  <Avatar initials={normalizedOrder.providerName?.slice(0, 2).toUpperCase() || "PR"} />
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{selectedOrder.provider?.business_name || "Service Provider"}</p>
-                    <p className="text-xs text-muted-foreground">{selectedOrder.service_category || "Cleaning"}</p>
+                    <p className="truncate font-semibold">{normalizedOrder.providerName}</p>
+                    <p className="text-xs text-muted-foreground">{normalizedOrder.categoryName}</p>
                   </div>
                 </div>
                 <div className="mt-5 space-y-2">
@@ -237,31 +239,34 @@ const CustomerDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {orders.slice(0, 6).map((order) => (
-                  <tr key={order.id} className="transition-colors hover:bg-muted/30">
-                    <td className="px-4 py-3.5 font-mono text-xs font-semibold">
-                      {order.order_id || `ORD-${order.id}`}
-                    </td>
-                    <td className="px-4 py-3.5 font-medium">
-                      {order.provider?.business_name || order.provider_name || "Provider"}
-                    </td>
-                    <td className="px-4 py-3.5 text-muted-foreground">{order.service_category || "Laundry"}</td>
-                    <td className="px-4 py-3.5 text-muted-foreground">
-                      {order.booking_date ? new Date(order.booking_date).toLocaleDateString() : "-"}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusPill status={order.status || "Pending"} />
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-display font-bold text-primary">
-                      ${(parseFloat(order.total_amount) || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/order/${order.id}`}>View</Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {orders.slice(0, 6).map((order) => {
+                  const n = normalizeBooking(order);
+                  return (
+                    <tr key={order.id} className="transition-colors hover:bg-muted/30">
+                      <td className="px-4 py-3.5 font-mono text-xs font-semibold">
+                        {n.displayId}
+                      </td>
+                      <td className="px-4 py-3.5 font-medium">
+                        {n.providerName}
+                      </td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{n.categoryName}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">
+                        {n.formattedDate}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusPill status={n.status} />
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-display font-bold text-primary">
+                        ${n.totalAmount.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/customer/bookings/${order.id}`}>View</Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
