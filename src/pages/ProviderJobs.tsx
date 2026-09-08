@@ -237,10 +237,10 @@ export function ProviderJobs() {
         <div className="space-y-4">
           {filteredBookings.map((b: any) => {
             const isFixed = !isQuoteJob(b);
-            const price = Number(b.total_amount) || 0;
-            const commissionRate = 10; // 10% platform fee
-            const serviceFee = Math.round(price * 0.1);
-            const providerPayable = price - serviceFee;
+            const price = Number(b.pricing?.total ?? b.total_amount ?? 0);
+            const serviceFee = Number(b.pricing?.service_fee ?? Math.round(price * 0.1));
+            const providerPayable = Math.max(0, price - serviceFee);
+            const commissionRate = price > 0 ? Math.round((serviceFee / price) * 100) : 10;
 
             const aptStatus = b.appointment_status || b.status || "Requested";
             const isPriceUpdated = b.status === "price_updated";
@@ -274,14 +274,31 @@ export function ProviderJobs() {
             ];
 
             const title =
+              b.service?.service_type?.name ||
               b.service_type?.name ||
               b.project?.title ||
+              b.services?.[0]?.name ||
               b.items?.[0]?.custom_item_name ||
+              b.service?.category_name ||
               b.service_category ||
               "Service Job";
 
             const customerName = b.customer?.full_name || "Customer";
-            const address = b.pickup_address || b.delivery_address || "Address provided upon booking";
+            const address =
+              b.service_address?.address ||
+              b.pickup_address ||
+              b.delivery_address ||
+              "Address provided upon booking";
+
+            const bookingRef = b.booking_number || `#BK-${b.id}`;
+
+            const dateLabel = b.schedule?.date || b.booking_date || "";
+            const slotLabel =
+              b.schedule?.time_slot?.name ||
+              b.time_slot?.slot_name ||
+              (b.time_slot?.start_time
+                ? `${b.time_slot.start_time} - ${b.time_slot.end_time || ""}`
+                : "");
 
             return (
               <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
@@ -301,7 +318,7 @@ export function ProviderJobs() {
                           {isFixed ? "Fixed Service" : "Request a Quote"}
                         </span>
                         <span className="text-xs font-mono text-muted-foreground">
-                          #BKG-{b.id}
+                          {bookingRef}
                         </span>
                       </div>
                       <h3 className="font-heading text-lg font-bold text-foreground mt-1">
@@ -411,12 +428,7 @@ export function ProviderJobs() {
                         Booking Date &amp; Time
                       </span>
                       <span className="font-semibold text-foreground text-xs">
-                        {b.booking_date}
-                        {b.time_slot?.slot_name
-                          ? ` (${b.time_slot.slot_name})`
-                          : b.time_slot?.start_time
-                          ? ` (${b.time_slot.start_time} - ${b.time_slot.end_time || ""})`
-                          : ""}
+                        {dateLabel} {slotLabel ? `(${slotLabel})` : ""}
                       </span>
                     </div>
 

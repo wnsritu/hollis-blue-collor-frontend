@@ -209,35 +209,59 @@ export default function BookService() {
 
         // Format Provider Availability Schedule
         const availPayload = availRes?.data?.data || availRes?.data || availRes;
-        const rawAvail = availPayload?.availability || availPayload;
+        const availabilityMap = availPayload?.availability;
+        const recordsList = Array.isArray(availPayload?.records)
+          ? availPayload.records
+          : Array.isArray(availPayload)
+          ? availPayload
+          : null;
+
         let activeSchedule: Record<string, number[]> | null = null;
 
-        if (rawAvail && typeof rawAvail === "object") {
-          activeSchedule = {
-            Monday: [],
-            Tuesday: [],
-            Wednesday: [],
-            Thursday: [],
-            Friday: [],
-            Saturday: [],
-            Sunday: [],
-          };
+        const normalizeDay = (dayStr: string) => {
+          if (!dayStr) return "";
+          const lower = dayStr.trim().toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        };
 
-          if (Array.isArray(rawAvail)) {
-            rawAvail.forEach((rec: any) => {
-              if (rec.day_of_week && activeSchedule![rec.day_of_week] !== undefined && rec.time_slot_id) {
-                activeSchedule![rec.day_of_week].push(Number(rec.time_slot_id));
-              }
-            });
-          } else {
-            Object.entries(rawAvail).forEach(([day, ids]: [string, any]) => {
-              if (Array.isArray(ids) && activeSchedule![day] !== undefined) {
-                activeSchedule![day] = ids.map(Number);
-              }
-            });
-          }
-          setProviderSchedule(activeSchedule);
+        const scheduleTemp: Record<string, number[]> = {
+          Monday: [],
+          Tuesday: [],
+          Wednesday: [],
+          Thursday: [],
+          Friday: [],
+          Saturday: [],
+          Sunday: [],
+        };
+
+        let totalConfiguredSlots = 0;
+
+        if (availabilityMap && typeof availabilityMap === "object") {
+          Object.entries(availabilityMap).forEach(([day, ids]: [string, any]) => {
+            const dayName = normalizeDay(day);
+            if (Array.isArray(ids) && scheduleTemp[dayName] !== undefined) {
+              scheduleTemp[dayName] = ids.map(Number);
+              totalConfiguredSlots += ids.length;
+            }
+          });
+        } else if (recordsList && Array.isArray(recordsList)) {
+          recordsList.forEach((rec: any) => {
+            const day = normalizeDay(rec.day_of_week);
+            if (day && scheduleTemp[day] !== undefined && rec.time_slot_id) {
+              scheduleTemp[day].push(Number(rec.time_slot_id));
+              totalConfiguredSlots++;
+            }
+          });
         }
+
+        // If provider has configured specific slots, enforce schedule. Otherwise allow all slots.
+        if (totalConfiguredSlots > 0) {
+          activeSchedule = scheduleTemp;
+        } else {
+          activeSchedule = null;
+        }
+
+        setProviderSchedule(activeSchedule);
 
         // Format Time Slots
         const slotsData = slotRes?.data?.slots || slotRes?.data?.data || slotRes?.data || (Array.isArray(slotRes) ? slotRes : []);
