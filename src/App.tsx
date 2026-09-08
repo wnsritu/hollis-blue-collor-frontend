@@ -274,6 +274,16 @@ const App = () => (
             }
           />
           <Route
+            path="/customer/bookings/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerPortal>
+                  <CustomerOrderDetail />
+                </CustomerPortal>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/report-issue/:id"
             element={
               <ProtectedRoute>
@@ -330,6 +340,16 @@ const App = () => (
 
           <Route
             path="/appointments"
+            element={
+              <ProtectedRoute>
+                <RolePortal>
+                  <AppointmentsPage />
+                </RolePortal>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/bookings"
             element={
               <ProtectedRoute>
                 <RolePortal>
