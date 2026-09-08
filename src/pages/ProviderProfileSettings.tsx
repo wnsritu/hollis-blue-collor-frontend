@@ -205,16 +205,7 @@ const ProviderProfileSettings = () => {
   }, [availableSubcategories, subcategoryId]);
 
   const availableServiceItems = useMemo(() => {
-    if (selectedSubcategoryObj?.services && selectedSubcategoryObj.services.length > 0) {
-      return selectedSubcategoryObj.services;
-    }
-    const subName = selectedSubcategoryObj?.name || "Service";
-    return [
-      { id: 101, name: `General ${subName} Repair` },
-      { id: 102, name: `${subName} Installation & Setup` },
-      { id: 103, name: `Emergency ${subName} Service` },
-      { id: 104, name: `Routine ${subName} Maintenance` },
-    ];
+    return (selectedSubcategoryObj?.services || []).filter((s: any) => s.is_active !== false);
   }, [selectedSubcategoryObj]);
 
   const categoryName = useMemo(() => {
