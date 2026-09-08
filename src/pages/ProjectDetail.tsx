@@ -28,6 +28,7 @@ import { proposalApi } from "@/api/modules/proposal.api";
 import { chatApi } from "@/api/modules/chat.api";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 import type { Project } from "@/types/api/project";
 import type { Proposal } from "@/types/api/proposal";
 import { usd } from "@/components/shared/cards";
@@ -74,6 +75,7 @@ export const ProjectDetail: React.FC = () => {
     setLoading(true);
     try {
       const projRes = await projectApi.getById(projectId);
+      console.log(projRes, "projResprojResprojRes")
       const projData = (projRes as any)?.data || projRes;
       setProject(projData);
 
@@ -251,7 +253,8 @@ export const ProjectDetail: React.FC = () => {
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {project.attachments.map((att: any) => {
-                    const fileUrl = att.file_url || att.file_path || att.file_key || att.url;
+                    const rawPath = att.file_url || att.file_path || att.file_key || att.url;
+                    const fileUrl = resolveMediaUrl(rawPath);
                     const fileName = att.original_name || att.file_name || att.filename || "Attachment";
                     return (
                       <div
@@ -269,7 +272,7 @@ export const ProjectDetail: React.FC = () => {
                                 filename: fileName,
                               })
                             }
-                            className="inline-flex items-center gap-1 rounded bg-primary-soft/80 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary-soft transition-colors"
+                            className="inline-flex items-center gap-1 rounded bg-primary-soft/80 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary-soft transition-colors cursor-pointer"
                           >
                             <Eye size={12} /> View
                           </button>
@@ -329,11 +332,10 @@ export const ProjectDetail: React.FC = () => {
                   return (
                     <div
                       key={prop.id}
-                      className={`rounded-2xl border p-5 transition-all ${
-                        isAccepted
-                          ? "border-success bg-success-soft/10 shadow-sm"
-                          : "border-border bg-card"
-                      }`}
+                      className={`rounded-2xl border p-5 transition-all ${isAccepted
+                        ? "border-success bg-success-soft/10 shadow-sm"
+                        : "border-border bg-card"
+                        }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
