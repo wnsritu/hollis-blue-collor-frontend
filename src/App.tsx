@@ -56,6 +56,7 @@ import AdminServices from "./pages/admin/AdminServices";
 import AdminCategories from "./pages/admin/AdminCategories";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
+import HomeRoute from "@/routes/HomeRoute";
 import SupportAgentsPage from "./pages/admin/SupportAgentsPage";
 import SupportDashboard from "./pages/support/SupportAgent";
 import SupportLayout from "./components/SupportLayout";
@@ -149,24 +150,56 @@ const App = () => (
           <Route
             path="/"
             element={
-              <PublicLayout>
-                <Index />
-              </PublicLayout>
+              <HomeRoute>
+                <PublicLayout>
+                  <Index />
+                </PublicLayout>
+              </HomeRoute>
             }
           />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<SignUp />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ForgotPassword />} />
+          <Route
+            path="/login"
+            element={
+              <HomeRoute>
+                <Login />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <HomeRoute>
+                <SignUp />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <HomeRoute>
+                <ForgotPassword />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <HomeRoute>
+                <ForgotPassword />
+              </HomeRoute>
+            }
+          />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-otp" element={<VerifyEmail />} />
           <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
           <Route
             path="/how-it-works"
             element={
-              <PublicLayout>
-                <HowItWorks />
-              </PublicLayout>
+              <HomeRoute>
+                <PublicLayout>
+                  <HowItWorks />
+                </PublicLayout>
+              </HomeRoute>
             }
           />
           <Route
@@ -180,9 +213,11 @@ const App = () => (
           <Route
             path="/search"
             element={
-              <PublicLayout>
-                <SearchProviders />
-              </PublicLayout>
+              <ProtectedRoute>
+                <PublicLayout>
+                  <SearchProviders />
+                </PublicLayout>
+              </ProtectedRoute>
             }
           />
 
