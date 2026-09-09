@@ -51,6 +51,8 @@ export type RegisterPayload = {
   state?: string;
   country?: string;
   zip_code?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   license_number?: string;
   insurance_policy?: string;
   license_document?: string;
