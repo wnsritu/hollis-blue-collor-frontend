@@ -447,6 +447,13 @@ function PaymentForm({ plan, onSuccess, onClose }) {
             billing_details: {
               name: localStorage.getItem("userName") || "Provider",
               email: localStorage.getItem("userEmail") || "provider@example.com",
+              address: {
+                line1: "123 Main Street",
+                city: "New York",
+                state: "NY",
+                postal_code: "10001",
+                country: "US",
+              },
             },
           },
         },
@@ -546,7 +553,17 @@ function PaymentForm({ plan, onSuccess, onClose }) {
       <div className="border rounded-lg p-4 max-h-[320px] overflow-y-scroll">
       {/* <div className="border rounded-lg p-4"> */}
         <label className="block text-sm font-medium mb-2">Card Details</label>
-        <PaymentElement />
+        <PaymentElement
+          options={{
+            fields: {
+              billingDetails: {
+                name: "auto",
+                email: "auto",
+                address: "auto",
+              },
+            },
+          }}
+        />
       </div>
 
       {/* ✅ Verification Status UI */}
