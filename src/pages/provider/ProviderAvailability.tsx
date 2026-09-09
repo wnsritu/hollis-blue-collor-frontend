@@ -43,9 +43,12 @@ const ProviderAvailability = () => {
         availability: availabilityPayload,
       });
 
-      toast.success("Availability saved successfully!", {
-        description: "Your active time slots have been updated for bookings.",
-      } as any);
+      toast.success(
+        <div>
+          <div className="font-medium">Availability saved successfully!</div>
+          <div className="text-xs opacity-90">Your active time slots have been updated for bookings.</div>
+        </div>
+      );
     } catch (err: any) {
       console.error("SAVE AVAILABILITY ERROR:", err);
       toast.error("Failed to save availability. Please try again.");

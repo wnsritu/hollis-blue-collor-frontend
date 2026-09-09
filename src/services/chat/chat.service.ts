@@ -114,7 +114,7 @@ export const chatApi = {
   markAsRead: (payload: { chat_id: number | string }) =>
     http.post<ApiSuccess>(ENDPOINTS.chat.markAsRead, payload),
 
-  report: (chatId: number | string, payload?: { reason?: string }) =>
+  report: (chatId: number | string, payload?: { reason?: string; details?: string }) =>
     http.post<ApiSuccess>(ENDPOINTS.chat.report(chatId), payload ?? {}),
 
   block: (chatId: number | string) =>

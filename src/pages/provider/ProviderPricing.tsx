@@ -195,9 +195,12 @@ export default function ProviderPricing() {
         service_pricing: servicePricingObj,
       });
 
-      toast.success("Services & Pricing saved successfully!", {
-        description: "Your updated prices and offering statuses are live for bookings.",
-      });
+      toast.success(
+        <div>
+          <div className="font-medium">Services & Pricing saved successfully!</div>
+          <div className="text-xs opacity-90">Your updated prices and offering statuses are live for bookings.</div>
+        </div>
+      );
     } catch (err) {
       console.error("Failed to save pricing", err);
       toast.error("Failed to save Services & Pricing.");
