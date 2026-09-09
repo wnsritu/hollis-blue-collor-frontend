@@ -13,7 +13,13 @@ export const ratingApi = {
   listByBooking: (bookingId: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.rating.booking(bookingId)),
 
+  booking: (bookingId: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.rating.booking(bookingId)),
+
   listByProvider: (providerId: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.rating.provider(providerId)),
+
+  provider: (providerId: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.rating.provider(providerId)),
 
   adminList: (params?: any) =>

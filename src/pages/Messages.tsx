@@ -64,7 +64,14 @@ export const Messages: React.FC = () => {
   // State
   const [activeTab, setActiveTab] = useState<ChatTab>("project");
   const [threads, setThreads] = useState<any[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<number | string | null>(null);
+  const [activeThreadId, setActiveThreadIdState] = useState<number | string | null>(null);
+  const activeThreadIdRef = useRef<number | string | null>(null);
+
+  const setActiveThreadId = (id: number | string | null) => {
+    activeThreadIdRef.current = id;
+    setActiveThreadIdState(id);
+  };
+
   const [messages, setMessages] = useState<any[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -93,7 +100,8 @@ export const Messages: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load User Threads
-  const fetchThreads = async () => {
+  const fetchThreads = async (silent = false) => {
+    if (!silent) setLoadingThreads(true);
     try {
       const res = await chatApi.listUserChats();
       const list = (res as any)?.data || res || [];
@@ -101,30 +109,39 @@ export const Messages: React.FC = () => {
       setThreads(validThreads);
 
       const stateSelectedId = (location.state as any)?.selectedChatId;
-      if (stateSelectedId) {
+      const currentActive = activeThreadIdRef.current;
+      if (stateSelectedId && !currentActive) {
         setActiveThreadId(stateSelectedId);
-      } else if (validThreads.length > 0 && !activeThreadId) {
+      } else if (validThreads.length > 0 && !currentActive) {
         setActiveThreadId(validThreads[0].id || validThreads[0].chat_id);
       }
     } catch (err) {
-      console.error("Failed to load chat threads", err);
-      toast.error("Failed to load conversations.");
+      if (!silent) {
+        console.error("Failed to load chat threads", err);
+        toast.error("Failed to load conversations.");
+      }
     } finally {
-      setLoadingThreads(false);
+      if (!silent) setLoadingThreads(false);
     }
   };
 
   useEffect(() => {
-    fetchThreads();
+    fetchThreads(false);
+
+    const interval = setInterval(() => {
+      fetchThreads(true);
+    }, 4000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Fetch Messages for Active Thread
+  // Fetch Messages for Active Thread with Polling
   useEffect(() => {
     if (!activeThreadId) return;
     let cancelled = false;
 
-    (async () => {
-      setLoadingMessages(true);
+    const fetchMessagesForThread = async (silent = false) => {
+      if (!silent) setLoadingMessages(true);
       try {
         const res = await chatApi.getMessages(activeThreadId);
         const list = (res as any)?.data || res || [];
@@ -137,14 +154,21 @@ export const Messages: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error("Failed to load messages", err);
+        if (!silent) console.error("Failed to load messages", err);
       } finally {
-        if (!cancelled) setLoadingMessages(false);
+        if (!silent) setLoadingMessages(false);
       }
-    })();
+    };
+
+    fetchMessagesForThread(false);
+
+    const msgInterval = setInterval(() => {
+      fetchMessagesForThread(true);
+    }, 4000);
 
     return () => {
       cancelled = true;
+      clearInterval(msgInterval);
     };
   }, [activeThreadId]);
 
@@ -199,14 +223,38 @@ export const Messages: React.FC = () => {
     });
   }, [threads, activeTab, q, userIsCustomer]);
 
-  const activeThread = useMemo(
-    () => threads.find((t) => String(t.id || t.chat_id) === String(activeThreadId)) || threads[0],
-    [threads, activeThreadId]
-  );
+  const activeThread = useMemo(() => {
+    if (!threads.length) return null;
+    if (!activeThreadId) return threads[0];
+    return (
+      threads.find(
+        (t) =>
+          String(t.id) === String(activeThreadId) ||
+          String(t.chat_id) === String(activeThreadId) ||
+          String(t.id || t.chat_id) === String(activeThreadId)
+      ) || threads[0]
+    );
+  }, [threads, activeThreadId]);
+
+  const isThreadBlocked = Boolean(activeThread?.is_blocked || activeThread?.blocked);
+  const blockerUserId = activeThread?.blocked_by_user_id || activeThread?.blocked_by;
+
+  const isBlockedByMe = useMemo(() => {
+    if (!isThreadBlocked) return false;
+    if (blockerUserId !== undefined && blockerUserId !== null) {
+      return Number(blockerUserId) === Number(user?.id);
+    }
+    if (activeThread?.blocked_by_role) {
+      return activeThread.blocked_by_role === side;
+    }
+    return true;
+  }, [isThreadBlocked, blockerUserId, user?.id, activeThread?.blocked_by_role, side]);
+
+  const isBlockedByOther = isThreadBlocked && !isBlockedByMe;
 
   // Handlers
   const handleSend = async () => {
-    if ((!draft.trim() && !pendingFile) || !activeThread || activeThread.is_blocked || sending) return;
+    if ((!draft.trim() && !pendingFile) || !activeThread || isThreadBlocked || sending) return;
 
     const currentThreadId = activeThread.id || activeThread.chat_id;
     const textToSend = draft.trim();
@@ -217,12 +265,17 @@ export const Messages: React.FC = () => {
       let payload: any;
       if (pendingFile) {
         payload = new FormData();
+        payload.append("chat_id", String(currentThreadId));
         payload.append("chatId", String(currentThreadId));
-        payload.append("message", textToSend);
+        if (textToSend) {
+          payload.append("message", textToSend);
+        }
         payload.append("sender_role", side);
         payload.append("attachment", pendingFile.file);
+        payload.append("file", pendingFile.file);
       } else {
         payload = {
+          chat_id: currentThreadId,
           chatId: currentThreadId,
           message: textToSend,
           sender_role: side,
@@ -263,18 +316,18 @@ export const Messages: React.FC = () => {
   };
 
   const handleBlockToggle = async () => {
-    if (!activeThread) return;
+    if (!activeThread || isBlockedByOther) return;
     const currentId = activeThread.id || activeThread.chat_id;
     try {
       await chatApi.block(currentId);
-      if (activeThread.is_blocked) {
+      if (isBlockedByMe) {
         toast.success(`Unblocked ${titleFor(activeThread)}`);
       } else {
         toast.error(`Blocked ${titleFor(activeThread)}`);
       }
       fetchThreads();
-    } catch (err) {
-      toast.error("Failed to update block status.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update block status.");
     }
   };
 
@@ -294,33 +347,44 @@ export const Messages: React.FC = () => {
     }
   };
 
+  const handleTabSelect = (tab: ChatTab) => {
+    setActiveTab(tab);
+    const matchingThreads = threads.filter((t) =>
+      tab === "project" ? isProjectThread(t) : !isProjectThread(t)
+    );
+    if (matchingThreads.length > 0) {
+      const firstTabId = matchingThreads[0].id || matchingThreads[0].chat_id;
+      setActiveThreadId(firstTabId);
+    }
+  };
+
   return (
     <div className="grid h-[calc(100vh-11rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:grid-cols-[320px_minmax(0,1fr)]">
       {/* SIDEBAR CONVERSATIONS LIST */}
       <aside className={cn("flex min-h-0 flex-col border-r border-border", mobileOpen && "hidden lg:flex")}>
         {/* REQUIREMENT TABS: Project / Task Chat vs Normal Chat */}
-        <div className="border-b border-border bg-muted/20 p-2.5">
-          <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/40 p-1">
+        <div className="border-b border-border bg-card p-2.5">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1">
             <button
               type="button"
-              onClick={() => setActiveTab("project")}
+              onClick={() => handleTabSelect("project")}
               className={cn(
-                "rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors",
+                "rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer",
                 activeTab === "project"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               )}
             >
               Project / Task
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("normal")}
+              onClick={() => handleTabSelect("normal")}
               className={cn(
-                "rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors",
+                "rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer",
                 activeTab === "normal"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               )}
             >
               Normal Chat
@@ -359,13 +423,24 @@ export const Messages: React.FC = () => {
               const title = titleFor(c);
               const subtitle = subtitleFor(c);
               const initials = title.slice(0, 2).toUpperCase() || "US";
-              const lastTime = c.last_message_time || c.updatedAt;
+              const lastTime = c.last_message_time || c.updatedAt || c.lastAt;
+
+              const unreadCount = Number(
+                c.unread_count ?? c.unreadCount ?? c.unread ?? c.unread_messages_count ?? 0
+              );
 
               return (
                 <button
                   key={cid}
                   onClick={() => {
                     setActiveThreadId(cid);
+                    setThreads((prev) =>
+                      prev.map((t) =>
+                        String(t.id || t.chat_id) === String(cid)
+                          ? { ...t, unread_count: 0, unreadCount: 0, unread: 0 }
+                          : t
+                      )
+                    );
                     try {
                       chatApi.markAsRead({ chat_id: cid });
                     } catch {
@@ -390,12 +465,12 @@ export const Messages: React.FC = () => {
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {c.last_message || (c.attachment ? "📎 Attachment" : "")}
+                      {c.last_message || c.message || (c.attachment ? "📎 Attachment" : "")}
                     </span>
                   </span>
-                  {c.unread_count > 0 && (
+                  {unreadCount > 0 && (
                     <span className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                      {c.unread_count}
+                      {unreadCount}
                     </span>
                   )}
                 </button>
@@ -419,9 +494,14 @@ export const Messages: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-semibold text-sm">{titleFor(activeThread)}</p>
-                    {activeThread.is_blocked && (
+                    {isBlockedByMe && (
                       <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive">
                         Blocked
+                      </span>
+                    )}
+                    {isBlockedByOther && (
+                      <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold text-destructive">
+                        Blocked by User
                       </span>
                     )}
                   </div>
@@ -443,21 +523,33 @@ export const Messages: React.FC = () => {
                     <Flag size={15} /> Report Conversation
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleBlockToggle}
-                    className="cursor-pointer gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                  >
-                    <Ban size={15} /> {activeThread.is_blocked ? "Unblock User" : "Block User"}
-                  </DropdownMenuItem>
+                  {isBlockedByOther ? (
+                    <DropdownMenuItem disabled className="gap-2 text-muted-foreground opacity-50 cursor-not-allowed">
+                      <Ban size={15} /> Blocked by User
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={handleBlockToggle}
+                      className="cursor-pointer gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Ban size={15} /> {isBlockedByMe ? "Unblock User" : "Block User"}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </header>
 
             {/* BLOCKED BANNER */}
-            {activeThread.is_blocked && (
+            {isBlockedByMe && (
               <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive">
                 <ShieldAlert size={15} />
                 You have blocked this conversation. Unblock to send and receive messages.
+              </div>
+            )}
+            {isBlockedByOther && (
+              <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive">
+                <ShieldAlert size={15} />
+                You have been blocked by {titleFor(activeThread)}. You can no longer send messages to this user.
               </div>
             )}
 
@@ -477,62 +569,77 @@ export const Messages: React.FC = () => {
                     Number(m.sender_id) === Number(user?.id) ||
                     m.sender_role === side ||
                     m.from === side;
-                  const fileUrl = resolveMediaUrl(m.attachment_url || m.attachmentUrl || m.attachment);
-                  const isImage =
-                    m.attachment_type === "image" ||
-                    m.attachmentType === "image" ||
-                    Boolean(fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)$/i));
+
+                  const rawFileUrl =
+                    m.file_url || m.fileUrl || m.attachment_url || m.attachmentUrl || m.attachment;
+                  const fileUrl = resolveMediaUrl(rawFileUrl);
+                  const fileName =
+                    m.file_name || m.fileName || m.attachment_name || m.attachment || "Attachment Document";
+
+                  const msgType =
+                    m.type ||
+                    m.attachment_type ||
+                    m.attachmentType ||
+                    (fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                      ? "image"
+                      : fileUrl
+                      ? "document"
+                      : "text");
+
+                  const isImage = msgType === "image";
+                  const isDocument = msgType === "document" || (!isImage && Boolean(fileUrl));
 
                   return (
                     <div key={m.id || idx} className={cn("flex", mine ? "justify-end" : "justify-start")}>
                       <div
                         className={cn(
-                          "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-card space-y-1.5",
+                          "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-card space-y-2",
                           mine ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
                         )}
                       >
-                        {(m.text || m.message) && (
-                          <p className="whitespace-pre-wrap">{m.text || m.message}</p>
+                        {/* IMAGE ATTACHMENT */}
+                        {isImage && fileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewImage(fileUrl)}
+                            className="group relative mt-1 block overflow-hidden rounded-xl border border-border/40 bg-black/10 text-left"
+                          >
+                            <img src={fileUrl} alt={fileName} className="max-w-xs max-h-60 rounded-lg object-cover" />
+                          </button>
                         )}
 
-                        {/* ATTACHMENT DISPLAY */}
-                        {fileUrl && (
-                          <div>
-                            {isImage ? (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewImage(fileUrl)}
-                                className="group relative mt-1 block overflow-hidden rounded-xl border border-border/40 bg-black/10"
-                              >
-                                <div className="flex items-center gap-2 p-2 text-xs font-medium">
-                                  <ImageIcon size={14} /> Attachment Image
-                                </div>
-                              </button>
-                            ) : (
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={cn(
-                                  "mt-1.5 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-                                  mine
-                                    ? "bg-primary-foreground/15 hover:bg-primary-foreground/25"
-                                    : "bg-muted hover:bg-muted/80"
-                                )}
-                              >
-                                <FileText size={14} />
-                                <span className="truncate">{m.attachment || "File Attachment"}</span>
-                                <Download size={12} className="ml-auto opacity-70" />
-                              </a>
+                        {/* DOCUMENT ATTACHMENT */}
+                        {isDocument && fileUrl && (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn(
+                              "mt-1.5 flex items-center gap-3 rounded-xl p-3 text-xs font-medium transition-colors border border-border/30",
+                              mine
+                                ? "bg-primary-foreground/15 hover:bg-primary-foreground/25 text-primary-foreground"
+                                : "bg-muted hover:bg-muted/80 text-foreground"
                             )}
-                          </div>
+                          >
+                            <FileText size={20} className="shrink-0" />
+                            <div className="flex-1 truncate min-w-0">
+                              <p className="font-semibold text-xs truncate">{fileName}</p>
+                              <p className="text-[10px] opacity-75">Click to view / download</p>
+                            </div>
+                            <Download size={14} className="ml-auto shrink-0 opacity-70" />
+                          </a>
+                        )}
+
+                        {/* MESSAGE TEXT */}
+                        {(m.message || m.text) && (
+                          <p className="whitespace-pre-wrap">{m.message || m.text}</p>
                         )}
 
                         {/* TIMESTAMP & READ/SENT STATUS */}
                         <div className={cn("flex items-center justify-end gap-1 text-[10px]", mine ? "opacity-80" : "text-muted-foreground")}>
                           <span>
-                            {m.createdAt || m.at
-                              ? new Date(m.createdAt || m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            {m.createdAt || m.created_at || m.at
+                              ? new Date(m.createdAt || m.created_at || m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                               : ""}
                           </span>
                           {mine && (
@@ -579,7 +686,7 @@ export const Messages: React.FC = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled={Boolean(activeThread.is_blocked)}
+                  disabled={isThreadBlocked}
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Attach file or image"
                   title="Attach file or image"
@@ -588,12 +695,18 @@ export const Messages: React.FC = () => {
                 </Button>
                 <Input
                   value={draft}
-                  disabled={Boolean(activeThread.is_blocked)}
+                  disabled={isThreadBlocked}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder={activeThread.is_blocked ? "User is blocked. Unblock to type…" : "Write a message…"}
+                  placeholder={
+                    isBlockedByMe
+                      ? "User is blocked. Unblock to type…"
+                      : isBlockedByOther
+                      ? "You have been blocked by this user."
+                      : "Write a message…"
+                  }
                 />
-                <Button onClick={handleSend} disabled={Boolean(activeThread.is_blocked) || sending} aria-label="Send message">
+                <Button onClick={handleSend} disabled={isThreadBlocked || sending} aria-label="Send message">
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </Button>
               </div>

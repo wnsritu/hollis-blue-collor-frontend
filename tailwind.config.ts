@@ -25,7 +25,7 @@ export default {
         ring: "hsl(var(--ring) / <alpha-value>)",
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
-        surface: "var(--surface, #f1f5f9)",
+        surface: "hsl(var(--surface) / <alpha-value>)",
         ink: {
           DEFAULT: "var(--ink, #032859)",
           foreground: "var(--ink-foreground, #ffffff)",
