@@ -44,7 +44,7 @@ export function ProviderJobs() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "fixed" | "quote">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed" | "fixed" | "quote">("all");
 
   // State for Price Update Modal
   const [selectedBookingForPrice, setSelectedBookingForPrice] = useState<any | null>(null);
@@ -89,28 +89,17 @@ export function ProviderJobs() {
 
       const combined = Array.from(map.values());
 
-      // Filter active jobs only
-      const activeList = combined.filter((b: any) => {
-        const aptStatus = b.appointment_status;
-        const legacyStatus = b.status;
-        if (
-          aptStatus === "Completed" ||
-          aptStatus === "Cancelled" ||
-          aptStatus === "No-show" ||
-          legacyStatus === "finished" ||
-          legacyStatus === "delivered" ||
-          legacyStatus === "cancelled" ||
-          legacyStatus === "rejected"
-        ) {
-          return false;
-        }
-        return true;
+      // Sort newest created first (senior developer approach)
+      combined.sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || 0).getTime() || Number(a.id) || 0;
+        const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || 0).getTime() || Number(b.id) || 0;
+        return timeB - timeA;
       });
 
-      setAppointments(activeList);
+      setAppointments(combined);
     } catch (err) {
-      console.error("Failed to load active jobs:", err);
-      toast.error("Failed to load active jobs.");
+      console.error("Failed to load jobs:", err);
+      toast.error("Failed to load jobs.");
     } finally {
       setLoading(false);
     }
@@ -123,14 +112,30 @@ export function ProviderJobs() {
   // Classify direct fixed services vs request a quote / project flow
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
 
+  const isCompletedJob = (b: any) => {
+    const apt = String(b.appointment_status || b.status || "").toLowerCase();
+    return ["completed", "delivered", "reviewed", "finished", "work completed"].includes(apt);
+  };
+
+  const isCancelledJob = (b: any) => {
+    const apt = String(b.appointment_status || b.status || "").toLowerCase();
+    return ["cancelled", "canceled", "rejected", "no-show"].includes(apt);
+  };
+
+  const isActiveJob = (b: any) => !isCompletedJob(b) && !isCancelledJob(b);
+
   const myBookings = appointments;
 
   const filteredBookings = myBookings.filter((b: any) => {
+    if (activeTab === "active") return isActiveJob(b);
+    if (activeTab === "completed") return isCompletedJob(b);
     if (activeTab === "fixed") return !isQuoteJob(b);
     if (activeTab === "quote") return isQuoteJob(b);
     return true;
   });
 
+  const activeCount = myBookings.filter(isActiveJob).length;
+  const completedCount = myBookings.filter(isCompletedJob).length;
   const fixedCount = myBookings.filter((b) => !isQuoteJob(b)).length;
   const quoteCount = myBookings.filter((b) => isQuoteJob(b)).length;
 
@@ -206,8 +211,10 @@ export function ProviderJobs() {
       {/* Filter Tabs & Stats Bar */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList>
+          <TabsList flex-wrap="true">
             <TabsTrigger value="all">All Requests ({myBookings.length})</TabsTrigger>
+            <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
             <TabsTrigger value="fixed">Fixed Services ({fixedCount})</TabsTrigger>
             <TabsTrigger value="quote">Request a Quote ({quoteCount})</TabsTrigger>
           </TabsList>
@@ -311,6 +318,25 @@ export function ProviderJobs() {
               n.formattedTime ||
               "";
 
+            const paymentStatusRaw = String(
+              b.payment_status ||
+              b.payment?.payment_status ||
+              b.payment?.status ||
+              (aptStatus === "Completed" || b.status === "finished" ? "paid" : "pending")
+            ).toLowerCase();
+
+            const isPaid =
+              paymentStatusRaw === "paid" ||
+              paymentStatusRaw === "succeeded" ||
+              paymentStatusRaw === "completed" ||
+              Boolean(b.paid);
+
+            const paymentBadgeText = isPaid
+              ? "Payment: Paid"
+              : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+              ? "Payment: Escrow Held"
+              : "Payment: Pending";
+
             return (
               <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
                 <CardContent className="p-6">
@@ -341,7 +367,21 @@ export function ProviderJobs() {
                       </p>
                     </div>
 
-                    <StatusPill status={aptStatus} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill status={aptStatus} />
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          isPaid
+                            ? "bg-success-soft text-success border border-success/20"
+                            : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+                            ? "bg-blue-500/10 text-blue-600 border border-blue-200"
+                            : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                        }`}
+                      >
+                        <DollarSign size={12} />
+                        {paymentBadgeText}
+                      </span>
+                    </div>
                   </div>
 
                   {/* VISUAL ORDER LIFECYCLE STEPPER */}
@@ -428,10 +468,17 @@ export function ProviderJobs() {
                   )}
 
                   {/* Details Breakdown */}
-                  <div className="mt-4 grid gap-3 sm:grid-cols-4 text-xs">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-5 text-xs">
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Service Price</span>
                       <span className="font-bold text-foreground text-sm">{usd(price)}</span>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <span className="text-muted-foreground block text-[11px]">Payment Status</span>
+                      <span className={`font-bold text-xs ${isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
+                        {isPaid ? "Paid (Completed)" : paymentStatusRaw === "escrow" ? "Escrow Held" : "Pending Payment"}
+                      </span>
                     </div>
 
                     <div className="rounded-xl bg-muted/40 p-3">

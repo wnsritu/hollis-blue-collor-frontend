@@ -106,6 +106,8 @@ export default function ProviderOnboarding() {
     city: "",
     state: "",
     zip: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
     license: "",
     insurance: "",
     licenseDocumentPath: "",
@@ -270,6 +272,8 @@ export default function ProviderOnboarding() {
         state: form.state.trim(),
         country: form.country.trim(),
         zip_code: form.zip.trim(),
+        latitude: form.latitude ?? undefined,
+        longitude: form.longitude ?? undefined,
         license_number: form.license.trim() || undefined,
         insurance_policy: form.insurance.trim() || undefined,
         license_document: form.licenseDocumentPath || undefined,
@@ -618,6 +622,8 @@ export default function ProviderOnboarding() {
                         state: parsed.state || form.state,
                         zip: parsed.zip || form.zip,
                         country: parsed.country || form.country,
+                        latitude: parsed.lat != null ? parsed.lat : null,
+                        longitude: parsed.lng != null ? parsed.lng : null,
                       });
                       setFieldErrors((prev) => {
                         const next = { ...prev };
