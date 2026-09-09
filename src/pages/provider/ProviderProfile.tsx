@@ -66,7 +66,7 @@ export const ProviderProfile: React.FC = () => {
 
     // Fallback/direct reviews fetch
     ratingApi
-      .provider(id)
+      .listByProvider(id)
       .then((res: any) => {
         const list = res?.data || res || [];
         if (Array.isArray(list) && !cancelled) {
