@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuthSession } from "@/hooks/useAuth";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
@@ -9,7 +9,7 @@ import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
  * they cannot access the home page until they log out.
  * They are automatically redirected to their respective dashboard/portal.
  */
-const HomeRoute = ({ children }: { children: JSX.Element }) => {
+const HomeRoute = ({ children }: { children?: JSX.Element }) => {
   const { isAuthenticated, user } = useAuthSession();
   const hasToken = Boolean(tokenStorage.getAccessToken());
 
@@ -18,7 +18,7 @@ const HomeRoute = ({ children }: { children: JSX.Element }) => {
     return <Navigate to={dest} replace />;
   }
 
-  return children;
+  return children ?? <Outlet />;
 };
 
 export default HomeRoute;

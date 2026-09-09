@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
+import { formatDate } from "@/utils/date";
 import {
   AlertTriangle,
   Eye,
@@ -26,7 +27,7 @@ import {
   addReviewByAgent,
   getDisputeByIdApi,
   getDisputeData,
-} from "@/api/dispute.api";
+} from "@/services/support";
 
 const statusColors: Record<string, string> = {
   open: "bg-destructive/10 text-destructive",
@@ -223,7 +224,7 @@ const SupportDisputeDetail = () => {
             <div>
               <p className="text-muted-foreground">Date</p>
               <p className="font-medium text-foreground">
-                {new Date(dispute.created_at).toLocaleDateString()}
+                {formatDate(dispute.created_at)}
               </p>
             </div>
           </div>

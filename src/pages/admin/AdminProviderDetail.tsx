@@ -41,93 +41,56 @@ import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
 import { Avatar, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import Spinner from "@/components/ui/spinner";
-import { adminApi } from "@/api/modules/admin.api";
-import { formatPhone } from "@/utils/format";
-import { resolveMediaUrl } from "@/utils/mediaUrl";
-
-// Safely parse JSON strings or return fallback
-function parseJson<T>(value: any, fallback: T): T {
-  if (!value) return fallback;
-  if (typeof value === "object") return value as T;
-  try {
-    return JSON.parse(value);
-  } catch (e) {
-    return fallback;
-  }
-}
-
-// Mask account digits safely
-function maskLast4(num: any) {
-  if (!num) return "N/A";
-  const s = String(num).trim();
-  if (s.length <= 4) return "****";
-  return `****${s.slice(-4)}`;
-}
+import { useAdminProviderDetail, maskLast4 } from "@/hooks/useAdminProviderDetail";
+import { CARD_SECTION_SHADOW } from "@/styles";
 
 export function AdminProviderDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-
-  const [provider, setProvider] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Modals state
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [rejectionError, setRejectionError] = useState("");
-  const [suspendReason, setSuspendReason] = useState("");
-  const [selectedDocPreview, setSelectedDocPreview] = useState<{
-    title: string;
-    filename: string;
-    documentUrl?: string | null;
-  } | null>(null);
-
-  // Edit Provider Form State
-  const [editForm, setEditForm] = useState({
-    businessName: "",
-    fullName: "",
-    email: "",
-    phone: "",
-    category: "",
-    status: "active",
-  });
-
-  useEffect(() => {
-    if (id) {
-      fetchProviderDetails(id);
-    }
-  }, [id]);
-
-  const fetchProviderDetails = async (providerId: string) => {
-    try {
-      setLoading(true);
-      const res: any = await adminApi.getProvider(providerId);
-      const data = res?.data?.data || res?.data || res?.provider || res;
-      setProvider(data);
-      setEditForm({
-        businessName: data.business_name || data.name || "",
-        fullName:
-          data.user?.full_name ||
-          `${data.user?.first_name || ""} ${data.user?.last_name || ""}`.trim() ||
-          data.fullName ||
-          "",
-        email: data.user?.email || data.email || "",
-        phone: data.user?.phone || data.phone || "",
-        category: data.category?.name || data.category || "General Service",
-        status: data.status || "active",
-      });
-    } catch (err: any) {
-      console.error("Failed to load provider details:", err);
-      toast.error(err?.response?.data?.message || "Failed to load provider profile");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    id,
+    provider,
+    loading,
+    submitting,
+    showVerifyModal,
+    setShowVerifyModal,
+    showRejectModal,
+    setShowRejectModal,
+    showSuspendModal,
+    setShowSuspendModal,
+    showEditModal,
+    setShowEditModal,
+    rejectionReason,
+    setRejectionReason,
+    rejectionError,
+    suspendReason,
+    setSuspendReason,
+    selectedDocPreview,
+    setSelectedDocPreview,
+    editForm,
+    setEditForm,
+    handleConfirmApprove,
+    handleConfirmReject,
+    handleConfirmSuspend,
+    handleQuickUnsuspend,
+    handleSaveEdit,
+    providerId,
+    fullName,
+    businessName,
+    email,
+    phone,
+    categoryName,
+    emailVerified,
+    isVerified,
+    isRejected,
+    isSuspended,
+    licenseDocUrl,
+    insuranceDocUrl,
+    portfolio,
+    faqs,
+    certifications,
+    displayServices,
+    displayYears,
+    availabilityByDay,
+  } = useAdminProviderDetail();
 
   if (loading) {
     return (
@@ -150,150 +113,6 @@ export function AdminProviderDetail() {
     );
   }
 
-  // Normalizing fields
-  const providerId = provider.id || id;
-  const fullName = String(
-    provider.user?.full_name ||
-      `${provider.user?.first_name || ""} ${provider.user?.last_name || ""}`.trim() ||
-      provider.fullName ||
-      provider.name ||
-      "Provider Owner"
-  );
-  const businessName = String(provider.business_name || provider.name || fullName);
-  const email = String(provider.user?.email || provider.email || "—");
-  const phone = String(provider.user?.phone || provider.phone || "—");
-  const rawCat = provider.category;
-  const categoryName = typeof rawCat === "object" ? (rawCat?.name || "General Service") : String(rawCat || "General Service");
-  const emailVerified = provider.user?.email_verified !== false && provider.emailVerified !== false;
-  const dbStatus = String(provider.status || "").toLowerCase();
-  const dbVerified = String(provider.verified || "").toLowerCase();
-
-  const isVerified = dbVerified === "verified" || dbVerified === "approved";
-  const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
-  const isSuspended = dbStatus === "paused" || dbStatus === "suspended";
-
-  // Document URLs
-  const licenseDocUrl = resolveMediaUrl(
-    provider.license_document_url || provider.license_document || provider.licenseDocumentUrl
-  );
-  const insuranceDocUrl = resolveMediaUrl(
-    provider.insurance_certificate_url || provider.insurance_certificate || provider.insuranceCertificateUrl
-  );
-
-  // Parsed JSON data
-  const offeredServices = parseJson<string[]>(provider.offered_services, []);
-  const servicePricing = parseJson<Record<string, any>>(provider.service_pricing, {});
-  const portfolio = parseJson<Array<{ url?: string; image?: string; caption?: string }>>(provider.portfolio, []);
-  const faqs = parseJson<Array<{ question: string; answer: string }>>(provider.faqs, []);
-  const certifications = parseJson<string[]>(provider.certifications, []);
-
-  // Compute pricing items from service_pricing or fallback to services array
-  const pricingItems = Object.entries(servicePricing)
-    .filter(([_, cfg]: [string, any]) => cfg && typeof cfg === "object" && cfg.offered !== false)
-    .map(([name, cfg]: [string, any]) => ({
-      id: name,
-      name,
-      price: Number(cfg.price || 0),
-      unit: cfg.unit || "flat rate",
-    }));
-
-  const displayServices =
-    pricingItems.length > 0
-      ? pricingItems
-      : Array.isArray(provider.services) && provider.services.length > 0
-      ? provider.services.map((s: any) => ({
-          id: String(s.id),
-          name: s.service_type?.name || s.name || "Service",
-          price: Number(s.amount || s.price || 0),
-          unit: "flat rate",
-        }))
-      : offeredServices.map((name, idx) => ({
-          id: String(idx),
-          name,
-          price: 0,
-          unit: "quoted price",
-        }));
-
-  // Perform Approval API Call
-  const handleConfirmApprove = async () => {
-    try {
-      setSubmitting(true);
-      await adminApi.approveProvider(providerId);
-      setShowVerifyModal(true);
-      toast.success(`${businessName} has been verified and approved.`);
-      await fetchProviderDetails(String(providerId));
-    } catch (err: any) {
-      console.error("Approval error:", err);
-      toast.error(err?.response?.data?.message || "Failed to approve provider.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Perform Rejection API Call
-  const handleConfirmReject = async () => {
-    const trimmedReason = rejectionReason.trim();
-    if (!trimmedReason) {
-      setRejectionError("Please enter a mandatory rejection reason.");
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await adminApi.rejectProvider(providerId, { reason: trimmedReason });
-      setShowRejectModal(false);
-      toast.error(`Provider application for ${businessName} rejected.`);
-      await fetchProviderDetails(String(providerId));
-    } catch (err: any) {
-      console.error("Rejection error:", err);
-      toast.error(err?.response?.data?.message || "Failed to reject provider.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Perform Suspension / Unsuspend API Calls
-  const handleConfirmSuspend = async () => {
-    try {
-      setSubmitting(true);
-      if (isSuspended) {
-        await adminApi.unsuspendProvider(providerId);
-        toast.success(`Suspension lifted for ${businessName}. Account is now Active.`);
-      } else {
-        const payload = suspendReason.trim() ? { reason: suspendReason.trim() } : undefined;
-        await adminApi.suspendProvider(providerId, payload);
-        toast.success(`Provider ${businessName} has been suspended.`);
-      }
-      setShowSuspendModal(false);
-      await fetchProviderDetails(String(providerId));
-    } catch (err: any) {
-      console.error("Suspension error:", err);
-      toast.error(err?.response?.data?.message || "Failed to update suspension status.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const experienceYears = Number(provider.years_of_experience || 0);
-  const displayYears = experienceYears > 70 ? "Not specified" : `${experienceYears} Years`;
-
-  // Process Weekly Availabilities
-  const rawAvailabilities = Array.isArray(provider.availabilities) ? provider.availabilities : [];
-  const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const slotMap: Record<number, string> = {
-    1: "Morning (8am-12pm)",
-    2: "Afternoon (12pm-4pm)",
-    3: "Evening (4pm-8pm)",
-    4: "Night (8pm-11pm)",
-  };
-  const availabilityByDay = dayOrder.map((day) => {
-    const dayItems = rawAvailabilities.filter((a: any) => a.day_of_week === day);
-    const slots = dayItems.map((a: any) => {
-      const slotId = Number(a.time_slot_id || a.slot_id);
-      return slotMap[slotId] || a.time_slot?.name || `Slot #${a.time_slot_id}`;
-    });
-    return { day, slots };
-  });
-
   return (
     <div className="space-y-6">
       {/* Back Button Navigation */}
@@ -305,7 +124,7 @@ export function AdminProviderDetail() {
       </Link>
 
       {/* Header Summary Card */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+      <div className={CARD_SECTION_SHADOW}>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <Avatar initials={businessName.substring(0, 2).toUpperCase()} size="lg" />

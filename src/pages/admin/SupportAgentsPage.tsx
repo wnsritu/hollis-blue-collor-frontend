@@ -13,16 +13,8 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { formatDate, formatPhone } from "@/utils/format";
 import PaginationController from "@/components/ui/PaginationController";
-
-interface Agent {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  createdAt: string;
-  status: "Active" | "Inactive";
-}
+import { isValidEmail } from "@/validations";
+import type { Agent } from "@/types/admin.types";
 
 const SupportAgentsPage = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -74,9 +66,7 @@ const SupportAgentsPage = () => {
 
     if (!form.email.trim()) {
       err.email = "Email is required";
-    } else if (
-      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/.test(form.email)
-    ) {
+    } else if (!isValidEmail(form.email)) {
       err.email = "Invalid email format";
     }
 

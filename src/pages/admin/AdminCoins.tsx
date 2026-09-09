@@ -10,12 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { adminCoinsHistory } from "@/data/adminMockData";
 import { Coins, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
-import { addUpdateCoins, getAllCoinHistory, getAllProvider } from "@/api/admin.api";
+import { addUpdateCoins, getAllCoinHistory, getAllProvider } from "@/services/admin";
 import PaginationController from "@/components/ui/PaginationController";
 import toast from "react-hot-toast";
+import { formatDate } from "@/utils/date";
 import { Select } from "@radix-ui/react-select";
 
 const AdminCoins = () => {
@@ -245,7 +245,7 @@ const AdminCoins = () => {
                         </TableCell>
 
                         <TableCell className="text-muted-foreground">
-                          {new Date(c.created_at).toLocaleDateString()}
+                          {formatDate(c.created_at)}
                         </TableCell>
                       </TableRow>
                     ))}

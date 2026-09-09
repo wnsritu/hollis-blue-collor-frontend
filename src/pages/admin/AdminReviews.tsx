@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader, Stars, StatusPill, EmptyState } from "@/components/shared/primitives";
-import { ratingApi } from "@/api/modules/rating.api";
+import { ratingApi } from "@/services/rating";
 import { formatDisplayDate } from "@/utils/format";
 import toast from "react-hot-toast";
 

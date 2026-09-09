@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { PageHeader, StatCard } from "@/components/shared/primitives";
 import { Button } from "@/components/ui/button";
-import { getAdminDashboardApi } from "@/api/admin.api";
+import { getAdminDashboardApi } from "@/services/admin";
 
 const AdminDashboard = () => {
   const [dashData, setDashData] = useState<any>({});

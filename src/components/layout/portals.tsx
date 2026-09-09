@@ -21,7 +21,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import {
@@ -32,9 +32,8 @@ import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { useAuthSession } from "@/hooks/useAuth";
-import { providerApi } from "@/api/modules/provider.api";
-import { customerApi } from "@/api/modules/customer.api";
-import { userApi } from "@/api/modules/user.api";
+import { providerApi } from "@/services/provider";
+import { customerApi, userApi } from "@/services/customer";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 /** Provider nav — M3 Marketplace ready. */
@@ -247,7 +246,7 @@ function initialsFrom(name: string) {
 /**
  * Provider portal shell — sidebar + top bar from service-connect.
  */
-export function ProviderPortal({ children }: { children: ReactNode }) {
+export function ProviderPortal({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const { user, logout, fetchMe } = useAuthSession();
   const [accountName, setAccountName] = useState(
@@ -358,7 +357,7 @@ export function ProviderPortal({ children }: { children: ReactNode }) {
       onSignOut={handleSignOut}
       accountInitials={initialsFrom(accountName)}
     >
-      {children}
+      {children ?? <Outlet />}
     </DashboardShell>
   );
 }
@@ -366,7 +365,7 @@ export function ProviderPortal({ children }: { children: ReactNode }) {
 /**
  * Customer portal shell — sidebar + top bar from service-connect.
  */
-export function CustomerPortal({ children }: { children: ReactNode }) {
+export function CustomerPortal({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const { user, logout } = useAuthSession();
   const [accountName, setAccountName] = useState(
@@ -439,16 +438,16 @@ export function CustomerPortal({ children }: { children: ReactNode }) {
       onSignOut={handleSignOut}
       accountInitials={initialsFrom(accountName)}
     >
-      {children}
+      {children ?? <Outlet />}
     </DashboardShell>
   );
 }
 
 /** Pick portal by role — useful for shared routes like /messages. */
-export function RolePortal({ children }: { children: ReactNode }) {
+export function RolePortal({ children }: { children?: ReactNode }) {
   const { isProvider } = useAuthSession();
-  if (isProvider) return <ProviderPortal>{children}</ProviderPortal>;
-  return <CustomerPortal>{children}</CustomerPortal>;
+  if (isProvider) return <ProviderPortal>{children ?? <Outlet />}</ProviderPortal>;
+  return <CustomerPortal>{children ?? <Outlet />}</CustomerPortal>;
 }
 
 export default ProviderPortal;

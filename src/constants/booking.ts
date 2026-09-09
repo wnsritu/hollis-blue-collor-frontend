@@ -1,5 +1,9 @@
 import { Car, Truck } from "lucide-react";
 
+export const BOOK_SERVICE_STEPS = [
+  "Services Selection", "Date, Time & Address", "Review & Pay",
+];
+
 export const CAR_WASH_STEPS = [
   "Service Type", "Vehicle", "Service", "Provider", "Schedule",
   "Add-ons", "Location", "Notes", "Estimate", "Summary",
@@ -32,4 +36,23 @@ export const CAR_WASH_ADD_ONS = [
   "Pet Hair Removal",
   "Odor Removal",
   "Interior Shampoo",
+];
+
+export const BOOKING_FLOW = [
+  "Pending Acceptance",
+  "Confirmed",
+  "Paid",
+  "Scheduled",
+  "In Progress",
+  "Completed",
+  "Reviewed",
+];
+
+export const PROJECT_STEPS = [
+  "Project Published",
+  "Provider Matching",
+  "Proposals Received",
+  "Proposal Accepted",
+  "Job Scheduled",
+  "Service Completed",
 ];

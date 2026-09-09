@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge, Camera, Eye, EyeOff, Lock, Shield } from "lucide-react";
 import toast from "react-hot-toast";
-import { changePasswordService } from "@/services/auth.service";
+import { changePasswordService } from "@/services/auth";
 import Spinner from "@/components/ui/spinner";
-import { uploadProfilePhotoService } from "@/services/admin.service";
-import { getMyProfile } from "@/services/user.service";
-import { updateProfile } from "@/api/admin.api";
+import { uploadProfilePhotoService, updateProfile } from "@/services/admin";
+import { getMyProfile } from "@/services/customer";
+import { isValidEmail, isValidPhone } from "@/validations";
 
 const SupportSettings = () => {
   const [passwords, setPasswords] = useState({
@@ -53,14 +53,14 @@ const SupportSettings = () => {
     // Email
     if (!profile.email) {
       errs.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    } else if (!isValidEmail(profile.email)) {
       errs.email = "Invalid email format";
     }
 
     // Phone
     if (!profile.phone) {
       errs.phone = "Phone is required";
-    } else if (!/^\d{10}$/.test(profile.phone)) {
+    } else if (!isValidPhone(profile.phone)) {
       errs.phone = "Enter valid 10 digit number";
     }
 

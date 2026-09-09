@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Shield, Clock } from "lucide-react";
 import { getMyProfile } from "@/services/user.service";
-import { updateProfile } from "@/api/admin.api";
+import { updateProfile } from "@/services/admin";
 import { changePasswordService } from "@/services/auth.service";
 import { Eye, EyeOff } from "lucide-react";
 import Spinner from "@/components/ui/spinner";
 import { uploadProfilePhotoService } from "@/services/admin.service";
 import toast from "react-hot-toast";
+import { isValidEmail, isValidPhone } from "@/validations";
 
 const AdminProfile = () => {
   const [profileLoading, setProfileLoading] = useState(false);
@@ -58,14 +59,14 @@ const AdminProfile = () => {
     // Email
     if (!profile.email) {
       errs.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    } else if (!isValidEmail(profile.email)) {
       errs.email = "Invalid email format";
     }
 
     // Phone
     if (!profile.phone) {
       errs.phone = "Phone is required";
-    } else if (!/^\d{10}$/.test(profile.phone)) {
+    } else if (!isValidPhone(profile.phone)) {
       errs.phone = "Enter valid 10 digit number";
     }
 

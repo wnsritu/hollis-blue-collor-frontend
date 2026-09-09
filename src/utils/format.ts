@@ -1,14 +1,5 @@
-export const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
-
-  const date = new Date(dateStr);
-
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const yyyy = date.getFullYear();
-
-  return `${mm}-${dd}-${yyyy}`;
-};
+import { formatDate } from "./date";
+export { formatDate };
 
 export const sanitizePhoneInput = (value: string): string => {
   if (!value) return "";
@@ -59,13 +50,8 @@ export const formatStatus = (status: string) => {
 
 export const formatDisplayDate = (dateStr?: string | null): string => {
   if (!dateStr) return "Date TBD";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return String(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formatted = formatDate(dateStr, "MMM d, yyyy");
+  return formatted || String(dateStr);
 };
 
 export const formatDisplayTime = (timeStr?: string | null): string => {

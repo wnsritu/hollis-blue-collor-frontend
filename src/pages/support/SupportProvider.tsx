@@ -20,18 +20,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { adminProviders } from "@/data/adminMockData";
 import {
   pauseProvider,
   resumeProvider,
   searchProviders,
-} from "@/services/provider.service";
+  verifyProvider,
+} from "@/services/provider";
 import { Provider } from "@/types/provider.types";
-import { verifyProvider } from "@/services/provider.service";
 import { formatPhone } from "@/utils/format";
 import { Star, Users } from "lucide-react";
 import Spinner from "@/components/ui/spinner";
-import { getAllProvider } from "@/api/admin.api";
+import { getAllProvider } from "@/services/admin";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
