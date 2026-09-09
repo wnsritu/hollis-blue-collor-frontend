@@ -9,13 +9,8 @@ import { cn } from "@/lib/utils";
 import { useAuthSession } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
-
-const links = [
-  { to: "/", label: "Home" },
-  { to: "/search", label: "Find a Professional" },
-  { to: "/how-it-works", label: "How It Works" },
-  { to: "/provider/onboarding", label: "Become a Pro" },
-] as const;
+import { tokenStorage } from "@/utils/tokenStorage";
+import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,9 +21,22 @@ const Header = () => {
   const location = useLocation();
   const { isAuthenticated, roleId, logout, user } = useAuthSession();
 
-  const isLoggedIn = isAuthenticated;
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
   const isProviderUser = Number(roleId) === ROLES.PROVIDER;
   const isCustomerUser = Number(roleId) === ROLES.CUSTOMER;
+
+  const navLinks = !isLoggedIn
+    ? [
+        { to: "/", label: "Home" },
+        { to: "/how-it-works", label: "How It Works" },
+        { to: "/provider/onboarding", label: "Become a Pro" },
+      ]
+    : isCustomerUser
+      ? [
+          { to: "/search", label: "Find a Professional" },
+        ]
+      : [];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,13 +84,7 @@ const Header = () => {
     return (first + last).toUpperCase() || "U";
   };
 
-  const dashboardRoute = isProviderUser
-    ? "/provider/dashboard"
-    : isCustomerUser
-      ? "/dashboard"
-      : Number(roleId) === ROLES.SUPPORT
-        ? "/support-dashboard"
-        : "/admin";
+  const dashboardRoute = getLoggedInHomeRedirect(user);
 
   const displayUser = user || profile;
   const rawPhoto =
@@ -100,10 +102,10 @@ const Header = () => {
       )}
     >
       <div className="container-page flex h-14 w-full items-center justify-between md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-4">
-        <Logo overhanging isAtTop={isAtTop} />
+        <Logo overhanging isAtTop={isAtTop} to={isLoggedIn ? dashboardRoute : "/"} />
 
         <nav className="hidden min-w-0 items-center justify-center gap-2 md:flex">
-          {links.map((l) => (
+          {navLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}
@@ -187,7 +189,7 @@ const Header = () => {
             </SheetTrigger>
             <SheetContent side="right" className="w-[86vw] max-w-sm p-6">
               <div className="mt-8 flex flex-col gap-1">
-                {links.map((l) => (
+                {navLinks.map((l) => (
                   <Link
                     key={l.to}
                     to={l.to}

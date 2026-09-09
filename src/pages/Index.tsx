@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { detectAndStoreUserLocation, getStoredLocation, setStoredLocation } from "@/utils/userLocation";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
 import {
   ArrowRight,
   BadgeCheck,
@@ -101,11 +103,20 @@ export function Index() {
     });
   }, []);
 
+  const { isAuthenticated } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
+
   const handleSearch = () => {
+    const targetUrl = `/search?service=${encodeURIComponent(service)}&location=${encodeURIComponent(location)}`;
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(targetUrl)}`, { state: { from: targetUrl } });
+      return;
+    }
     if (location.trim()) {
       setStoredLocation({ city: location.trim() });
     }
-    navigate(`/search?service=${encodeURIComponent(service)}&location=${encodeURIComponent(location)}`);
+    navigate(targetUrl);
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, Building2, Check, Eye, EyeOff, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { ROLES } from "@/constants/roles";
 import { sanitizePhoneInput } from "@/utils/format";
 import { authApi } from "@/api/modules/auth.api";
 import { getErrorMessage } from "@/lib/api/errors";
+import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
+import { tokenStorage } from "@/utils/tokenStorage";
 import toast from "react-hot-toast";
 
 export const PROVIDER_SIGNUP_DRAFT_KEY = "hollis_provider_signup_draft";
@@ -42,7 +44,15 @@ const options = [
 export function SignUp() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { register } = useAuthSession();
+  const { isAuthenticated, user, register } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+
+  useEffect(() => {
+    if (isAuthenticated || hasToken) {
+      navigate(getLoggedInHomeRedirect(user), { replace: true });
+    }
+  }, [isAuthenticated, hasToken, user, navigate]);
+
   const [role, setRole] = useState<"customer" | "provider">(
     searchParams.get("role") === "provider" ? "provider" : "customer"
   );

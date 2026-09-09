@@ -3,6 +3,7 @@
  * Backend `onboarding_status` is a string enum (not `{ is_complete }`).
  */
 import { ROLES } from "@/constants/roles";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 export const PROVIDER_ONBOARDING_STATUS = {
   EMAIL_NOT_VERIFIED: "EMAIL_NOT_VERIFIED",
@@ -46,8 +47,9 @@ export function resolvePostLoginPath(user: NavUser | null | undefined): string {
     user?.is_profile_setup === true || user?.is_profile_setup === 1;
 
   if (
-    status === PROVIDER_ONBOARDING_STATUS.EMAIL_NOT_VERIFIED ||
-    (!emailVerified && status !== PROVIDER_ONBOARDING_STATUS.PROFILE_COMPLETED)
+    email &&
+    (status === PROVIDER_ONBOARDING_STATUS.EMAIL_NOT_VERIFIED ||
+      user?.email_verified === false)
   ) {
     return `/verify-email?email=${encodeURIComponent(email)}&role=provider`;
   }
@@ -68,5 +70,15 @@ export function resolvePostLoginPath(user: NavUser | null | undefined): string {
   }
 
   // Waiting for admin approval → pending portal (submitted screen)
-  return "/provider/onboarding?submitted=true";
+  return "/provider/dashboard";
 }
+
+export function getLoggedInHomeRedirect(user: NavUser | null | undefined): string {
+  const roleId = Number(user?.role_id ?? tokenStorage.getRoleId());
+  if (roleId === ROLES.PROVIDER) return "/provider/dashboard";
+  if (roleId === ROLES.CUSTOMER) return "/dashboard";
+  if (roleId === ROLES.ADMIN) return "/admin";
+  if (roleId === ROLES.SUPPORT) return "/support-dashboard";
+  return "/dashboard";
+}
+
