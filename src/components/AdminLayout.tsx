@@ -33,6 +33,7 @@ const adminNav: NavItem[] = [
   { label: "Providers", to: "/admin/providers", icon: Building2 },
   { label: "Orders", to: "/admin/orders", icon: ClipboardList },
   { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
+  { label: "Reviews Directory", to: "/admin/reviews", icon: Star },
   { label: "Sponsored Listings", to: "/admin/sponsored", icon: Star },
   { label: "Coins Management", to: "/admin/coins", icon: Coins },
   { label: "Featured Pricing", to: "/admin/featured", icon: DollarSign },

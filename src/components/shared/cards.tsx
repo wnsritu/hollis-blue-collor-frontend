@@ -208,10 +208,12 @@ export function BookingCard({
   booking,
   side = "customer",
   action,
+  onClick,
 }: {
   booking: GenericBooking;
   side?: "customer" | "provider";
   action?: React.ReactNode;
+  onClick?: () => void;
 }) {
   const isPriceUpdated = booking.status === "Price Updated" || booking.status === "price_updated";
   const displayPrice = booking.proposedPrice || booking.price || 0;
@@ -225,6 +227,7 @@ export function BookingCard({
   const isPaid =
     booking.isPaid ||
     (booking.paymentStatus || "").toLowerCase() === "paid" ||
+    (booking.paymentStatus || "").toLowerCase() === "success" ||
     (booking.paymentStatus || "").toLowerCase() === "succeeded" ||
     booking.status === "Completed" ||
     booking.status === "finished";
@@ -236,7 +239,12 @@ export function BookingCard({
     : "Payment: Pending";
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
+    <div
+      onClick={onClick}
+      className={`flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+    >
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -305,12 +313,15 @@ export function BookingCard({
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         {action ?? (
           <Button
-            asChild
+            asChild={!onClick}
+            onClick={onClick}
             variant={isPriceUpdated ? "default" : "outline"}
             size="sm"
             className="w-full justify-center text-xs"
           >
-            {side === "customer" ? (
+            {onClick ? (
+              <span>{isPriceUpdated ? "Review & Accept Price" : "View Details & Payment"}</span>
+            ) : side === "customer" ? (
               <Link to={`/customer/bookings/${booking.id}`}>
                 {isPriceUpdated ? "Review & Accept Price" : "View booking"}
               </Link>

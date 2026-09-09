@@ -225,6 +225,9 @@ const ProviderOrderDetail = () => {
           setOrder(res.data);
           setOrderData(res.data);
           setStatus(res.data.status);
+          if (res.data?.review) {
+            setProviderRating({ data: res.data.review });
+          }
         }
       } catch (err) {
         console.error("Error fetching order", err);

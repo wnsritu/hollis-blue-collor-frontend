@@ -17,6 +17,8 @@ import RatingPage from "./pages/RatingPage";
 import CustomerProfile from "./pages/CustomerProfile";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
+import CustomerReviews from "./pages/CustomerReviews";
+import AdminReviews from "./pages/admin/AdminReviews";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -106,6 +108,7 @@ const App = () => (
             <Route path="orders" element={<AdminOrders />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="disputes/:id" element={<AdminDisputeDetail />} />
+            <Route path="reviews" element={<AdminReviews />} />
             <Route path="sponsored" element={<AdminSponsored />} />
             <Route path="coins" element={<AdminCoins />} />
             {/* <Route path="messages" element={<AdminMessages />} /> */}
@@ -355,6 +358,16 @@ const App = () => (
                 <RolePortal>
                   <AppointmentsPage />
                 </RolePortal>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/reviews"
+            element={
+              <ProtectedRoute>
+                <CustomerPortal>
+                  <CustomerReviews />
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />

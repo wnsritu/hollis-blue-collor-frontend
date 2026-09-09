@@ -221,7 +221,7 @@ export const customerNav: NavItem[] = [
   { to: "/projects", label: "Custom Requests", icon: PlusCircle },
   { to: "/messages", label: "Messages", icon: MessageSquare },
   { to: "/appointments", label: "Payments", icon: CreditCard },
-  { to: "/dashboard", label: "Reviews", icon: Star },
+  { to: "/customer/reviews", label: "Reviews", icon: Star },
   { to: "/profile", label: "My Profile", icon: User },
 ];
 
