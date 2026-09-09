@@ -30,6 +30,7 @@ export interface NormalizedBooking {
   currency: string;
   isPaid: boolean;
   paymentStatus: string;
+  paymentDate: string | null;
   receiptUrl: string | null;
   bookingType: string;
   isCustom: boolean;
@@ -54,6 +55,13 @@ export interface NormalizedBooking {
     status: string;
     deadlineAt: string | null;
   };
+  review?: {
+    id: number;
+    rating: number;
+    comment: string | null;
+    status: string;
+    created_at: string | null;
+  } | null;
   raw: any;
 }
 
@@ -91,6 +99,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
       currency: "USD",
       isPaid: false,
       paymentStatus: "pending",
+      paymentDate: null,
       receiptUrl: null,
       bookingType: "direct_service",
       isCustom: false,
@@ -216,7 +225,9 @@ export function normalizeBooking(b: any): NormalizedBooking {
 
   // Payment
   const paymentStatus = b.payment?.payment_status || b.payment_status || "pending";
-  const isPaid = paymentStatus === "paid" || Boolean(b.paid);
+  const normPayStatus = String(paymentStatus).toLowerCase();
+  const isPaid = ["paid", "success", "succeeded", "completed"].includes(normPayStatus) || Boolean(b.paid);
+  const paymentDate = b.payment?.payment_date || b.payment?.createdAt || b.payment_date || null;
   const receiptUrl = b.payment?.receipt_url || null;
 
   // Booking Type & Quote
@@ -242,6 +253,17 @@ export function normalizeBooking(b: any): NormalizedBooking {
     status: b.dispute?.status ?? b.dispute_status ?? "none",
     deadlineAt: b.dispute?.deadline_at ?? b.dispute_deadline_at ?? null,
   };
+
+  // Review info
+  const review = b.review && b.review.status !== "removed"
+    ? {
+        id: Number(b.review.id),
+        rating: Number(b.review.rating) || 0,
+        comment: b.review.comment || null,
+        status: b.review.status || "visible",
+        created_at: b.review.created_at || b.review.createdAt || null,
+      }
+    : null;
 
   return {
     id,
@@ -271,6 +293,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     currency,
     isPaid,
     paymentStatus,
+    paymentDate,
     receiptUrl,
     bookingType,
     isCustom,
@@ -280,6 +303,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     servicesList,
     reschedule,
     dispute,
+    review,
     raw: b,
   };
 }
@@ -307,6 +331,8 @@ export function mapBookingToGeneric(
     date: n.formattedDate,
     time: n.formattedTime,
     address: n.address,
+    paymentStatus: n.paymentStatus,
+    isPaid: n.isPaid,
   };
 }
 

@@ -20,6 +20,7 @@ import {
 import { PageHeader, EmptyState } from "@/components/shared/primitives";
 import { BookingCard, type GenericBooking } from "@/components/shared/cards";
 import { appointmentApi } from "@/api/modules/appointment.api";
+import { chatApi } from "@/api/modules/chat.api";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
@@ -45,6 +46,19 @@ export const AppointmentsPage: React.FC = () => {
 
   const userIsCustomer = isCustomer(user?.role_id);
   const userIsProvider = isProvider(user?.role_id);
+
+  const handleMessagePartner = async (b: any) => {
+    try {
+      const res = await chatApi.createChat({
+        project_id: b.project_id || undefined,
+        booking_id: b.id,
+      });
+      const chat = (res as any)?.data || res;
+      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+    } catch (err) {
+      navigate("/messages");
+    }
+  };
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -190,6 +204,9 @@ export const AppointmentsPage: React.FC = () => {
                 key={apt.id}
                 booking={bookingItem}
                 side={userIsCustomer ? "customer" : "provider"}
+                onClick={() =>
+                  navigate(userIsCustomer ? `/customer/bookings/${apt.id}` : `/provider/order/${apt.id}`)
+                }
               />
             );
           })}

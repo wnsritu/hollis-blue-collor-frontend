@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { detectAndStoreUserLocation, getStoredLocation, setStoredLocation } from "@/utils/userLocation";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
 import {
   ArrowRight,
   BadgeCheck,
@@ -90,10 +93,30 @@ const trust = [
 export function Index() {
   const navigate = useNavigate();
   const [service, setService] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState(() => getStoredLocation()?.city || "");
+
+  useEffect(() => {
+    detectAndStoreUserLocation().then((loc) => {
+      if (loc && loc.city && !location) {
+        setLocation(loc.city);
+      }
+    });
+  }, []);
+
+  const { isAuthenticated } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
 
   const handleSearch = () => {
-    navigate(`/search?service=${encodeURIComponent(service)}&location=${encodeURIComponent(location)}`);
+    const targetUrl = `/search?service=${encodeURIComponent(service)}&location=${encodeURIComponent(location)}`;
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(targetUrl)}`, { state: { from: targetUrl } });
+      return;
+    }
+    if (location.trim()) {
+      setStoredLocation({ city: location.trim() });
+    }
+    navigate(targetUrl);
   };
 
   return (

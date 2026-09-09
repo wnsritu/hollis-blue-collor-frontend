@@ -200,16 +200,20 @@ export interface GenericBooking {
   date?: string;
   time?: string;
   address?: string;
+  paymentStatus?: string;
+  isPaid?: boolean;
 }
 
 export function BookingCard({
   booking,
   side = "customer",
   action,
+  onClick,
 }: {
   booking: GenericBooking;
   side?: "customer" | "provider";
   action?: React.ReactNode;
+  onClick?: () => void;
 }) {
   const isPriceUpdated = booking.status === "Price Updated" || booking.status === "price_updated";
   const displayPrice = booking.proposedPrice || booking.price || 0;
@@ -220,8 +224,27 @@ export function BookingCard({
     booking.kind === "item_based" ||
     (!booking.kind && !booking.requestKind);
 
+  const isPaid =
+    booking.isPaid ||
+    (booking.paymentStatus || "").toLowerCase() === "paid" ||
+    (booking.paymentStatus || "").toLowerCase() === "success" ||
+    (booking.paymentStatus || "").toLowerCase() === "succeeded" ||
+    booking.status === "Completed" ||
+    booking.status === "finished";
+
+  const paymentText = isPaid
+    ? "Payment: Paid"
+    : (booking.paymentStatus || "").toLowerCase() === "escrow" || (booking.paymentStatus || "").toLowerCase() === "held"
+    ? "Payment: Escrow Held"
+    : "Payment: Pending";
+
   return (
-    <div className="flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
+    <div
+      onClick={onClick}
+      className={`flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+    >
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -234,6 +257,15 @@ export function BookingCard({
             {isFixed ? "Fixed Service" : "Request a Quote"}
           </span>
           <StatusPill status={booking.status} />
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              isPaid
+                ? "bg-success-soft text-success border border-success/20"
+                : "bg-amber-500/10 text-amber-700 border border-amber-200"
+            }`}
+          >
+            {paymentText}
+          </span>
           <span className="ml-auto text-xs text-muted-foreground">
             {typeof booking.id === "string" && booking.id.startsWith("BKG-") ? booking.id : `BKG-${booking.id}`}
           </span>
@@ -281,12 +313,15 @@ export function BookingCard({
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         {action ?? (
           <Button
-            asChild
+            asChild={!onClick}
+            onClick={onClick}
             variant={isPriceUpdated ? "default" : "outline"}
             size="sm"
             className="w-full justify-center text-xs"
           >
-            {side === "customer" ? (
+            {onClick ? (
+              <span>{isPriceUpdated ? "Review & Accept Price" : "View Details & Payment"}</span>
+            ) : side === "customer" ? (
               <Link to={`/customer/bookings/${booking.id}`}>
                 {isPriceUpdated ? "Review & Accept Price" : "View booking"}
               </Link>

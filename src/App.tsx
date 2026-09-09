@@ -17,6 +17,8 @@ import RatingPage from "./pages/RatingPage";
 import CustomerProfile from "./pages/CustomerProfile";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
+import CustomerReviews from "./pages/CustomerReviews";
+import AdminReviews from "./pages/admin/AdminReviews";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -54,6 +56,7 @@ import AdminServices from "./pages/admin/AdminServices";
 import AdminCategories from "./pages/admin/AdminCategories";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
+import HomeRoute from "@/routes/HomeRoute";
 import SupportAgentsPage from "./pages/admin/SupportAgentsPage";
 import SupportDashboard from "./pages/support/SupportAgent";
 import SupportLayout from "./components/SupportLayout";
@@ -106,6 +109,7 @@ const App = () => (
             <Route path="orders" element={<AdminOrders />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="disputes/:id" element={<AdminDisputeDetail />} />
+            <Route path="reviews" element={<AdminReviews />} />
             <Route path="sponsored" element={<AdminSponsored />} />
             <Route path="coins" element={<AdminCoins />} />
             {/* <Route path="messages" element={<AdminMessages />} /> */}
@@ -146,24 +150,56 @@ const App = () => (
           <Route
             path="/"
             element={
-              <PublicLayout>
-                <Index />
-              </PublicLayout>
+              <HomeRoute>
+                <PublicLayout>
+                  <Index />
+                </PublicLayout>
+              </HomeRoute>
             }
           />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<SignUp />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ForgotPassword />} />
+          <Route
+            path="/login"
+            element={
+              <HomeRoute>
+                <Login />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <HomeRoute>
+                <SignUp />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <HomeRoute>
+                <ForgotPassword />
+              </HomeRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <HomeRoute>
+                <ForgotPassword />
+              </HomeRoute>
+            }
+          />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-otp" element={<VerifyEmail />} />
           <Route path="/provider/onboarding" element={<ProviderOnboarding />} />
           <Route
             path="/how-it-works"
             element={
-              <PublicLayout>
-                <HowItWorks />
-              </PublicLayout>
+              <HomeRoute>
+                <PublicLayout>
+                  <HowItWorks />
+                </PublicLayout>
+              </HomeRoute>
             }
           />
           <Route
@@ -177,9 +213,11 @@ const App = () => (
           <Route
             path="/search"
             element={
-              <PublicLayout>
-                <SearchProviders />
-              </PublicLayout>
+              <ProtectedRoute>
+                <PublicLayout>
+                  <SearchProviders />
+                </PublicLayout>
+              </ProtectedRoute>
             }
           />
 
@@ -355,6 +393,16 @@ const App = () => (
                 <RolePortal>
                   <AppointmentsPage />
                 </RolePortal>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/reviews"
+            element={
+              <ProtectedRoute>
+                <CustomerPortal>
+                  <CustomerReviews />
+                </CustomerPortal>
               </ProtectedRoute>
             }
           />

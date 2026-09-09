@@ -54,6 +54,16 @@ interface SelectedItem {
   unit: string;
 }
 
+interface CustomerBookingDetails {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  zip: string;
+  notes: string;
+}
+
 // Generate upcoming 14 days dynamically with Day of Week
 const getUpcomingDates = (daysCount = 14) => {
   const dates = [];
@@ -110,13 +120,13 @@ export default function BookService() {
   const [selectedTimeSlotLabel, setSelectedTimeSlotLabel] = useState<string>("");
 
   // Customer details form
-  const [details, setDetails] = useState({
+  const [details, setDetails] = useState<CustomerBookingDetails>({
     name: user?.full_name || "",
     email: user?.email || "",
     phone: user?.phone || "",
-    address: user?.address || "",
-    city: "",
-    zip: "",
+    address: (user?.address as string) || "",
+    city: (user?.city as string) || "",
+    zip: (user?.zip_code as string) || "",
     notes: "",
   });
 
@@ -149,7 +159,7 @@ export default function BookService() {
             zip: provData.zip_code || prev.zip,
           }));
 
-          // Parse provider custom services from service_pricing JSON
+          // Parse provider custom services from service_pricing JSON (strictly offered services)
           let servicesList: OfferedService[] = [];
           if (provData.service_pricing) {
             try {
@@ -158,19 +168,41 @@ export default function BookService() {
                   ? JSON.parse(provData.service_pricing)
                   : provData.service_pricing;
 
-              servicesList = Object.entries(pricingMap).map(([name, config]: [string, any], idx) => ({
-                id: `svc_${idx + 1}`,
-                name,
-                description: config.description || `${name} performed by ${provData.business_name || "Professional"}.`,
-                price: Number(config.price) || 100,
-                unit: config.unit || "flat rate",
-              }));
+              if (pricingMap && typeof pricingMap === "object") {
+                servicesList = Object.entries(pricingMap)
+                  .filter(([_, config]: [string, any]) => config?.offered === true)
+                  .map(([name, config]: [string, any], idx) => ({
+                    id: `svc_${idx + 1}`,
+                    name,
+                    description: (config.description as string) || `${name} performed by ${provData.business_name || "Professional"}.`,
+                    price: Number(config.price) || 100,
+                    unit: (config.unit as string) || "flat rate",
+                  }));
+              }
             } catch (e) {
               console.error("Error parsing service_pricing:", e);
             }
           }
 
-          // Fallback if no custom services exist
+          if (servicesList.length === 0 && provData.offered_services) {
+            let rawOffered = provData.offered_services;
+            if (typeof rawOffered === "string") {
+              try {
+                rawOffered = JSON.parse(rawOffered);
+              } catch (e) {}
+            }
+            if (Array.isArray(rawOffered)) {
+              servicesList = rawOffered.map((name: any, idx) => ({
+                id: `svc_${idx + 1}`,
+                name: typeof name === "string" ? name : name?.name || String(name),
+                description: `Service performed by ${provData.business_name || "Professional"}.`,
+                price: 100,
+                unit: "flat rate",
+              }));
+            }
+          }
+
+          // Fallback only if no dynamic services configured at all
           if (servicesList.length === 0) {
             const mainSvcName = provData.service_type?.name || provData.category?.name || "Professional Service";
             servicesList = [
@@ -195,16 +227,20 @@ export default function BookService() {
             if (matched) initialSvc = matched;
           }
 
-          setSelectedItems([
-            {
-              id: initialSvc.id,
-              name: initialSvc.name,
-              description: initialSvc.description,
-              price: initialSvc.price,
-              qty: 1,
-              unit: initialSvc.unit,
-            },
-          ]);
+          if (initialSvc) {
+            setSelectedItems([
+              {
+                id: initialSvc.id,
+                name: initialSvc.name,
+                description: initialSvc.description,
+                price: initialSvc.price,
+                qty: 1,
+                unit: initialSvc.unit,
+              },
+            ]);
+          } else {
+            setSelectedItems([]);
+          }
         }
 
         // Format Provider Availability Schedule
@@ -527,7 +563,7 @@ export default function BookService() {
               <Card className="shadow-card border-border/80">
                 <CardContent className="p-5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <Avatar initials={initials} image={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="lg" />
+                    <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="lg" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base text-foreground truncate">{businessName}</h2>
@@ -605,7 +641,7 @@ export default function BookService() {
                 <Card className="shadow-card border-border/80">
                   <CardHeader className="pb-3 border-b border-border/60">
                     <CardTitle className="text-base font-bold text-foreground">
-                      Additional Services Offered by {businessName}
+                      Offered Services
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-5 divide-y divide-border/60">
@@ -839,7 +875,7 @@ export default function BookService() {
                 <CardContent className="p-5 space-y-6">
                   {/* Provider Info */}
                   <div className="flex items-center gap-3 pb-4 border-b border-border/60">
-                    <Avatar initials={initials} image={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="md" />
+                    <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="md" />
                     <div>
                       <h3 className="font-bold text-sm text-foreground">{businessName}</h3>
                       <p className="text-xs text-muted-foreground">{provider.city || "Austin"}, {provider.state || "TX"}</p>
@@ -933,7 +969,7 @@ export default function BookService() {
             <CardContent className="p-5 space-y-4">
               {/* Provider Info */}
               <div className="flex items-center gap-3 pb-3 border-b border-border/60">
-                <Avatar initials={initials} image={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="sm" />
+                <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="sm" />
                 <div className="min-w-0">
                   <p className="font-bold text-xs text-foreground truncate">{businessName}</p>
                   <p className="text-[11px] text-muted-foreground">{provider.city || "Austin"}, {provider.state || "TX"}</p>

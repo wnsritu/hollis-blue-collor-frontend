@@ -15,6 +15,12 @@ export const ratingApi = {
 
   listByProvider: (providerId: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.rating.provider(providerId)),
+
+  adminList: (params?: any) =>
+    http.get<ApiSuccess>("/admin/reviews", params),
+
+  moderate: (id: number | string, payload: { action: string; note?: string }) =>
+    http.post<ApiSuccess>(`/admin/reviews/${id}/moderate`, payload),
 };
 
 export default ratingApi;

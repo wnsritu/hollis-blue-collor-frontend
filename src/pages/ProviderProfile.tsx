@@ -26,6 +26,7 @@ import { Avatar, Stars, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import { CreateProjectModal } from "@/components/m3/CreateProjectModal";
 import { providerApi } from "@/api/modules/provider.api";
+import { ratingApi } from "@/api/modules/rating.api";
 import toast from "react-hot-toast";
 
 export const ProviderProfile: React.FC = () => {
@@ -35,6 +36,7 @@ export const ProviderProfile: React.FC = () => {
   const [provider, setProvider] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [fetchedReviews, setFetchedReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -60,6 +62,18 @@ export const ProviderProfile: React.FC = () => {
         if (!cancelled) setLoading(false);
       }
     })();
+
+    // Fallback/direct reviews fetch
+    ratingApi
+      .provider(id)
+      .then((res: any) => {
+        const list = res?.data || res || [];
+        if (Array.isArray(list) && !cancelled) {
+          setFetchedReviews(list);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
@@ -188,8 +202,9 @@ export const ProviderProfile: React.FC = () => {
     } catch (e) {}
   }
 
-  // Parse Reviews dynamically from API
-  const reviewsList: any[] = Array.isArray(provider?.reviews) ? provider.reviews : [];
+  // Parse Reviews dynamically from API (embedded or fallback fetched)
+  const rawProvReviews = Array.isArray(provider?.reviews) ? provider.reviews : [];
+  const reviewsList: any[] = rawProvReviews.length > 0 ? rawProvReviews : fetchedReviews;
   const reviewsCount = Number(provider?.review_count ?? provider?.reviews_count ?? reviewsList.length);
 
   return (

@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search as SearchIcon,
   SlidersHorizontal,
   MapPin,
-  Sparkles,
   Loader2,
-  FileQuestion,
-  Filter,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,15 +26,23 @@ import { EmptyState } from "@/components/shared/primitives";
 import { providerApi } from "@/api/modules/provider.api";
 import { catalogApi } from "@/api/modules/catalog.api";
 import type { Category } from "@/types/api/catalog";
+import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
+import { getStoredLocation, setStoredLocation, detectAndStoreUserLocation } from "@/utils/userLocation";
+
 export const SearchProviders: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams,] = useSearchParams();
+  const storedLoc = getStoredLocation();
 
   // Filter States
   const [query, setQuery] = useState(searchParams.get("query") || "");
-  const [location, setLocation] = useState(searchParams.get("location") || "");
+  const [location, setLocation] = useState(searchParams.get("location") || storedLoc?.city || "");
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    storedLoc?.lat != null && storedLoc?.lng != null
+      ? { lat: storedLoc.lat, lng: storedLoc.lng }
+      : null
+  );
   const [categoryId, setCategoryId] = useState<string>(
     searchParams.get("category_id") || "all"
   );
@@ -57,12 +63,29 @@ export const SearchProviders: React.FC = () => {
   );
   const [availableNow, setAvailableNow] = useState<boolean>(false);
   const [backgroundChecked, setBackgroundChecked] = useState<boolean>(true);
-  const [sort, setSort] = useState<string>(searchParams.get("sort") || "recommended");
+
+  // Common Reusable Debounced Inputs for fast, optimized, network-efficient searches
+  const debouncedQuery = useDebounce(query, 350);
+  const debouncedLocation = useDebounce(location, 350);
+  const debouncedRadius = useDebounce(radius, 350);
+  const debouncedPriceMax = useDebounce(priceMax, 350);
+  const debouncedMinYears = useDebounce(minYears, 350);
 
   // Data States
   const [categories, setCategories] = useState<Category[]>([]);
   const [providers, setProviders] = useState<GenericProvider[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Auto-detect browser location on mount if no stored coordinates or location
+  useEffect(() => {
+    if (!userCoords) {
+      detectAndStoreUserLocation().then((loc) => {
+        if (loc && loc.lat != null && loc.lng != null) {
+          setUserCoords({ lat: loc.lat, lng: loc.lng });
+        }
+      });
+    }
+  }, []);
 
   // Load Categories
   useEffect(() => {
@@ -82,16 +105,29 @@ export const SearchProviders: React.FC = () => {
   }, []);
 
   // Fetch Providers Search from Real API
-  const fetchProviders = async () => {
+  const fetchProviders = useCallback(async (customQuery?: string, customLocation?: string) => {
     setLoading(true);
     try {
+      const q = (customQuery !== undefined ? customQuery : debouncedQuery).trim();
+      const loc = (customLocation !== undefined ? customLocation : debouncedLocation).trim();
+      const rad = debouncedRadius[0];
+      const pMax = debouncedPriceMax[0];
+      const yMin = Number(debouncedMinYears);
+
       const params: Record<string, any> = {
         page: 1,
         limit: 50,
       };
 
-      if (query.trim()) params.query = query.trim();
-      if (location.trim()) params.city = location.trim();
+      if (q) {
+        params.query = q;
+      }
+      if (loc) {
+        params.city = loc;
+      } else if (userCoords) {
+        params.lat = userCoords.lat;
+        params.lng = userCoords.lng;
+      }
       if (categoryId !== "all") {
         if (categoryId.startsWith("st_")) {
           params.service_type_id = categoryId.replace("st_", "");
@@ -99,16 +135,15 @@ export const SearchProviders: React.FC = () => {
           params.category_id = categoryId;
         }
       }
-      if (radius[0]) params.miles = radius[0];
+      if (rad) params.miles = rad;
       if (Number(minRating) > 0) params.rating_min = Number(minRating);
-      if (priceMax[0] < 2000) params.price_max = priceMax[0];
-      if (Number(minYears) > 0) params.experience_min = Number(minYears);
+      if (pMax < 5000) params.price_max = pMax;
+      if (yMin > 0) params.experience_min = yMin;
       if (availableNow) {
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         params.availability_day = days[new Date().getDay()];
       }
       if (verifiedOnly) params.verified = "verified";
-      if (sort) params.sort = sort;
 
       const res = await providerApi.search(params);
       const rawData = (res as any)?.data || res || [];
@@ -119,28 +154,33 @@ export const SearchProviders: React.FC = () => {
         const catName = p.category?.name || (Array.isArray(p.service_categories) && p.service_categories[0]) || "Home Services";
         const subCatName = p.sub_category?.name || "";
 
-        // Parse custom services strictly from provider data (no static/dummy fallbacks)
+        // Parse custom services strictly from provider data (ONLY offered services)
         let servicesList: string[] = [];
         if (p.service_pricing) {
           try {
             const pricingMap = typeof p.service_pricing === "string" ? JSON.parse(p.service_pricing) : p.service_pricing;
             if (pricingMap && typeof pricingMap === "object") {
-              servicesList = Object.keys(pricingMap).filter(Boolean);
+              servicesList = Object.entries(pricingMap)
+                .filter(([_, cfg]: [string, any]) => cfg?.offered === true)
+                .map(([name]) => name)
+                .filter(Boolean);
             }
-          } catch (e) {}
+          } catch (e) { }
         }
 
-        if (servicesList.length === 0) {
-          const rawOffered = p.offered_services || p.selected_services || p.services;
-          if (Array.isArray(rawOffered) && rawOffered.length > 0) {
-            servicesList = rawOffered.map((item: any) => (typeof item === "string" ? item : item?.name || String(item))).filter(Boolean);
-          } else if (typeof rawOffered === "string") {
+        if (servicesList.length === 0 && p.offered_services) {
+          let rawOffered = p.offered_services;
+          if (typeof rawOffered === "string") {
             try {
-              const parsed = JSON.parse(rawOffered);
-              if (Array.isArray(parsed)) servicesList = parsed.filter(Boolean);
+              rawOffered = JSON.parse(rawOffered);
             } catch (e) {
-              if (rawOffered.trim()) servicesList = [rawOffered.trim()];
+              if (rawOffered.trim()) rawOffered = [rawOffered.trim()];
             }
+          }
+          if (Array.isArray(rawOffered) && rawOffered.length > 0) {
+            servicesList = rawOffered
+              .map((item: any) => (typeof item === "string" ? item : item?.name || String(item)))
+              .filter(Boolean);
           }
         }
 
@@ -148,18 +188,17 @@ export const SearchProviders: React.FC = () => {
           servicesList = p.service_types.map((st: any) => st?.name || st).filter(Boolean);
         }
 
-        if (servicesList.length === 0 && p.category?.service_types && Array.isArray(p.category.service_types) && p.category.service_types.length > 0) {
-          servicesList = p.category.service_types.map((st: any) => st?.name || st).filter(Boolean);
-        }
-
-        // Calculate starting price purely from dynamic provider data
+        // Calculate starting price purely from OFFERED dynamic provider services
         let price: number | null = Number(p.starting_price) || null;
         if (!price && p.service_pricing) {
           try {
             const pricingMap = typeof p.service_pricing === "string" ? JSON.parse(p.service_pricing) : p.service_pricing;
-            const prices = Object.values(pricingMap).map((v: any) => Number(v?.price || v)).filter((n) => !isNaN(n) && n > 0);
+            const prices = Object.values(pricingMap)
+              .filter((v: any) => v?.offered === true)
+              .map((v: any) => Number(v?.price || v))
+              .filter((n) => !isNaN(n) && n > 0);
             if (prices.length > 0) price = Math.min(...prices);
-          } catch (e) {}
+          } catch (e) { }
         }
         if (!price && Array.isArray(p.service_types)) {
           for (const st of p.service_types) {
@@ -201,14 +240,6 @@ export const SearchProviders: React.FC = () => {
         };
       });
 
-      if (sort === "rating") {
-        mapped.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
-      } else if (sort === "reviews") {
-        mapped.sort((a, b) => (Number(b.reviews) || 0) - (Number(a.reviews) || 0));
-      } else if (sort === "price") {
-        mapped.sort((a, b) => (Number(a.startingPrice) || 999999) - (Number(b.startingPrice) || 999999));
-      }
-
       setProviders(mapped);
     } catch (err) {
       console.error("Provider search failed", err);
@@ -216,7 +247,17 @@ export const SearchProviders: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    debouncedQuery,
+    debouncedLocation,
+    debouncedRadius,
+    debouncedPriceMax,
+    debouncedMinYears,
+    categoryId,
+    minRating,
+    availableNow,
+    verifiedOnly,
+  ]);
 
   const handleResetFilters = () => {
     setQuery("");
@@ -229,15 +270,30 @@ export const SearchProviders: React.FC = () => {
     setVerifiedOnly(false);
     setAvailableNow(false);
     setBackgroundChecked(true);
-    setSort("recommended");
+  };
+
+  const handleUseMyLocation = () => {
+    if ("geolocation" in navigator) {
+      toast.loading("Detecting your location...", { id: "geo" });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords({ lat, lng });
+          setLocation("");
+          setStoredLocation({ lat, lng, city: "" });
+          toast.success("Location updated to your position!", { id: "geo" });
+        },
+        () => {
+          toast.error("Could not fetch location. Please enter your city or ZIP.", { id: "geo" });
+        }
+      );
+    }
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchProviders();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, location, categoryId, radius, minRating, priceMax, minYears, verifiedOnly, availableNow, backgroundChecked, sort]);
+    fetchProviders();
+  }, [fetchProviders]);
 
   const FiltersContent = () => (
     <div className="space-y-6">
@@ -393,7 +449,7 @@ export const SearchProviders: React.FC = () => {
                 placeholder="What service do you need?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchProviders()}
+                onKeyDown={(e) => e.key === "Enter" && fetchProviders(query, location)}
                 className="h-11 bg-card pl-9"
               />
             </div>
@@ -403,14 +459,22 @@ export const SearchProviders: React.FC = () => {
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="ZIP Code or City"
+                placeholder={userCoords && !location ? "Near your location" : "ZIP Code or City"}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchProviders()}
-                className="h-11 bg-card pl-9"
+                onKeyDown={(e) => e.key === "Enter" && fetchProviders(query, location)}
+                className="h-11 bg-card pl-9 pr-10"
               />
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                title="Use my current location"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Sparkles size={16} />
+              </button>
             </div>
-            <Button onClick={fetchProviders} className="h-11">
+            <Button onClick={() => fetchProviders(query, location)} className="h-11">
               Search
             </Button>
           </div>
@@ -428,7 +492,7 @@ export const SearchProviders: React.FC = () => {
         {/* Search Results Area */}
         <div className="min-w-0">
           {/* Results Top Bar */}
-          <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <p className="min-w-0 truncate text-sm text-muted-foreground">
               <span className="font-semibold text-foreground">
                 {loading ? "Searching..." : providers.length}
@@ -450,7 +514,7 @@ export const SearchProviders: React.FC = () => {
                 </SheetContent>
               </Sheet>
 
-              <Select value={sort} onValueChange={setSort}>
+              {/* <Select value={sort} onValueChange={setSort}>
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -460,7 +524,7 @@ export const SearchProviders: React.FC = () => {
                   <SelectItem value="reviews">Most reviews</SelectItem>
                   <SelectItem value="price">Lowest price</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
           </div>
 

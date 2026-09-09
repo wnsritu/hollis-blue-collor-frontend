@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Building2, Eye, EyeOff, ShieldCheck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +10,8 @@ import { AuthAside } from "@/components/shared/AuthAside";
 import { useAuthSession } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
 import { getErrorField, getErrorMessage } from "@/lib/api/errors";
-import { resolvePostLoginPath } from "@/utils/postLoginNavigation";
+import { getLoggedInHomeRedirect, resolvePostLoginPath } from "@/utils/postLoginNavigation";
+import { tokenStorage } from "@/utils/tokenStorage";
 import toast from "react-hot-toast";
 
 type LoginRole = "customer" | "provider" | "admin";
@@ -42,8 +43,17 @@ function parseDefaultRole(raw: string | null): LoginRole {
 
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login, clearSession } = useAuthSession();
+  const { isAuthenticated, user, login, clearSession } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+
+  useEffect(() => {
+    if (isAuthenticated || hasToken) {
+      navigate(getLoggedInHomeRedirect(user), { replace: true });
+    }
+  }, [isAuthenticated, hasToken, user, navigate]);
+
   const defaultRole = parseDefaultRole(searchParams.get("role"));
 
   const [role, setRole] = useState<LoginRole>(defaultRole);
@@ -103,12 +113,23 @@ export function Login() {
 
       toast.success("Login successful");
 
-      const path = resolvePostLoginPath({
-        ...(user || {}),
-        email: user?.email || email.trim().toLowerCase(),
-        role_id: roleId,
-      });
-      navigate(path, { replace: true });
+      const redirectParam = searchParams.get("redirect") || (location.state as any)?.from;
+      if (
+        redirectParam &&
+        roleId === ROLES.CUSTOMER &&
+        typeof redirectParam === "string" &&
+        redirectParam.startsWith("/") &&
+        !redirectParam.startsWith("//")
+      ) {
+        navigate(redirectParam, { replace: true });
+      } else {
+        const path = resolvePostLoginPath({
+          ...(user || {}),
+          email: user?.email || email.trim().toLowerCase(),
+          role_id: roleId,
+        });
+        navigate(path, { replace: true });
+      }
     } catch (err: unknown) {
       const msg = getErrorMessage(err, "Invalid credentials");
       setError(msg);
