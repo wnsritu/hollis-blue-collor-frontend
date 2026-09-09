@@ -2,21 +2,31 @@ import React, { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { BadgeCheck, Star, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
+import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
 
 export function Logo({
   className,
   imgClassName,
   overhanging = false,
   isAtTop = true,
+  to,
 }: {
   className?: string;
   imgClassName?: string;
   overhanging?: boolean;
   isAtTop?: boolean;
+  to?: string;
 }) {
+  const { isAuthenticated, user } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
+  const destination = to || (isLoggedIn ? getLoggedInHomeRedirect(user) : "/");
+
   return (
     <Link
-      to="/"
+      to={destination}
       className={cn(
         "inline-flex items-center shrink-0 transition-all duration-300 hover:scale-[1.02]",
         overhanging && isAtTop && "relative z-30 mt-0 sm:mt-[0em]",

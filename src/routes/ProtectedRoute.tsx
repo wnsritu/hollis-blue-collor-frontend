@@ -12,7 +12,14 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!isAuthenticated && !hasToken) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    const fullPath = location.pathname + location.search;
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(fullPath)}`}
+        replace
+        state={{ from: fullPath }}
+      />
+    );
   }
 
   return children;
