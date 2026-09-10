@@ -399,9 +399,16 @@ export function useBookService() {
       const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
 
       if (bookingData && (bookingData.id || bookingData.data?.id || bookingData.booking?.id)) {
-        toast.success("Booking created successfully! Proceeding to payment...");
+        toast.success("Booking created successfully!");
+
+        // Stripe payment modal commented out for now. Redirect directly to booking page.
+        // When payment flow / paid status is implemented in the future, uncomment this:
+        /*
         setCreatedBooking(bookingData);
         setStripeModalOpen(true);
+        */
+
+        navigate("/appointments");
       } else {
         toast.error("Failed to create booking. Please try again.");
       }
