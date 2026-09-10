@@ -271,6 +271,24 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/sponsored/${id}`,
   },
 
+  // ─── Dashboard APIs ────────────────────────────────────
+  userDashboard: {
+    root: "/user/dashboard",
+    stats: "/user/dashboard/stats",
+    recentBookings: "/user/dashboard/recent-bookings",
+    appointments: "/user/dashboard/appointments",
+    messages: "/user/dashboard/messages",
+    recommendedProviders: "/user/dashboard/recommended-providers",
+  },
+
+  providerDashboard: {
+    root: "/providers/dashboard",
+    stats: "/providers/dashboard/stats",
+    jobs: "/providers/dashboard/jobs",
+    appointments: "/providers/dashboard/appointments",
+    earnings: "/providers/dashboard/earnings",
+  },
+
   // ─── Uploads ───────────────────────────────────────────
   /** POST /upload/:mediaFor/:mediaType — mediaFor: customer|provider|admin ; mediaType: image|document|video */
   upload: {

@@ -3,6 +3,7 @@ import axios from "axios";
 import { ENDPOINTS } from "@/constants/endpoints";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { normalizeAxiosError } from "./errors";
+import { attachMilestoneGateInterceptor } from "@/lib/milestoneGate";
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -42,6 +43,8 @@ async function refreshAccessToken(client: AxiosInstance): Promise<string | null>
 }
 
 export const attachInterceptors = (client: AxiosInstance) => {
+  attachMilestoneGateInterceptor(client);
+
   client.interceptors.request.use((config) => {
     const token = tokenStorage.getAccessToken();
     if (token) {

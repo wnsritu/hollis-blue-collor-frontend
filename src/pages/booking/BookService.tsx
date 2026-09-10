@@ -501,7 +501,8 @@ export default function BookService() {
                   <div>
                     <h3 className="font-bold text-base text-foreground">Ready to Complete Booking</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                      Clicking below will create your booking and open the secure Stripe checkout modal to complete payment.
+                      Clicking below will create your booking and take you to your bookings page.
+                      {/* Clicking below will create your booking and open the secure Stripe checkout modal to complete payment. */}
                     </p>
                   </div>
 
@@ -615,12 +616,12 @@ export default function BookService() {
         categoryName={provider?.category?.name || "Services"}
         subCategoryName={provider?.service_type?.name}
         onProjectCreated={() => {
-          toast.success("Quote request submitted successfully!");
           navigate("/projects");
         }}
       />
 
-      {/* Stripe Payment Modal */}
+      {/* Stripe Payment Modal - commented out for now; will be re-enabled in future when paid status is ready */}
+      {/*
       {createdBooking && (
         <StripeBookingModal
           isOpen={stripeModalOpen}
@@ -632,6 +633,7 @@ export default function BookService() {
           }}
         />
       )}
+      */}
     </div>
   );
 }

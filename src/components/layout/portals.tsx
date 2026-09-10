@@ -543,7 +543,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   }
 
   const userPhoto =
-    user?.profile_image ||
+    (user?.profile_image as string | null | undefined) ||
     user?.profile_photo;
 
   const avatarUrl =
@@ -697,7 +697,7 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
   };
 
   const userPhoto =
-    user?.profile_image ||
+    (user?.profile_image as string | null | undefined) ||
     user?.profile_photo;
 
   const avatarUrl =

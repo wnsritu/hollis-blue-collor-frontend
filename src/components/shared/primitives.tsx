@@ -5,6 +5,12 @@ import { cn } from "@/lib/utils";
 import { useAuthSession } from "@/hooks/useAuth";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
+import type { StatusPillProps } from "@/types/status.types";
+import {
+  STATUS_TONE_STYLES,
+  STATUS_TO_TONE_MAP,
+  formatStatusDisplay,
+} from "@/constants/status.constants";
 
 export function Logo({
   className,
@@ -80,72 +86,28 @@ export function VerifiedBadge({ compact = false }: { compact?: boolean }) {
   );
 }
 
-const toneMap: Record<string, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  brand: "bg-primary-soft text-primary-soft-foreground",
-  success: "bg-success-soft text-success-soft-foreground",
-  warning: "bg-warning-soft text-warning-soft-foreground",
-  danger: "bg-destructive-soft text-destructive",
-  accent: "bg-accent-soft text-accent-soft-foreground font-bold",
-};
-
 export function StatusPill({
   status,
   tone,
   className,
-}: {
-  status: string;
-  tone?: keyof typeof toneMap;
-  className?: string;
-}) {
-  const auto: Record<string, keyof typeof toneMap> = {
-    Active: "success",
-    Provided: "success",
-    "Not Provided": "neutral",
-    Paid: "success",
-    Completed: "success",
-    Confirmed: "success",
-    Published: "success",
-    Approved: "success",
-    Accepted: "success",
-    Pending: "warning",
-    Requested: "warning",
-    "Pending Review": "warning",
-    "Proposals Received": "brand",
-    Open: "brand",
-    Matched: "brand",
-    Scheduled: "brand",
-    "In Progress": "brand",
-    "En Route": "brand",
-    Arrived: "brand",
-    "Work Completed": "success",
-    "Price Updated": "warning",
-    "Pending Acceptance": "warning",
-    Rescheduled: "warning",
-    "Changes Requested": "warning",
-    Failed: "danger",
-    Cancelled: "danger",
-    Suspended: "danger",
-    Declined: "danger",
-    Rejected: "danger",
-    Hidden: "neutral",
-    "No-show": "danger",
-    Expired: "neutral",
-    Emergency: "danger",
-    "Within 48 hours": "warning",
-    "This week": "brand",
-    Flexible: "neutral",
-  };
-  const t = tone ?? auto[status] ?? "neutral";
+  showDot = true,
+}: StatusPillProps) {
+  const normKey = (status || "").toLowerCase().replace(/[-_\s]+/g, "");
+  const resolvedTone = tone ?? STATUS_TO_TONE_MAP[normKey] ?? "neutral";
+  const displayLabel = formatStatusDisplay(status);
+
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
-        toneMap[t],
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        STATUS_TONE_STYLES[resolvedTone] || STATUS_TONE_STYLES.neutral,
         className,
       )}
     >
-      {status}
+      {showDot && (
+        <span className="size-1.5 rounded-full bg-current opacity-70 shrink-0" />
+      )}
+      <span>{displayLabel}</span>
     </span>
   );
 }

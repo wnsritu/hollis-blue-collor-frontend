@@ -18,7 +18,7 @@ export function useSearchProviders() {
 
   // Filter States
   const [query, setQuery] = useState(searchParams.get("query") || "");
-  const [location, setLocation] = useState(searchParams.get("location") || storedLoc?.city || "");
+  const [location, setLocation] = useState(searchParams.get("location") || "");
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     storedLoc?.lat != null && storedLoc?.lng != null
       ? { lat: storedLoc.lat, lng: storedLoc.lng }

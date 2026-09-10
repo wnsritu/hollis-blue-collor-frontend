@@ -29,7 +29,7 @@ import { getOrderDetails } from "@/services/order";
 import { appointmentApi } from "@/services/booking";
 import { ratingApi } from "@/services/rating";
 import { chatApi } from "@/services/chat";
-import { BOOKING_FLOW } from "@/constants";
+import { BOOKING_FLOW, getBookingTimelineStepStates } from "@/constants";
 import { normalizeBooking, getTimelineStep } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
@@ -489,7 +489,11 @@ export const CustomerOrderDetail: React.FC = () => {
           {/* Order Lifecycle Timeline */}
           <section className={CARD_SECTION_SHADOW}>
             <h2 className="font-display text-lg font-bold mb-4">Order Lifecycle Status</h2>
-            <Timeline steps={BOOKING_FLOW} current={getTimelineStep(status)} />
+            <Timeline
+              steps={BOOKING_FLOW}
+              current={getTimelineStep(status)}
+              stepStates={getBookingTimelineStepStates(isPaid)}
+            />
           </section>
 
           {/* Payment Breakdown Card */}
