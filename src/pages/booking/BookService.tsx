@@ -267,13 +267,12 @@ export default function BookService() {
                           type="button"
                           disabled={isUnavailable}
                           onClick={() => setSelectedDate(d.iso)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
-                            isUnavailable
+                          className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${isUnavailable
                               ? "bg-muted/40 text-muted-foreground/60 border-border/40 cursor-not-allowed opacity-60"
                               : isSelected
-                              ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-xs"
-                              : "bg-card text-foreground border-border hover:bg-accent cursor-pointer"
-                          }`}
+                                ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-xs"
+                                : "bg-card text-foreground border-border hover:bg-accent cursor-pointer"
+                            }`}
                         >
                           <span className="text-xs font-medium uppercase opacity-80">{d.dayName}</span>
                           <span className="text-sm font-bold mt-0.5">{d.monthDay}</span>
@@ -333,11 +332,10 @@ export default function BookService() {
                                 setSelectedTimeSlotId(id);
                                 setSelectedTimeSlotLabel(label);
                               }}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
-                                isSelected
+                              className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${isSelected
                                   ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-xs font-semibold"
                                   : "bg-card text-foreground border-border hover:bg-accent"
-                              }`}
+                                }`}
                             >
                               <Clock size={16} className={isSelected ? "text-primary-foreground" : "text-muted-foreground"} />
                               <span className="text-sm">{label}</span>
