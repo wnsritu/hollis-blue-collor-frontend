@@ -44,6 +44,7 @@ export const ROUTES = {
   PROVIDER_EARNINGS: "/provider/earnings",
   PROVIDER_FEATURED: "/provider/featured",
   PROVIDER_PROFILE_SETTINGS: "/provider/profile",
+  PROVIDER_CUSTOM_REQUEST_DETAIL: "/provider/custom-requests/:id",
   PROVIDER_ONBOARDING: "/provider/onboarding",
 
   // Admin Protected

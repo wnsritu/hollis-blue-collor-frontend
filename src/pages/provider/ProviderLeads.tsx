@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill, EmptyState } from "@/components/shared/primitives";
-import { SubmitProposalModal } from "@/components/projects/SubmitProposalModal";
 import { matchingApi } from "@/services/provider";
 import { projectApi } from "@/services/project";
 import type { ProjectMatch } from "@/types/api/matching";
@@ -25,10 +24,6 @@ export const ProviderLeads: React.FC = () => {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<ProjectMatch[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Proposal modal state
-  const [proposalModalOpen, setProposalModalOpen] = useState(false);
-  const [selectedMatch, setSelectedMatch] = useState<ProjectMatch | null>(null);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -54,11 +49,6 @@ export const ProviderLeads: React.FC = () => {
   useEffect(() => {
     fetchLeads();
   }, []);
-
-  const handleOpenPropose = (match: ProjectMatch) => {
-    setSelectedMatch(match);
-    setProposalModalOpen(true);
-  };
 
   return (
     <div>
@@ -172,7 +162,7 @@ export const ProviderLeads: React.FC = () => {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => handleOpenPropose(match)}
+                    onClick={() => navigate(`/provider/custom-requests/${project.id}`)}
                     className="flex-1 text-xs gap-1"
                   >
                     Submit Proposal <ChevronRight size={14} />
@@ -182,17 +172,6 @@ export const ProviderLeads: React.FC = () => {
             );
           })}
         </div>
-      )}
-
-      {/* Submit Proposal Modal */}
-      {selectedMatch && selectedMatch.project && (
-        <SubmitProposalModal
-          open={proposalModalOpen}
-          onOpenChange={setProposalModalOpen}
-          projectId={selectedMatch.project.id}
-          projectTitle={selectedMatch.project.title}
-          onProposalSubmitted={fetchLeads}
-        />
       )}
     </div>
   );

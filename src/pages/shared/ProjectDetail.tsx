@@ -17,10 +17,15 @@ import {
   DollarSign,
   Eye,
   RefreshCw,
+  Star,
+  ShieldCheck,
+  CreditCard,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { CustomerPortal, ProviderPortal, RolePortal } from "@/components/layout/portals";
-import { StatusPill, EmptyState, Stars, VerifiedBadge } from "@/components/shared/primitives";
+import { StatusPill, EmptyState, Stars, VerifiedBadge, PageHeader } from "@/components/shared/primitives";
 import { Timeline } from "@/components/shared/Timeline";
 import { SubmitProposalModal } from "@/components/projects/SubmitProposalModal";
 import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
@@ -28,7 +33,11 @@ import { projectApi, proposalApi } from "@/services/project";
 import { chatApi } from "@/services/chat";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
-import { PROJECT_STEPS } from "@/constants";
+import {
+  REQUEST_TIMELINE_STEPS,
+  mapProjectStatusToTimelineStep,
+  getProjectTimelineStepStates,
+} from "@/constants/project.constants";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import type { Project } from "@/types/api/project";
 import type { Proposal } from "@/types/api/proposal";
@@ -36,15 +45,26 @@ import { usd } from "@/components/shared/cards";
 import { formatDate } from "@/utils/date";
 import toast from "react-hot-toast";
 
-
-function getTimelineCurrent(status?: string): string {
-  if (!status || status === "draft" || status === "open") return "Project Published";
-  if (status === "matching") return "Provider Matching";
-  if (status === "proposals_received") return "Proposals Received";
-  if (status === "accepted") return "Proposal Accepted";
-  if (status === "scheduled" || status === "in_progress") return "Job Scheduled";
-  if (status === "completed") return "Service Completed";
-  return "Project Published";
+function Detail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{value || "—"}</p>
+      </div>
+    </div>
+  );
 }
 
 export const ProjectDetail: React.FC = () => {
@@ -158,126 +178,131 @@ export const ProjectDetail: React.FC = () => {
     ? formatDate(project.preferred_date)
     : "Flexible";
 
+  const displayId = `CSR-${project.id}`;
+  const providerOrCategory =
+    project.invited_provider?.business_name ||
+    project.provider?.business_name ||
+    project.provider?.name ||
+    project.category?.name ||
+    "Custom Service Request";
+
+  const effectiveStatus =
+    (project as any).booking?.appointment_status ||
+    (project as any).booking?.status ||
+    project.status;
+
+  const currentTimelineStep = mapProjectStatusToTimelineStep(effectiveStatus, proposals.length);
+  const timelineStepStates = getProjectTimelineStepStates(
+    effectiveStatus,
+    (project as any).payment_status || (project as any).booking?.payment_status
+  );
+
   return (
     <div>
       <div className="mb-4">
-        <button
-          onClick={() => navigate(-1)}
+        <Link
+          to={userIsCustomer ? "/projects" : "/provider/opportunities"}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft size={16} /> Back
-        </button>
+          <ArrowLeft size={15} /> All custom requests
+        </Link>
       </div>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-border mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-bold text-muted-foreground">Project #{project.id}</span>
-            <StatusPill status={project.status || "open"} />
-            {project.category && (
-              <span className="rounded-full bg-primary-soft/80 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                {(project.category as any)?.name}
-              </span>
-            )}
-          </div>
-          <h1 className="font-display text-2xl font-bold">{project.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={14} className="text-primary" />
-              {[project.address_line, project.city, project.state].filter(Boolean).join(", ")}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays size={14} /> {dateStr}
-            </span>
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {userIsCustomer && (
-            <>
-              {project.status === "open" && (
+      {/* PageHeader matching service-connect & Image 2 */}
+      <PageHeader
+        title={project.title}
+        subtitle={`${displayId} · Booked Service with ${providerOrCategory}`}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status={currentTimelineStep} />
+            <Button onClick={handleOpenChat} variant="outline" className="gap-2">
+              <MessageSquare size={16} /> Message Pro
+            </Button>
+            {userIsCustomer && (
+              <>
+                {project.status === "open" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { }}
+                    disabled={false}
+                    className="gap-1.5"
+                  >
+                    <RefreshCw size={14} />
+                    Find Matches
+                  </Button>
+                )}
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => {}}
-                  disabled={false}
-                  className="gap-1.5"
+                  variant="destructive"
+                  onClick={() => { }}
+                  disabled={project.status === "cancelled"}
                 >
-                  <RefreshCw size={14} />
-                  Find Matches
+                  Cancel Project
                 </Button>
-              )}
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => {}}
-                disabled={project.status === "cancelled"}
-              >
-                Cancel Project
+              </>
+            )}
+            {userIsProvider && project.status === "open" && (
+              <Button onClick={() => navigate(`/provider/custom-requests/${project.id}`)} className="gap-2">
+                <Sparkles size={16} /> Submit Proposal
               </Button>
-            </>
-          )}
+            )}
+          </div>
+        }
+      />
 
-          <Button onClick={handleOpenChat} variant="outline" className="gap-2">
-            <MessageSquare size={16} /> Project Chat
-          </Button>
-
-          {userIsProvider && project.status === "open" && (
-            <Button onClick={() => setProposingModalOpen(true)} className="gap-2">
-              <Sparkles size={16} /> Submit Proposal
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Left Column: Details & Proposals */}
         <div className="space-y-6">
-          {/* Project Overview */}
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h2 className="font-display text-lg font-bold mb-3">Requirement Overview</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+          {/* Service Details (matching Image 2) */}
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-5">
+            <h2 className="font-display text-lg font-bold">Service Details</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {project.description || "No description provided."}
             </p>
+            <Separator className="my-5" />
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Detail icon={CalendarDays} label="Date" value={dateStr} />
+              <Detail
+                icon={Clock}
+                label="Time"
+                value={project.urgency ? (project.urgency.charAt(0).toUpperCase() + project.urgency.slice(1)) : "Flexible"}
+              />
+              <Detail
+                icon={MapPin}
+                label="Location"
+                value={[project.address_line, project.city, project.state, project.zip_code].filter(Boolean).join(", ") || "Location not provided"}
+              />
+              <Detail
+                icon={Star}
+                label="Professional"
+                value={providerOrCategory}
+              />
+            </dl>
 
-            <div className="grid gap-4 sm:grid-cols-3 mt-6 pt-4 border-t border-border text-xs">
-              <div>
-                <span className="text-muted-foreground block">Estimated Budget</span>
-                <span className="font-display text-sm font-bold text-primary">
-                  {project.budget_min && project.budget_max
-                    ? `${usd(project.budget_min)} - ${usd(project.budget_max)}`
-                    : "Flexible Quote"}
+            {project.budget_min && project.budget_max && (
+              <div className="rounded-xl bg-muted/40 p-3.5 text-xs text-muted-foreground flex justify-between items-center">
+                <span>Estimated Budget:</span>
+                <span className="font-bold text-primary text-sm">
+                  {usd(project.budget_min)} - {usd(project.budget_max)}
                 </span>
               </div>
-              <div>
-                <span className="text-muted-foreground block">Urgency</span>
-                <span className="font-semibold capitalize text-foreground">
-                  {project.urgency || "soon"}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block">Posted Date</span>
-                <span className="font-semibold text-foreground">
-                  {project.createdAt ? formatDate(project.createdAt) : "Recently"}
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Attachments */}
             {project.attachments && (project.attachments as any[]).length > 0 && (
-              <div className="mt-5 pt-4 border-t border-border">
+              <div className="pt-2 border-t border-border">
                 <span className="text-xs font-semibold text-muted-foreground block mb-2">
-                  Project Attachments ({(project.attachments as any[]).length})
+                  Project Attachments ({(project.attachments as any[]).length}):
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {(project.attachments as any[]).map((att: any) => {
+                  {(project.attachments as any[]).map((att: any, idx: number) => {
                     const rawPath = att.file_url || att.file_path || att.file_key || att.url;
                     const fileUrl = resolveMediaUrl(rawPath);
-                    const fileName = att.original_name || att.file_name || att.filename || "Attachment";
+                    const fileName = att.original_name || att.file_name || att.filename || `Attachment ${idx + 1}`;
                     return (
                       <div
-                        key={att.id || fileName}
+                        key={att.id || fileName || idx}
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs hover:border-primary transition-colors"
                       >
                         <Paperclip size={13} className="text-primary shrink-0" />
@@ -306,6 +331,14 @@ export const ProjectDetail: React.FC = () => {
             )}
           </section>
 
+          {/* Rating & Review Locked Notice matching Image 2 */}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-card text-xs text-muted-foreground flex items-center gap-3">
+            <Star size={18} className="text-muted-foreground shrink-0" />
+            <p>
+              <strong>Rating &amp; Review Locked:</strong> Reviews can only be submitted once the provider marks the job as <strong>Completed</strong>.
+            </p>
+          </div>
+
           {/* Proposals Section */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-center justify-between gap-2 mb-4">
@@ -322,13 +355,11 @@ export const ProjectDetail: React.FC = () => {
             </div>
 
             {proposals.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-8 text-center bg-muted/20">
-                <Sparkles size={28} className="mx-auto text-primary/60 mb-2" />
-                <p className="text-sm font-semibold">No proposals received yet</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {userIsProvider
-                    ? "Be the first verified professional to submit a proposal for this project!"
-                    : "Our matching engine has notified verified local pros. You'll see their quotes here soon."}
+              <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+                <h2 className="font-display text-lg font-bold">Awaiting Provider Quote</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  {providerOrCategory} is reviewing your requirement and will send custom pricing. You'll be able to
+                  accept, reject or ask for changes here.
                 </p>
                 {userIsProvider && project.status === "open" && (
                   <Button
@@ -458,15 +489,65 @@ export const ProjectDetail: React.FC = () => {
           </section>
         </div>
 
-        {/* Right Column: Status Timeline */}
+        {/* Right Column: Status Timeline & Sidebar (matching Image 2) */}
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h3 className="font-display font-bold text-sm mb-4">Project Status Timeline</h3>
-            <Timeline
-              steps={PROJECT_STEPS}
-              current={getTimelineCurrent(project.status)}
-            />
+            <h2 className="font-display text-lg font-bold">Request timeline</h2>
+            <div className="mt-4">
+              <Timeline
+                steps={REQUEST_TIMELINE_STEPS as any}
+                current={currentTimelineStep}
+                stepStates={timelineStepStates}
+              />
+            </div>
           </section>
+
+          {/* Payment Breakdown Card (matching Image 2) */}
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+            <h2 className="font-display text-lg font-bold">Payment Breakdown</h2>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Subtotal (Services)</dt>
+                <dd className="font-medium">
+                  {project.budget_min ? usd(project.budget_min) : "Flexible"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Service Fee</dt>
+                <dd className="font-medium">Included</dd>
+              </div>
+            </dl>
+            <Separator className="my-4" />
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Estimated Total</span>
+              <span className="font-display text-xl font-bold">
+                {project.budget_max
+                  ? usd(project.budget_max)
+                  : project.budget_min
+                    ? usd(project.budget_min)
+                    : "Custom Quote"}
+              </span>
+            </div>
+          </section>
+
+          {Boolean(project.booking_id) && !userIsProvider && (
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+              <h2 className="font-display text-base font-bold">Active service</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Booking #{project.booking_id}</p>
+              <Button
+                className="mt-4 w-full"
+                onClick={() =>
+                  navigate(
+                    userIsCustomer
+                      ? `/customer/bookings/${project.booking_id}`
+                      : `/provider/order/${project.booking_id}`
+                  )
+                }
+              >
+                Open booking
+              </Button>
+            </section>
+          )}
 
           {/* Quick Help Card */}
           <div className="rounded-2xl border border-primary/20 bg-primary-soft/10 p-5">

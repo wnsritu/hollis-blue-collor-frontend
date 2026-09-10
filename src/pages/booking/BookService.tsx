@@ -615,7 +615,6 @@ export default function BookService() {
         categoryName={provider?.category?.name || "Services"}
         subCategoryName={provider?.service_type?.name}
         onProjectCreated={() => {
-          toast.success("Quote request submitted successfully!");
           navigate("/projects");
         }}
       />

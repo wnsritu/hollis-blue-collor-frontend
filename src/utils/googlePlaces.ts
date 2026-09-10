@@ -8,6 +8,7 @@ export interface ParsedGoogleAddress {
   city: string;
   state: string;
   zip: string;
+  zipCode?: string;
   country: string;
   lat: number;
   lng: number;
@@ -60,6 +61,7 @@ export function parseGooglePlace(place: {
     city,
     state,
     zip,
+    zipCode: zip,
     country,
     lat: place.lat,
     lng: place.lng,

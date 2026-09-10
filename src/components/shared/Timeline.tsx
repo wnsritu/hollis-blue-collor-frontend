@@ -1,35 +1,57 @@
 import React from "react";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { TimelineProps } from "@/types/components.types";
 
-export function Timeline({ steps, current }: { steps: string[]; current: string }) {
+export function Timeline({ steps, current, stepStates }: TimelineProps) {
   const idx = Math.max(steps.indexOf(current), 0);
   return (
     <ol className="space-y-0">
       {steps.map((s, i) => {
-        const done = i < idx;
-        const active = i === idx;
+        const customState = stepStates?.[s];
+        const isCrossed = customState === "crossed";
+        const done = customState ? customState === "done" : i < idx;
+        const active = customState ? customState === "active" : i === idx;
+
         return (
           <li key={s} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3">
             <div className="flex flex-col items-center">
               <span
                 className={cn(
-                  "grid size-6 shrink-0 place-items-center rounded-full border text-[11px] font-bold",
-                  done && "border-success bg-success text-white",
-                  active && "border-primary bg-primary text-primary-foreground",
-                  !done && !active && "border-border bg-muted text-muted-foreground"
+                  "grid size-6 shrink-0 place-items-center rounded-full border text-[11px] font-bold transition-colors",
+                  isCrossed && "border-destructive bg-destructive text-white",
+                  !isCrossed && done && "border-success bg-success text-white",
+                  !isCrossed && active && "border-primary bg-primary text-primary-foreground",
+                  !isCrossed && !done && !active && "border-border bg-muted text-muted-foreground"
                 )}
               >
-                {done ? <Check size={13} /> : i + 1}
+                {isCrossed ? (
+                  <X size={13} strokeWidth={2.5} />
+                ) : done ? (
+                  <Check size={13} strokeWidth={2.5} />
+                ) : (
+                  i + 1
+                )}
               </span>
               {i < steps.length - 1 && (
-                <span className={cn("w-px flex-1 min-h-[16px]", i < idx ? "bg-success" : "bg-border")} />
+                <span
+                  className={cn(
+                    "w-px flex-1 min-h-[16px]",
+                    i < idx ? "bg-success" : "bg-border"
+                  )}
+                />
               )}
             </div>
             <p
               className={cn(
                 "pb-4 text-sm",
-                active ? "font-semibold text-foreground" : "text-muted-foreground"
+                isCrossed
+                  ? "text-muted-foreground"
+                  : active
+                  ? "font-semibold text-foreground"
+                  : done
+                  ? "text-foreground"
+                  : "text-muted-foreground"
               )}
             >
               {s}
@@ -41,7 +63,13 @@ export function Timeline({ steps, current }: { steps: string[]; current: string 
   );
 }
 
-export function Stepper({ steps, current }: { steps: string[]; current: number }) {
+export function Stepper({
+  steps,
+  current,
+}: {
+  steps: string[];
+  current: number;
+}) {
   return (
     <ol className="flex flex-wrap items-center gap-x-2 gap-y-2">
       {steps.map((s, i) => (
@@ -66,7 +94,9 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
           >
             {s}
           </span>
-          {i < steps.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
+          {i < steps.length - 1 && (
+            <span className="mx-1 hidden h-px w-6 bg-border sm:block" />
+          )}
         </li>
       ))}
     </ol>
