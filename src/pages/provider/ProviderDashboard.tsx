@@ -123,7 +123,7 @@ const ProviderDashboard = () => {
   const reviewCountHint = stats && typeof stats.review_count === "number" ? `${stats.review_count} reviews` : "0 reviews";
 
   return (
-    <div className="container-page py-8">
+    <>
       <PageHeader
         title={`Welcome, ${businessName}`}
         subtitle={locationSubtitle}
@@ -183,77 +183,76 @@ const ProviderDashboard = () => {
             <div className="space-y-3">
               {jobsList.length > 0
                 ? jobsList.slice(0, 5).map((j) => {
-                    const isFixed = j.service_category?.toLowerCase().includes("laundry") ||
-                                    j.service_category?.toLowerCase().includes("cleaning") ||
-                                    j.service_category?.toLowerCase().includes("wash");
-                    return (
-                      <div
-                        key={j.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                                isFixed
-                                  ? "bg-primary-soft text-primary"
-                                  : "bg-accent-soft text-accent-soft-foreground font-bold"
+                  const isFixed = j.service_category?.toLowerCase().includes("laundry") ||
+                    j.service_category?.toLowerCase().includes("cleaning") ||
+                    j.service_category?.toLowerCase().includes("wash");
+                  return (
+                    <div
+                      key={j.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${isFixed
+                              ? "bg-primary-soft text-primary"
+                              : "bg-accent-soft text-accent-soft-foreground font-bold"
                               }`}
-                            >
-                              {isFixed ? "Fixed Service" : "Request a Quote"}
-                            </span>
-                            <span className="text-xs font-semibold text-foreground truncate">
-                              {j.service_category || j.booking_number}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            Customer: {j.customer?.full_name || "Customer"} · {j.booking_date || "Today"} · ${(j.total_amount || 0).toFixed(2)}
-                          </p>
+                          >
+                            {isFixed ? "Fixed Service" : "Request a Quote"}
+                          </span>
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {j.service_category || j.booking_number}
+                          </span>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <StatusPill status={j.appointment_status || j.status || "Confirmed"} />
-                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                            <Link to={`/provider/order/${j.id}`}>Review</Link>
-                          </Button>
-                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          Customer: {j.customer?.full_name || "Customer"} · {j.booking_date || "Today"} · ${(j.total_amount || 0).toFixed(2)}
+                        </p>
                       </div>
-                    );
-                  })
-                : legacyOrders.length > 0 ? (
-                    legacyOrders.slice(0, 5).map((b) => (
-                      <div
-                        key={b.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary">
-                              Fixed Service
-                            </span>
-                            <span className="text-xs font-semibold text-foreground truncate">
-                              {b.service_category || `ORD-${b.id}`}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            Customer: {b.customer ? `${b.customer.first_name || ""} ${b.customer.last_name || ""}`.trim() : "Customer"} · ${b.total_amount ? Number(b.total_amount).toFixed(2) : "0.00"}
-                          </p>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                          <StatusPill status={b.status || "Confirmed"} />
-                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                            <Link to={`/provider/order/${b.id}`}>Review</Link>
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={j.appointment_status || j.status || "Confirmed"} />
+                        <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                          <Link to={`/provider/order/${j.id}`}>Review</Link>
+                        </Button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-8 text-center">
-                      <PackageX size={28} className="mx-auto text-muted-foreground/60" />
-                      <p className="mt-2 text-sm text-muted-foreground">No active service requests right now.</p>
                     </div>
-                  )}
+                  );
+                })
+                : legacyOrders.length > 0 ? (
+                  legacyOrders.slice(0, 5).map((b) => (
+                    <div
+                      key={b.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary">
+                            Fixed Service
+                          </span>
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {b.service_category || `ORD-${b.id}`}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          Customer: {b.customer ? `${b.customer.first_name || ""} ${b.customer.last_name || ""}`.trim() : "Customer"} · ${b.total_amount ? Number(b.total_amount).toFixed(2) : "0.00"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={b.status || "Confirmed"} />
+                        <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                          <Link to={`/provider/order/${b.id}`}>Review</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-8 text-center">
+                    <PackageX size={28} className="mx-auto text-muted-foreground/60" />
+                    <p className="mt-2 text-sm text-muted-foreground">No active service requests right now.</p>
+                  </div>
+                )}
             </div>
           </Panel>
 
@@ -380,7 +379,7 @@ const ProviderDashboard = () => {
           </Panel>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

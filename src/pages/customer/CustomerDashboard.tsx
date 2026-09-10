@@ -220,7 +220,7 @@ const CustomerDashboard = () => {
   if (id && selectedOrder) {
     const normalizedOrder = normalizeBooking(selectedOrder);
     return (
-      <div className="container-page py-8">
+      <>
         <PageHeader
           title={`Order Tracking — ${normalizedOrder.displayId}`}
           subtitle={`Placed on ${normalizedOrder.formattedDate}`}
@@ -244,9 +244,8 @@ const CustomerDashboard = () => {
                     return (
                       <div key={step.label} className="flex flex-col items-center text-center">
                         <div
-                          className={`flex size-10 items-center justify-center rounded-full transition-all ${
-                            isCompleted ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`}
+                          className={`flex size-10 items-center justify-center rounded-full transition-all ${isCompleted ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           <Icon size={18} />
                         </div>
@@ -279,13 +278,13 @@ const CustomerDashboard = () => {
             </Card>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // Exact Customer Dashboard UI
   return (
-    <div className="container-page py-8">
+    <>
       <PageHeader
         title={greetingTitle}
         subtitle={userSubtitle}
@@ -533,7 +532,7 @@ const CustomerDashboard = () => {
           </Panel>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
