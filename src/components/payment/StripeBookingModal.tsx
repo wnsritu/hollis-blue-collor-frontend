@@ -147,14 +147,22 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
 
     try {
       // Step 2: Confirm payment with Stripe (Webhook will handle database update)
+      const userAddr = bookingData?.address || bookingData?.pickup_address || bookingData?.delivery_address || {};
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           payment_method_data: {
             billing_details: {
-              name: localStorage.getItem("userName") || "Customer",
+              name: localStorage.getItem("userName") || bookingData?.customer?.name || "Customer",
               email:
-                localStorage.getItem("userEmail") || "customer@example.com",
+                localStorage.getItem("userEmail") || bookingData?.customer?.email || "customer@example.com",
+              address: {
+                line1: userAddr.address_line || userAddr.street || "123 Main Street",
+                city: userAddr.city || "New York",
+                state: userAddr.state || "NY",
+                postal_code: userAddr.zip_code || userAddr.postal_code || "10001",
+                country: userAddr.country || "US",
+              },
             },
           },
         },
@@ -260,7 +268,17 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
       {/* Card Details */}
       <div className="border rounded-lg p-4 max-h-[320px] overflow-y-scroll">
         <label className="block text-sm font-medium mb-2">Card Details</label>
-        <PaymentElement />
+        <PaymentElement
+          options={{
+            fields: {
+              billingDetails: {
+                name: "auto",
+                email: "auto",
+                address: "auto",
+              },
+            },
+          }}
+        />
       </div>
 
       {errorMessage && (
