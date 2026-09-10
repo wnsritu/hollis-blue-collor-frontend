@@ -11,6 +11,7 @@ export * from "./catalog";
 export * from "./payment";
 export * from "./rating";
 export * from "./project";
+export * from "./dashboard/dashboard.service";
 export * from "@/lib/api/errors";
 
 // Re-export non-colliding members from order service
@@ -39,3 +40,4 @@ export * as providerService from "./provider";
 export * as supportService from "./support";
 export * as customerService from "./customer";
 export * as projectService from "./project";
+export * as dashboardService from "./dashboard/dashboard.service";
