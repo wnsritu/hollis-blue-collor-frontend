@@ -56,3 +56,9 @@ export const PROJECT_STEPS = [
   "Job Scheduled",
   "Service Completed",
 ];
+
+export const getBookingTimelineStepStates = (
+  isPaid: boolean
+): Record<string, import("@/types/components.types").TimelineStepState> => ({
+  Paid: isPaid ? "done" : "crossed",
+});

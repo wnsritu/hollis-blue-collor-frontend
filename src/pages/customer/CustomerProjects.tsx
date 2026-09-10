@@ -7,7 +7,7 @@ import {
   FileQuestion,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyState, PageHeader } from "@/components/shared/primitives";
+import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
 import { CreateProjectModal } from "@/components/projects/CreateProjectModal";
 import { projectApi } from "@/services/project";
 import type { Project } from "@/types/api/project";
@@ -117,9 +117,7 @@ export const CustomerProjects: React.FC = () => {
                   <span className="rounded-full bg-[#FEE2E2] px-3 py-1 text-xs font-semibold text-[#DC2626]">
                     Custom request
                   </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                    {statusLabel}
-                  </span>
+                  <StatusPill status={statusLabel} />
                   <span className="ml-auto text-xs text-muted-foreground font-mono">
                     CSR-{project.id}
                   </span>

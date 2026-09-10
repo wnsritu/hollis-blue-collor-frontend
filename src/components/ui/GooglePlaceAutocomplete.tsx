@@ -25,32 +25,50 @@ const GooglePlaceAutocomplete = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!window.google) return;
+    if (!inputRef.current) return;
 
-    const autocomplete = new google.maps.places.Autocomplete(
-      inputRef.current as HTMLInputElement,
-      {
-        fields: ["formatted_address", "geometry", "name", "address_components"],
-        types: ["geocode"],
-      },
-    );
+    let autocomplete: google.maps.places.Autocomplete | null = null;
 
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
+    const initAutocomplete = () => {
+      if (!window.google?.maps?.places?.Autocomplete || !inputRef.current) return;
 
-      const address = place.formatted_address || "";
-      const lat = place.geometry?.location?.lat() || 0;
-      const lng = place.geometry?.location?.lng() || 0;
+      autocomplete = new google.maps.places.Autocomplete(
+        inputRef.current,
+        {
+          fields: ["formatted_address", "geometry", "name", "address_components"],
+          types: ["geocode"],
+        },
+      );
 
-      onSelect({
-        address,
-        lat,
-        lng,
-        fullPlace: place,
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete!.getPlace();
+
+        const address = place.formatted_address || place.name || "";
+        const lat = place.geometry?.location?.lat() || 0;
+        const lng = place.geometry?.location?.lng() || 0;
+
+        onSelect({
+          address,
+          lat,
+          lng,
+          fullPlace: place,
+        });
+
+        onChange(address);
       });
+    };
 
-      onChange(address);
-    });
+    if (window.google?.maps?.places) {
+      initAutocomplete();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.places) {
+          clearInterval(interval);
+          initAutocomplete();
+        }
+      }, 300);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   return (

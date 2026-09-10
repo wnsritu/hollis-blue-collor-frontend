@@ -15,6 +15,14 @@ export interface NavItemConfig {
   badge?: string | number;
 }
 
+export interface TimelineProps {
+  steps: string[];
+  current: string;
+  stepStates?: Record<string, TimelineStepState>;
+}
+
+export type TimelineStepState = "done" | "active" | "crossed" | "pending";
+
 export interface NavItem {
   name: string;
   href: string;
@@ -158,8 +166,3 @@ export interface SubmitProposalModalProps {
   onSuccess?: () => void;
 }
 
-export interface CreateProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: () => void;
-}

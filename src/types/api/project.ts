@@ -40,7 +40,43 @@ export type Project = {
   invited_provider_id?: number | null;
   request_type?: "open_match" | "direct_quote";
   created_at?: string;
-  updated_at?: string;
+  category?: { id: number; name: string } | null;
+  service_type?: { id: number; name: string } | null;
+  customer?: {
+    id?: number;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+    profile_image?: string | null;
+    avatar_url?: string | null;
+    [key: string]: unknown;
+  } | null;
+  customer_notes?: string | null;
+  invited_provider?: {
+    id: number;
+    business_name: string;
+    name?: string;
+    user_id?: number;
+    rating?: number;
+    verified?: boolean;
+    city?: string;
+  } | null;
+  provider?: {
+    id?: number;
+    business_name?: string;
+    name?: string;
+    [key: string]: unknown;
+  } | null;
+  attachments?: Array<{
+    id: number;
+    file_name: string;
+    file_url: string;
+    file_type?: string;
+    file_size?: number;
+    [key: string]: unknown;
+  }> | null;
   [key: string]: unknown;
 };
 

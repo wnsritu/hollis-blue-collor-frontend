@@ -517,7 +517,6 @@ export const ProviderProfile: React.FC = () => {
         categoryName={mainCategoryName}
         subCategoryName={subCategoryName}
         onProjectCreated={() => {
-          toast.success("Quote request submitted! The professional has been notified.");
           navigate("/projects");
         }}
       />

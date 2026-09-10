@@ -58,6 +58,7 @@ const ProviderAvailability = lazy(() => import("@/pages/provider/ProviderAvailab
 const ProviderEarnings = lazy(() => import("@/pages/provider/ProviderEarnings"));
 const ProviderFeatured = lazy(() => import("@/pages/provider/ProviderFeatured"));
 const ProviderProfileSettings = lazy(() => import("@/pages/provider/ProviderProfileSettings"));
+const ProviderCustomRequestDetail = lazy(() => import("@/pages/provider/ProviderCustomRequestDetail"));
 
 export const PrivateRoutes = () => (
   <>
@@ -158,6 +159,7 @@ export const PrivateRoutes = () => (
       <Route path={routeMap.PROVIDER_EARNINGS.path} element={<ProviderEarnings />} />
       <Route path={routeMap.PROVIDER_FEATURED.path} element={<ProviderFeatured />} />
       <Route path={routeMap.PROVIDER_PROFILE_SETTINGS.path} element={<ProviderProfileSettings />} />
+      <Route path={routeMap.PROVIDER_CUSTOM_REQUEST_DETAIL.path} element={<ProviderCustomRequestDetail />} />
     </Route>
   </>
 );

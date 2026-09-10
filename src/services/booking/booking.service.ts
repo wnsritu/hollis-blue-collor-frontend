@@ -46,8 +46,27 @@ export const getBookingsApi = (data?: {
   return apiClient.post("/booking/list", data || {});
 };
 
+export const normalizeToAppointmentStatus = (status?: string): string => {
+  if (!status) return "Requested";
+  const s = String(status).trim().toLowerCase().replace(/[-_]/g, " ");
+  if (["requested", "pending", "pending review", "pending acceptance"].includes(s)) return "Requested";
+  if (["confirmed", "accepted"].includes(s)) return "Confirmed";
+  if (["en route", "enroute"].includes(s)) return "En Route";
+  if (["arrived"].includes(s)) return "Arrived";
+  if (["in progress", "inprocess", "progress"].includes(s)) return "In Progress";
+  if (["rescheduled"].includes(s)) return "Rescheduled";
+  if (["completed", "finished", "delivered"].includes(s)) return "Completed";
+  if (["cancelled", "canceled", "rejected"].includes(s)) return "Cancelled";
+  if (["no show", "noshow"].includes(s)) return "No-show";
+  return status;
+};
+
 export const updateBookingStatusApi = (id: number, status: string) => {
-  return apiClient.put(`/booking/${id}/status`, { status });
+  const norm = normalizeToAppointmentStatus(status);
+  return apiClient.patch(`/appointments/${id}/status`, {
+    appointment_status: norm,
+    status: norm,
+  });
 };
 
 export const getDashboardApi = () => {
@@ -109,11 +128,14 @@ export const appointmentApi = {
   getById: (id: number | string) =>
     http.get<ApiSuccess<Appointment>>(ENDPOINTS.appointment.byId(id)),
 
-  updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) =>
-    http.patch<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), {
-      appointment_status: payload.appointment_status || payload.status,
-      status: payload.status || payload.appointment_status,
-    }),
+  updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) => {
+    const raw = payload.appointment_status || payload.status;
+    const norm = normalizeToAppointmentStatus(raw);
+    return http.patch<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), {
+      appointment_status: norm as any,
+      status: norm as any,
+    });
+  },
 
   reschedule: (id: number | string, payload: RescheduleAppointmentPayload) =>
     http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.reschedule(id), payload),
