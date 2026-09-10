@@ -11,7 +11,7 @@
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
 
-    --surface: #f1f5f9;
+    --surface: 210 40% 96%;
     --ink: #032859;
     --ink-foreground: #ffffff;
 
@@ -90,7 +90,7 @@
   .dark {
     --background: 222 84% 5%;
     --foreground: 210 40% 98%;
-    --surface: #0e1726;
+    --surface: 218 46% 10%;
     --ink: #011c40;
     --ink-foreground: #ffffff;
     --card: 222 84% 5%;

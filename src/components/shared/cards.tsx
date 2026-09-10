@@ -6,8 +6,13 @@ import { Avatar, Stars, StatusPill, VerifiedBadge } from "@/components/shared/pr
 
 export function usd(n: number | string) {
   const num = typeof n === "string" ? parseFloat(n) : n;
-  if (isNaN(num)) return "$0.00";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(num);
+  if (isNaN(num)) return "$0";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(num);
 }
 
 export interface GenericProvider {
@@ -241,92 +246,89 @@ export function BookingCard({
   return (
     <div
       onClick={onClick}
-      className={`flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift ${
+      className={`flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
       <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              isFixed
-                ? "bg-primary-soft text-primary"
-                : "bg-accent-soft text-accent-soft-foreground font-bold"
-            }`}
-          >
-            {isFixed ? "Fixed Service" : "Request a Quote"}
-          </span>
-          <StatusPill status={booking.status} />
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-              isPaid
-                ? "bg-success-soft text-success border border-success/20"
-                : "bg-amber-500/10 text-amber-700 border border-amber-200"
-            }`}
-          >
-            {paymentText}
-          </span>
-          <span className="ml-auto text-xs text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                isFixed
+                  ? "bg-primary-soft text-primary"
+                  : "bg-amber-500/10 text-amber-700"
+              }`}
+            >
+              {isFixed ? "Fixed Service" : "Request a Quote"}
+            </span>
+            <StatusPill status={booking.status} />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground shrink-0">
             {typeof booking.id === "string" && booking.id.startsWith("BKG-") ? booking.id : `BKG-${booking.id}`}
           </span>
         </div>
 
-        <h3 className="mt-3 font-display text-base font-bold leading-snug">{booking.serviceName}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h3 className="mt-3.5 font-display text-base font-bold leading-snug text-foreground">
+          {booking.serviceName}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
           {side === "customer" ? booking.provider : booking.customer}
         </p>
         {booking.serviceDescription && (
-          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{booking.serviceDescription}</p>
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            {booking.serviceDescription}
+          </p>
         )}
 
         {isPriceUpdated && (
-          <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-300 p-2.5 text-xs text-amber-900">
-            <p className="font-bold">Provider updated price to {usd(displayPrice)}</p>
+          <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-200 p-2.5 text-xs text-amber-900">
+            <p className="font-semibold">Provider updated price to {usd(displayPrice)}</p>
             <p className="text-[11px] opacity-80">Awaiting your approval</p>
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {booking.date && (
             <span className="inline-flex items-center gap-1.5">
-              <CalendarDays size={14} /> {booking.date}
+              <CalendarDays size={14} className="shrink-0" /> {booking.date}
             </span>
           )}
           {booking.time && (
             <span className="inline-flex items-center gap-1.5">
-              <Clock size={14} /> {booking.time}
+              <Clock size={14} className="shrink-0" /> {booking.time}
             </span>
           )}
           {Number(displayPrice) > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <Wallet size={14} /> {usd(displayPrice)}
+              <Wallet size={14} className="shrink-0" /> {usd(displayPrice)}
             </span>
           )}
         </div>
         {booking.address && (
-          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground w-full">
             <MapPin size={13} className="shrink-0" /> <span className="truncate">{booking.address}</span>
           </p>
         )}
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+      <div className="mt-6">
         {action ?? (
           <Button
             asChild={!onClick}
             onClick={onClick}
             variant={isPriceUpdated ? "default" : "outline"}
             size="sm"
-            className="w-full justify-center text-xs"
+            className="w-full justify-center rounded-xl border border-border/80 bg-background text-xs font-semibold text-foreground hover:bg-muted/50 transition shadow-none h-9"
           >
             {onClick ? (
-              <span>{isPriceUpdated ? "Review & Accept Price" : "View Details & Payment"}</span>
+              <span>{isPriceUpdated ? "Review & Accept Price" : "View booking"}</span>
             ) : side === "customer" ? (
               <Link to={`/customer/bookings/${booking.id}`}>
                 {isPriceUpdated ? "Review & Accept Price" : "View booking"}
               </Link>
             ) : (
-              <Link to={`/provider/jobs`}>Manage</Link>
+              <Link to={`/provider/order/${booking.id}`}>View booking</Link>
             )}
           </Button>
         )}

@@ -1,8 +1,8 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { authStore } from "@/store/authStore";
-import { authApi } from "@/api/modules/auth.api";
+import { authApi } from "@/services/auth";
 import { setApiAuthHandlers } from "@/lib/api/interceptors";
-import { userApi } from "@/api/modules/user.api";
+import { userApi } from "@/services/customer";
 import type { AuthResponse, AuthUser, LoginPayload, RegisterPayload } from "@/types/api/auth";
 import { isAdmin, isCustomer, isProvider, isSupport } from "@/constants/roles";
 

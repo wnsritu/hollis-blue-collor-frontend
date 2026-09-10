@@ -9,6 +9,7 @@ import { Shield, Headphones, Eye, EyeOff } from "lucide-react";
 import { loginUser } from "@/services/auth.service";
 import Spinner from "@/components/ui/spinner";
 import { toast } from "react-hot-toast";
+import { isValidEmail } from "@/validations";
 
 const LoginModal = ({
   open,
@@ -37,9 +38,6 @@ const LoginModal = ({
 
 
   if (!open) return null;
-
-  const isValidEmail = (email: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

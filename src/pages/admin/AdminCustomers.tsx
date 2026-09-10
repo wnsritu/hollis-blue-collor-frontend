@@ -29,8 +29,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { adminApi } from "@/api/modules/admin.api";
-import { getErrorMessage } from "@/lib/api/errors";
+import { adminApi } from "@/services/admin";
+import { getErrorMessage } from "@/services";
+import { formatDate as formatDateUtil } from "@/utils/date";
 
 function unwrapList<T>(res: unknown): T[] {
   if (Array.isArray(res)) return res as T[];
@@ -41,22 +42,8 @@ function unwrapList<T>(res: unknown): T[] {
   return [];
 }
 
-export interface CustomerUser {
-  id: number;
-  full_name?: string;
-  name?: string;
-  email: string;
-  phone?: string;
-  city?: string;
-  state?: string;
-  address?: string;
-  status?: string;
-  is_active?: boolean;
-  jobs_count?: number;
-  total_spend?: number;
-  created_at?: string;
-  createdAt?: string;
-}
+import type { CustomerUser } from "@/types/admin.types";
+export type { CustomerUser };
 
 export function AdminCustomers() {
   const [customers, setCustomers] = useState<CustomerUser[]>([]);
@@ -135,15 +122,7 @@ export function AdminCustomers() {
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
-    try {
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
+    return formatDateUtil(dateStr) || "N/A";
   };
 
   return (

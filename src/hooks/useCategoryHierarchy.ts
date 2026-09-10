@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { catalogApi } from "@/api/modules/catalog.api";
+import { catalogApi } from "@/services/catalog";
 import type { Category, ServiceType } from "@/types/api/catalog";
 
 export interface CategoryHierarchyResult {

@@ -1,8 +1,8 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { useAuthSession } from "@/hooks/useAuth";
 import { tokenStorage } from "@/utils/tokenStorage";
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+const ProtectedRoute = ({ children }: { children?: JSX.Element }) => {
   const location = useLocation();
   const { isAuthenticated, isHydrated } = useAuthSession();
   const hasToken = Boolean(tokenStorage.getAccessToken());
@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     );
   }
 
-  return children;
+  return children ?? <Outlet />;
 };
 
 export default ProtectedRoute;

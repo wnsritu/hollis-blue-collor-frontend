@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Outlet } from "react-router-dom";
 import SiteFooter from "@/components/SiteFooter";
 import Header from "@/components/Header";
 import { cn } from "@/lib/utils";
 
-export function PublicLayout({ children }: { children: ReactNode }) {
+export function PublicLayout({ children }: { children?: ReactNode }) {
   const [isAtTop, setIsAtTop] = useState(true);
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className={cn("flex-1 transition-all duration-300", isAtTop ? "mt-0" : "mt-5")}>
-        {children}
+        {children ?? <Outlet />}
       </main>
       <SiteFooter />
     </div>

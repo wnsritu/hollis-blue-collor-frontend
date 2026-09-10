@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { changePasswordService } from "@/services/auth.service";
 import { Eye, EyeOff } from "lucide-react";
 import Spinner from "@/components/ui/spinner";
-import { getPlatformSettings, updatePlatformSettings } from "@/api/admin.api";
+import { getPlatformSettings, updatePlatformSettings } from "@/services/admin";
 
 const AdminSettings = () => {
 

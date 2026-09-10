@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   USER_ID: "id",
   USER_ROLE: "userRole",
   USER_ROLE_ID: "userRoleId",
+  PROVIDER_SIGNUP_DRAFT: "hollis_provider_signup_draft",
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

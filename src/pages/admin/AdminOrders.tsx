@@ -12,9 +12,18 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PaginationController from "@/components/ui/PaginationController";
 import { Card, CardContent } from "@/components/ui/card";
-import toast from "react-hot-toast";
 import React from "react";
+import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/utils/date";
+import {
+  BADGE_PENDING,
+  BADGE_CONFIRMED,
+  BADGE_COMPLETED,
+  BADGE_CANCELLED,
+  BADGE_UNDER_REVIEW,
+  BADGE_DEFAULT,
+} from "@/styles";
 
 const AdminOrders = () => {
   const { id } = useParams();
@@ -146,35 +155,23 @@ const AdminOrders = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
-      pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
-      accepted: { label: "Accepted", className: "bg-blue-100 text-blue-700" },
-      rejected: { label: "Rejected", className: "bg-red-100 text-red-700" },
-      in_process: {
-        label: "In Progress",
-        className: "bg-purple-100 text-purple-700",
-      },
-      delivering: {
-        label: "Delivering",
-        className: "bg-orange-100 text-orange-700",
-      },
-      finished: { label: "Finished", className: "bg-green-100 text-green-700" },
-      delivered: {
-        label: "Delivered",
-        className: "bg-emerald-100 text-emerald-700",
-      },
-      completed: {
-        label: "Completed",
-        className: "bg-green-100 text-green-700",
-      },
-      cancelled: { label: "Cancelled", className: "bg-red-100 text-red-700" },
+      pending: { label: "Pending", className: BADGE_PENDING },
+      accepted: { label: "Accepted", className: BADGE_CONFIRMED },
+      rejected: { label: "Rejected", className: BADGE_CANCELLED },
+      in_process: { label: "In Progress", className: BADGE_UNDER_REVIEW },
+      delivering: { label: "Delivering", className: BADGE_CONFIRMED },
+      finished: { label: "Finished", className: BADGE_COMPLETED },
+      delivered: { label: "Delivered", className: BADGE_COMPLETED },
+      completed: { label: "Completed", className: BADGE_COMPLETED },
+      cancelled: { label: "Cancelled", className: BADGE_CANCELLED },
     };
 
     const config = statusConfig[status?.toLowerCase()] || {
       label: status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Pending",
-      className: "bg-gray-100 text-gray-700",
+      className: BADGE_DEFAULT,
     };
     return (
-      <Badge className={`${config.className} border-0`}>{config.label}</Badge>
+      <Badge className={config.className}>{config.label}</Badge>
     );
   };
 
@@ -410,9 +407,7 @@ const AdminOrders = () => {
 
                       <td className="px-4 py-3 text-muted-foreground">
                         {order.booking_date
-                          ? new Date(order.booking_date)
-                              .toLocaleDateString("en-GB")
-                              .replace(/\//g, "-")
+                          ? formatDate(order.booking_date, "dd-MM-yyyy")
                           : "-"}
                       </td>
                       <td className="px-4 py-3">

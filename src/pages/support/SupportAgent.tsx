@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, ClipboardList, CreditCard } from "lucide-react";
-import { getAgentDashboard } from "@/api/support.api";
-import { getDisputesApi } from "@/api/dispute.api";
+import { getAgentDashboard, getDisputesApi } from "@/services/support";
 import toast from "react-hot-toast";
 
 const SupportDashboard = ({ showComingSoon = !true }) => {

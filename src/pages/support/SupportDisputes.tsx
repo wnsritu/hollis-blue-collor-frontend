@@ -21,11 +21,21 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getDisputesApi } from "@/api/dispute.api";
+import { getDisputesApi } from "@/services/support";
 import { useNavigate } from "react-router-dom";
-import { getChatMessages } from "@/services/chat.service";
+import { getChatMessages } from "@/services/chat";
 import PaginationController from "@/components/ui/PaginationController";
 import { Input } from "@/components/ui/input";
+import {
+  BADGE_OPEN,
+  BADGE_UNDER_REVIEW,
+  BADGE_AGENT_REVIEWED,
+  BADGE_WAITING_ADMIN,
+  BADGE_RESOLVED,
+  BADGE_REJECTED,
+  BADGE_REFUND,
+  BADGE_DEFAULT,
+} from "@/styles";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -145,44 +155,20 @@ const SupportDisputes = () => {
     const s = (status || "open").toLowerCase();
     switch (s) {
       case "open":
-        return (
-          <Badge className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-medium">
-            Open
-          </Badge>
-        );
+        return <Badge className={BADGE_OPEN}>Open</Badge>;
       case "under_review":
-        return (
-          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-medium">
-            Under Review
-          </Badge>
-        );
+        return <Badge className={BADGE_UNDER_REVIEW}>Under Review</Badge>;
       case "agent_reviewed":
-        return (
-          <Badge className="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 font-medium">
-            Agent Reviewed
-          </Badge>
-        );
+        return <Badge className={BADGE_AGENT_REVIEWED}>Agent Reviewed</Badge>;
       case "waiting_admin":
-        return (
-          <Badge className="bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 font-medium">
-            Waiting Admin
-          </Badge>
-        );
+        return <Badge className={BADGE_WAITING_ADMIN}>Waiting Admin</Badge>;
       case "resolved":
-        return (
-          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-medium">
-            Resolved
-          </Badge>
-        );
+        return <Badge className={BADGE_RESOLVED}>Resolved</Badge>;
       case "rejected":
-        return (
-          <Badge className="bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-medium">
-            Rejected
-          </Badge>
-        );
+        return <Badge className={BADGE_REJECTED}>Rejected</Badge>;
       default:
         return (
-          <Badge className="bg-gray-100 text-gray-700 border border-gray-200 font-medium">
+          <Badge className={BADGE_DEFAULT}>
             {status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Open"}
           </Badge>
         );
@@ -193,11 +179,7 @@ const SupportDisputes = () => {
     const d = (decision || "pending").toLowerCase();
     switch (d) {
       case "refund":
-        return (
-          <Badge className="bg-red-50 text-red-700 border border-red-200 font-medium">
-            Refund
-          </Badge>
-        );
+        return <Badge className={BADGE_REFUND}>Refund</Badge>;
       case "partial_refund":
         return (
           <Badge className="bg-orange-50 text-orange-800 border border-orange-200 font-medium">
