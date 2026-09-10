@@ -271,8 +271,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                         !categoryId
                           ? "Select category first"
                           : serviceTypes.length === 0
-                          ? "No specific sub-category"
-                          : "Select sub-category"
+                            ? "No specific sub-category"
+                            : "Select sub-category"
                       }
                     />
                   </SelectTrigger>
@@ -445,7 +445,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                   <Loader2 size={15} className="mr-2 animate-spin" /> Posting...
                 </>
               ) : (
-                "Post Project & Find Pros"
+                "Post Project"
               )}
             </Button>
           </DialogFooter>
