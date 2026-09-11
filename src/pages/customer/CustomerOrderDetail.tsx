@@ -36,6 +36,12 @@ import { formatDisplayDate } from "@/utils/format";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import toast from "react-hot-toast";
 import { CARD_SECTION_SHADOW } from "@/styles";
+import { useFormik } from "formik";
+import {
+  reviewValidationSchema,
+  type ReviewFormValues,
+  DEFAULT_REVIEW_VALUES,
+} from "@/validations/review";
 
 
 export const CustomerOrderDetail: React.FC = () => {
@@ -44,12 +50,49 @@ export const CustomerOrderDetail: React.FC = () => {
 
   const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState(5);
-  const [reviewBody, setReviewBody] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [existingReview, setExistingReview] = useState<any | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const reviewFormik = useFormik<ReviewFormValues>({
+    initialValues: DEFAULT_REVIEW_VALUES,
+    validationSchema: reviewValidationSchema,
+    onSubmit: async (values, { setSubmitting, resetForm }) => {
+      const norm = booking ? normalizeBooking(booking) : null;
+      if (!norm?.isCompleted) {
+        toast.error("Reviews can only be submitted after the service is marked Completed.");
+        return;
+      }
+      if (!norm?.isPaid) {
+        toast.error("Payment must be completed before leaving a review.");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const payload = {
+          booking_id: Number(booking?.id || id),
+          provider_id: booking?.provider?.id || booking?.provider_id,
+          rating: values.rating,
+          comment: values.comment.trim(),
+        };
+        await ratingApi.add(payload);
+        toast.success("Review submitted successfully!");
+        setReviewed(true);
+        setExistingReview({
+          rating: values.rating,
+          comment: values.comment.trim(),
+          created_at: new Date().toISOString(),
+        });
+        resetForm();
+        fetchBooking();
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || err?.message || "Failed to submit review.");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
 
   const fetchBooking = async () => {
     if (!id) return;
@@ -79,6 +122,13 @@ export const CustomerOrderDetail: React.FC = () => {
         if (itemData.review) {
           setReviewed(true);
           setExistingReview(itemData.review);
+        } else if (itemData.rating) {
+          setReviewed(true);
+          setExistingReview({
+            rating: itemData.rating,
+            comment: itemData.review_comment || itemData.comment || "",
+            created_at: itemData.reviewed_at || itemData.updated_at,
+          });
         } else if (
           itemData.reviewed ||
           itemData.status === "Reviewed" ||
@@ -196,39 +246,6 @@ export const CustomerOrderDetail: React.FC = () => {
       navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
     } catch (err) {
       navigate("/messages");
-    }
-  };
-
-  const handleSubmitReview = async () => {
-    if (!isCompleted) {
-      toast.error("Reviews can only be submitted after the service is marked Completed.");
-      return;
-    }
-    if (!isPaid) {
-      toast.error("Payment must be completed before leaving a review.");
-      return;
-    }
-    if (!reviewBody.trim()) {
-      toast.error("Please write a comment for your review.");
-      return;
-    }
-
-    setSubmittingReview(true);
-    try {
-      const payload = {
-        booking_id: Number(booking?.id || id),
-        provider_id: booking?.provider?.id || booking?.provider_id,
-        rating,
-        comment: reviewBody.trim(),
-      };
-      await ratingApi.add(payload);
-      toast.success("Review submitted successfully!");
-      setReviewed(true);
-      fetchBooking();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to submit review.");
-    } finally {
-      setSubmittingReview(false);
     }
   };
 
@@ -440,33 +457,81 @@ export const CustomerOrderDetail: React.FC = () => {
               <p className="text-xs text-muted-foreground">
                 Your service is marked <strong>Completed</strong>. Rate your experience to help the community.
               </p>
-              <div className="flex items-center gap-1.5">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setRating(n)}
-                    aria-label={`${n} stars`}
-                  >
-                    <Star
-                      size={26}
-                      className={
-                        n <= rating
-                          ? "fill-accent text-accent"
-                          : "fill-muted text-muted-foreground/40"
-                      }
-                    />
-                  </button>
-                ))}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => reviewFormik.setFieldValue("rating", n)}
+                      aria-label={`${n} stars`}
+                      className="cursor-pointer transition-transform hover:scale-110"
+                    >
+                      <Star
+                        size={26}
+                        className={
+                          n <= reviewFormik.values.rating
+                            ? "fill-accent text-accent"
+                            : "fill-muted text-muted-foreground/40"
+                        }
+                      />
+                    </button>
+                  ))}
+                </div>
+                {reviewFormik.touched.rating && reviewFormik.errors.rating && (
+                  <p className="text-xs font-medium text-destructive mt-1.5">
+                    {reviewFormik.errors.rating}
+                  </p>
+                )}
               </div>
-              <Textarea
-                rows={4}
-                placeholder="How did the service go? Share details about quality, timeliness and communication..."
-                value={reviewBody}
-                onChange={(e) => setReviewBody(e.target.value)}
-              />
-              <Button onClick={handleSubmitReview} disabled={submittingReview} className="text-xs">
-                {submittingReview ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Your Feedback</span>
+                  <span
+                    className={`text-xs ${
+                      reviewFormik.values.comment.length > 950
+                        ? "text-amber-500 font-semibold"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {reviewFormik.values.comment.length} / 1000
+                  </span>
+                </div>
+                <Textarea
+                  name="comment"
+                  rows={4}
+                  placeholder="How did the service go? Share details about quality, timeliness and communication (min 10 characters)..."
+                  value={reviewFormik.values.comment}
+                  onChange={reviewFormik.handleChange}
+                  onBlur={reviewFormik.handleBlur}
+                  className={
+                    reviewFormik.touched.comment && reviewFormik.errors.comment
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : ""
+                  }
+                />
+                {reviewFormik.touched.comment && reviewFormik.errors.comment && (
+                  <p className="text-xs font-medium text-destructive">
+                    {reviewFormik.errors.comment}
+                  </p>
+                )}
+                {reviewFormik.values.comment.length > 0 &&
+                  reviewFormik.values.comment.length < 10 && (
+                    <p className="text-xs text-amber-500 font-medium">
+                      Please write at least {10 - reviewFormik.values.comment.length} more character(s).
+                    </p>
+                  )}
+              </div>
+
+              <Button
+                onClick={() => reviewFormik.handleSubmit()}
+                disabled={reviewFormik.isSubmitting}
+                className="text-xs"
+              >
+                {reviewFormik.isSubmitting ? (
+                  <Loader2 size={16} className="animate-spin mr-2" />
+                ) : null}
                 Submit Review
               </Button>
             </section>
@@ -512,20 +577,20 @@ export const CustomerOrderDetail: React.FC = () => {
                     key={n}
                     size={18}
                     className={
-                      n <= (existingReview?.rating || rating)
+                      n <= Number(existingReview?.rating || booking?.review?.rating || booking?.rating || 5)
                         ? "fill-accent text-accent"
                         : "fill-muted text-muted-foreground/30"
                     }
                   />
                 ))}
                 <span className="ml-2 text-xs font-bold text-foreground">
-                  {existingReview?.rating || rating} / 5 Stars
+                  {existingReview?.rating || booking?.review?.rating || booking?.rating || 5} / 5 Stars
                 </span>
               </div>
 
-              {existingReview?.comment && (
+              {(existingReview?.comment || booking?.review?.comment || booking?.comment) && (
                 <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg border border-border">
-                  "{existingReview.comment}"
+                  "{existingReview?.comment || booking?.review?.comment || booking?.comment}"
                 </p>
               )}
             </section>

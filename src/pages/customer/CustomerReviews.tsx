@@ -17,6 +17,12 @@ import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { useFormik } from "formik";
+import {
+  reviewValidationSchema,
+  type ReviewFormValues,
+  DEFAULT_REVIEW_VALUES,
+} from "@/validations/review";
 
 export const CustomerReviews: React.FC = () => {
   const { user } = useAuthSession();
@@ -27,9 +33,6 @@ export const CustomerReviews: React.FC = () => {
   // Dialog State
   const [open, setOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const fetchReviewsAndJobs = async () => {
@@ -65,42 +68,47 @@ export const CustomerReviews: React.FC = () => {
     fetchReviewsAndJobs();
   }, [user?.id]);
 
+  const reviewFormik = useFormik<ReviewFormValues>({
+    initialValues: DEFAULT_REVIEW_VALUES,
+    validationSchema: reviewValidationSchema,
+    onSubmit: async (values, { setSubmitting, resetForm }) => {
+      const bookingId = selectedJob?.id;
+      if (!bookingId) {
+        toast.error("Please select a completed service to review.");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const normJob = selectedJob ? normalizeBooking(selectedJob) : null;
+        await ratingApi.add({
+          booking_id: bookingId,
+          provider_id:
+            normJob?.providerId ||
+            selectedJob?.provider_id ||
+            selectedJob?.provider?.id,
+          rating: values.rating,
+          comment: values.comment.trim(),
+        });
+        setSubmitted(true);
+        resetForm();
+        toast.success("Review submitted successfully!");
+        fetchReviewsAndJobs();
+      } catch (err: any) {
+        toast.error(
+          err?.response?.data?.message || err?.message || "Failed to submit review."
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    },
+  });
+
   const handleOpenWriteReview = (jobToRate?: any) => {
     setSelectedJob(jobToRate || unreviewedJobs[0] || null);
-    setRating(5);
-    setComment("");
+    reviewFormik.resetForm();
     setSubmitted(false);
     setOpen(true);
-  };
-
-  const handleSubmitReview = async () => {
-    const bookingId = selectedJob?.id;
-    if (!bookingId) {
-      toast.error("Please select a completed service to review.");
-      return;
-    }
-    if (comment.trim().length < 5) {
-      toast.error("Please write at least a short comment (5+ characters).");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const normJob = selectedJob ? normalizeBooking(selectedJob) : null;
-      await ratingApi.add({
-        booking_id: bookingId,
-        provider_id: normJob?.providerId || selectedJob?.provider_id || selectedJob?.provider?.id,
-        rating,
-        comment: comment.trim(),
-      });
-      setSubmitted(true);
-      toast.success("Review submitted successfully!");
-      fetchReviewsAndJobs();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to submit review.");
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   return (
@@ -246,19 +254,20 @@ export const CustomerReviews: React.FC = () => {
                 )}
 
                 <div className="grid gap-2">
-                  <Label>Overall rating</Label>
+                  <Label>Overall rating <span className="text-destructive">*</span></Label>
                   <div className="flex gap-1.5">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <button
                         key={i}
                         type="button"
-                        onClick={() => setRating(i)}
+                        onClick={() => reviewFormik.setFieldValue("rating", i)}
                         aria-label={`${i} stars`}
+                        className="cursor-pointer transition-transform hover:scale-110"
                       >
                         <Star
                           size={28}
                           className={cn(
-                            i <= rating
+                            i <= reviewFormik.values.rating
                               ? "fill-accent text-accent"
                               : "fill-muted text-muted-foreground/40"
                           )}
@@ -266,25 +275,59 @@ export const CustomerReviews: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                  {reviewFormik.touched.rating && reviewFormik.errors.rating && (
+                    <p className="text-xs font-medium text-destructive">
+                      {reviewFormik.errors.rating}
+                    </p>
+                  )}
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="rbody">Your review</Label>
+                <div className="grid gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="rbody">Your review <span className="text-destructive">*</span></Label>
+                    <span
+                      className={`text-xs ${
+                        reviewFormik.values.comment.length > 950
+                          ? "text-amber-500 font-semibold"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {reviewFormik.values.comment.length} / 1000
+                    </span>
+                  </div>
                   <Textarea
                     id="rbody"
+                    name="comment"
                     rows={4}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="What went well? Share details about quality, timeliness and communication..."
+                    value={reviewFormik.values.comment}
+                    onChange={reviewFormik.handleChange}
+                    onBlur={reviewFormik.handleBlur}
+                    placeholder="What went well? Share details about quality, timeliness and communication (min 10 characters)..."
+                    className={
+                      reviewFormik.touched.comment && reviewFormik.errors.comment
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : ""
+                    }
                   />
+                  {reviewFormik.touched.comment && reviewFormik.errors.comment && (
+                    <p className="text-xs font-medium text-destructive">
+                      {reviewFormik.errors.comment}
+                    </p>
+                  )}
+                  {reviewFormik.values.comment.length > 0 &&
+                    reviewFormik.values.comment.length < 10 && (
+                      <p className="text-xs text-amber-500 font-medium">
+                        Please write at least {10 - reviewFormik.values.comment.length} more character(s).
+                      </p>
+                    )}
                 </div>
 
                 <Button
-                  onClick={handleSubmitReview}
-                  disabled={submitting || !selectedJob}
+                  onClick={() => reviewFormik.handleSubmit()}
+                  disabled={reviewFormik.isSubmitting || !selectedJob}
                   className="w-full"
                 >
-                  {submitting ? (
+                  {reviewFormik.isSubmitting ? (
                     <Loader2 size={16} className="animate-spin mr-2" />
                   ) : null}
                   Submit Review

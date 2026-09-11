@@ -163,7 +163,12 @@ export function Index() {
                     className="h-12 border-0 bg-muted/50 pl-9 text-base shadow-none focus-visible:bg-background"
                   />
                 </div>
-                <Button size="lg" className="h-12" onClick={handleSearch}>
+                <Button
+                  size="lg"
+                  className="h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleSearch}
+                  disabled={!service.trim() && !location.trim()}
+                >
                   Search
                 </Button>
               </div>

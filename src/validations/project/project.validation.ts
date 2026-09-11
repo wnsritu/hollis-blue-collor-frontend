@@ -15,11 +15,19 @@ export const createProjectValidationSchema = Yup.object().shape({
 
   address_line: Yup.string()
     .trim()
+    .min(5, "Street address must be at least 5 characters")
+    .max(200, "Street address cannot exceed 200 characters")
     .required("Street address is required"),
 
-  city: Yup.string().trim().optional(),
-  state: Yup.string().trim().optional(),
-  zip_code: Yup.string().trim().optional(),
+  city: Yup.string().trim().max(100, "City cannot exceed 100 characters").optional(),
+  state: Yup.string().trim().max(50, "State cannot exceed 50 characters").optional(),
+  zip_code: Yup.string()
+    .trim()
+    .test("valid-zip", "Please enter a valid 5-digit ZIP code", (val) => {
+      if (!val) return true;
+      return /^\d{5}(-\d{4})?$/.test(val);
+    })
+    .optional(),
 
   budget_min: Yup.number()
     .nullable()
