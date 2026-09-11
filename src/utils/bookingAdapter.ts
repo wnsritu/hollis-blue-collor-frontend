@@ -37,6 +37,8 @@ export interface NormalizedBooking {
   isCompleted: boolean;
   isCancelled: boolean;
   isPriceUpdated: boolean;
+  customerStatusLabel: string;
+  providerStatusLabel: string;
   servicesList: Array<{
     id: number;
     name: string;
@@ -107,6 +109,8 @@ export function normalizeBooking(b: any): NormalizedBooking {
       isCompleted: false,
       isCancelled: false,
       isPriceUpdated: false,
+      customerStatusLabel: "Pending Acceptance",
+      providerStatusLabel: "Request Received",
       servicesList: [],
       reschedule: { requested: false, requestedBy: null, date: null, timeSlotId: null },
       dispute: { isDisputed: false, status: "none", deadlineAt: null },
@@ -302,12 +306,80 @@ export function normalizeBooking(b: any): NormalizedBooking {
     isCompleted,
     isCancelled,
     isPriceUpdated,
+    customerStatusLabel: getBookingStatusDisplay(appointmentStatus || status, "customer", {
+      isPaid,
+      isReviewed: Boolean(review),
+    }),
+    providerStatusLabel: getBookingStatusDisplay(appointmentStatus || status, "provider", {
+      isPaid,
+      isReviewed: Boolean(review),
+    }),
     servicesList,
     reschedule,
     dispute,
     review,
     raw: b,
   };
+}
+
+/**
+ * Maps raw API status values to user-facing display names for Customer and Provider panels.
+ */
+export function getBookingStatusDisplay(
+  apiStatus?: string | null,
+  side: "customer" | "provider" = "customer",
+  options?: { isPaid?: boolean; isReviewed?: boolean }
+): string {
+  const s = (apiStatus || "").toLowerCase().trim();
+
+  // Completed & Reviewed
+  if (s === "reviewed" || options?.isReviewed) return "Reviewed";
+  if (["completed", "finished", "delivered", "work completed"].includes(s)) {
+    return options?.isReviewed ? "Reviewed" : "Completed";
+  }
+
+  // Work Execution
+  if (["in_progress", "in progress", "in_process", "in process"].includes(s)) {
+    return "In Progress";
+  }
+
+  // Arrival
+  if (["arrived", "arrived at site"].includes(s)) {
+    return "Arrived at Site";
+  }
+
+  // In Transit
+  if (["en route", "en_route"].includes(s)) {
+    return "En Route";
+  }
+
+  // Confirmed / Job Accepted
+  if (["confirmed", "accepted", "scheduled", "job accepted", "job acceptance"].includes(s)) {
+    return side === "provider" ? "Job Acceptance" : "Confirmed";
+  }
+
+  // Paid
+  if (s === "paid") {
+    return "Paid";
+  }
+
+  // Initial Booking Request
+  if (["requested", "pending", "pending review", "pending acceptance", "request received"].includes(s)) {
+    if (side === "customer") {
+      return options?.isPaid ? "Paid" : "Pending Acceptance";
+    }
+    return "Request Received";
+  }
+
+  // Exceptions & Cancellations
+  if (["cancelled", "canceled"].includes(s)) return "Cancelled";
+  if (["rejected", "declined"].includes(s)) return "Declined";
+  if (["rescheduled"].includes(s)) return "Rescheduled";
+  if (["price updated", "price_updated"].includes(s)) return "Price Updated";
+  if (["no-show", "noshow"].includes(s)) return "No-show";
+
+  // Fallback
+  return side === "provider" ? "Request Received" : (options?.isPaid ? "Paid" : "Pending Acceptance");
 }
 
 /**
@@ -318,10 +390,11 @@ export function mapBookingToGeneric(
   side: "customer" | "provider" = "customer"
 ): GenericBooking {
   const n = normalizeBooking(b);
+  const displayStatus = side === "provider" ? n.providerStatusLabel : n.customerStatusLabel;
 
   return {
     id: n.id,
-    status: n.status,
+    status: displayStatus,
     serviceName: n.serviceName,
     provider: side === "customer" ? n.providerName : undefined,
     customer: side === "provider" ? n.customerName : undefined,
@@ -341,16 +414,34 @@ export function mapBookingToGeneric(
 /**
  * Maps appointment / order status into the standard booking timeline steps.
  */
-export function getTimelineStep(rawStatus: string): string {
-  const s = (rawStatus || "").toLowerCase();
-  if (["requested", "pending", "pending review", "pending acceptance"].includes(s)) {
-    return "Pending Acceptance";
+export function getTimelineStep(
+  rawStatus?: string | null,
+  isPaid: boolean = false,
+  isReviewed: boolean = false
+): string {
+  const s = (rawStatus || "").toLowerCase().trim();
+
+  if (s === "reviewed" || isReviewed) return "Reviewed";
+  if (["completed", "finished", "delivered", "work completed"].includes(s)) {
+    return isReviewed ? "Reviewed" : "Completed";
   }
-  if (["confirmed", "accepted"].includes(s)) return "Confirmed";
-  if (["paid", "payment pending"].includes(s)) return "Paid";
-  if (["scheduled"].includes(s)) return "Scheduled";
-  if (["in_process", "in progress", "en route", "arrived"].includes(s)) return "In Progress";
-  if (["finished", "completed", "delivered"].includes(s)) return "Completed";
-  if (["reviewed"].includes(s)) return "Reviewed";
-  return "Scheduled";
+  if (["in_progress", "in progress", "in_process", "in process"].includes(s)) {
+    return "In Progress";
+  }
+  if (["arrived", "arrived at site"].includes(s)) {
+    return "Arrived at Site";
+  }
+  if (["en route", "en_route"].includes(s)) {
+    return "En Route";
+  }
+  if (["confirmed", "accepted", "scheduled", "job accepted", "job acceptance"].includes(s)) {
+    return "Confirmed";
+  }
+  if (s === "paid") {
+    return "Paid";
+  }
+  if (["requested", "pending", "pending review", "pending acceptance", "request received"].includes(s)) {
+    return isPaid ? "Paid" : "Pending Acceptance";
+  }
+  return "Pending Acceptance";
 }

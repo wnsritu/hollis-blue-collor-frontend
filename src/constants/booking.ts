@@ -40,9 +40,10 @@ export const CAR_WASH_ADD_ONS = [
 
 export const BOOKING_FLOW = [
   "Pending Acceptance",
-  "Confirmed",
   "Paid",
-  "Scheduled",
+  "Confirmed",
+  "En Route",
+  "Arrived at Site",
   "In Progress",
   "Completed",
   "Reviewed",
@@ -58,7 +59,13 @@ export const PROJECT_STEPS = [
 ];
 
 export const getBookingTimelineStepStates = (
-  isPaid: boolean
-): Record<string, import("@/types/components.types").TimelineStepState> => ({
-  Paid: isPaid ? "done" : "crossed",
-});
+  isPaid: boolean,
+  currentStep?: string
+): Record<string, import("@/types/components.types").TimelineStepState> => {
+  const states: Record<string, import("@/types/components.types").TimelineStepState> = {};
+  if (isPaid) {
+    states["Paid"] = "done";
+  }
+  return states;
+};
+

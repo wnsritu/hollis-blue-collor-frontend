@@ -19,8 +19,70 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   restricted?: boolean;
-  children?: { to: string; label: string }[];
+  exact?: boolean;
+  matchPaths?: string[];
+  children?: { to: string; label: string; exact?: boolean; matchPaths?: string[] }[];
 };
+
+/**
+ * Computes a match score for a target URL against current pathname.
+ * - Exact match: 1000 + target.length
+ * - Boundary-aware prefix match (/section/...): 100 + target.length
+ * - No match: 0
+ */
+export function getPathMatchScore(pathname: string, target: string, exact = false): number {
+  if (!pathname || !target) return 0;
+  const normPath = pathname.replace(/\/+$/, "") || "/";
+  const normTarget = target.replace(/\/+$/, "") || "/";
+
+  if (normPath === normTarget) {
+    return 1000 + normTarget.length;
+  }
+
+  // Exact flag or root path "/" must match exactly to avoid wildcard root matches
+  if (exact || normTarget === "/") {
+    return 0;
+  }
+
+  // Segment boundary check: /parent matches /parent/child, but not /parent-other
+  if (normPath.startsWith(`${normTarget}/`)) {
+    return 100 + normTarget.length;
+  }
+
+  return 0;
+}
+
+/**
+ * Computes the maximum match score for a NavItem (including its matchPaths and any children).
+ */
+export function getItemMatchScore(
+  pathname: string,
+  item: { to: string; exact?: boolean; matchPaths?: string[]; children?: { to: string; exact?: boolean; matchPaths?: string[] }[] },
+): number {
+  const allTargets = [item.to, ...(item.matchPaths || [])];
+  let maxScore = 0;
+
+  for (const target of allTargets) {
+    const score = getPathMatchScore(pathname, target, item.exact);
+    if (score > maxScore) {
+      maxScore = score;
+    }
+  }
+
+  if (item.children && item.children.length > 0) {
+    for (const child of item.children) {
+      const childTargets = [child.to, ...(child.matchPaths || [])];
+      for (const target of childTargets) {
+        const score = getPathMatchScore(pathname, target, child.exact);
+        if (score > maxScore) {
+          maxScore = score;
+        }
+      }
+    }
+  }
+
+  return maxScore;
+}
 
 export function DashboardShell({
   nav,
@@ -51,24 +113,24 @@ export function DashboardShell({
   const userInitials =
     accountInitials || accountName.slice(0, 2).toUpperCase() || "US";
 
-  const isActivePath = (to: string) => {
-    if (pathname === to) return true;
-    if (pathname.startsWith(`${to}/`)) return true;
-    // Order detail lives under /provider/order/:id
-    if (to === "/provider/orders" && pathname.startsWith("/provider/order/")) {
-      return true;
-    }
-    return false;
-  };
+  // Score all nav items against current pathname
+  const itemScores = nav.map((item) => getItemMatchScore(pathname, item));
+  const maxScore = Math.max(0, ...itemScores);
+
+  // Highest-scoring item wins active highlight
+  const isItemActive = (index: number) => maxScore > 0 && itemScores[index] === maxScore;
+
+  // Score bottom navigation items
+  const bottomScores = (bottomNav || []).map((item) => getItemMatchScore(pathname, item));
+  const maxBottomScore = Math.max(0, ...bottomScores);
+  const isBottomItemActive = (index: number) =>
+    maxBottomScore > 0 && bottomScores[index] === maxBottomScore;
 
   const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
     <nav className="flex flex-col gap-1">
-      {nav.map((item) => {
+      {nav.map((item, index) => {
         const hasChildren = Boolean(item.children && item.children.length > 0);
-        const isChildActive = hasChildren
-          ? item.children!.some((c) => isActivePath(c.to))
-          : false;
-        const active = isActivePath(item.to) || isChildActive;
+        const active = isItemActive(index);
 
         if (hasChildren) {
           return (
@@ -76,6 +138,7 @@ export function DashboardShell({
               key={`${item.to}-${item.label}`}
               item={item}
               pathname={pathname}
+              isParentActive={active}
               onNavigate={onNavigate}
             />
           );
@@ -282,8 +345,8 @@ export function DashboardShell({
 
       {bottomNav && bottomNav.length > 0 && (
         <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-flow-col border-t border-border bg-background/95 px-2 py-1.5 backdrop-blur-md lg:hidden">
-          {bottomNav.map((item) => {
-            const active = isActivePath(item.to);
+          {bottomNav.map((item, index) => {
+            const active = isBottomItemActive(index);
             return (
               <Link
                 key={`${item.to}-${item.label}`}
@@ -307,18 +370,21 @@ export function DashboardShell({
 function CollapsibleNavItem({
   item,
   pathname,
+  isParentActive,
   onNavigate,
 }: {
   item: NavItem;
   pathname: string;
+  isParentActive: boolean;
   onNavigate?: () => void;
 }) {
-  const isChildActive = Boolean(
-    item.children?.some(
-      (c) => pathname === c.to || pathname.startsWith(`${c.to}/`),
-    ),
-  );
-  const [expanded, setExpanded] = useState(isChildActive);
+  const childScores = (item.children || []).map((c) => {
+    const allTargets = [c.to, ...(c.matchPaths || [])];
+    return Math.max(0, ...allTargets.map((t) => getPathMatchScore(pathname, t, c.exact)));
+  });
+  const maxChildScore = Math.max(0, ...childScores);
+  const isChildActive = maxChildScore > 0;
+  const [expanded, setExpanded] = useState(isChildActive || isParentActive);
 
   return (
     <div className="flex flex-col">
@@ -327,7 +393,7 @@ function CollapsibleNavItem({
         onClick={() => setExpanded(!expanded)}
         className={cn(
           "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
-          isChildActive
+          isParentActive || isChildActive
             ? "bg-sidebar-accent/50 font-semibold text-sidebar-accent-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
@@ -345,9 +411,8 @@ function CollapsibleNavItem({
 
       {expanded && (
         <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-sidebar-border pl-3">
-          {item.children?.map((child) => {
-            const active =
-              pathname === child.to || pathname.startsWith(`${child.to}/`);
+          {item.children?.map((child, cIdx) => {
+            const active = isChildActive && childScores[cIdx] === maxChildScore;
             return (
               <Link
                 key={child.to}

@@ -84,35 +84,33 @@ export const getProjectTimelineStepStates = (
   // Paid if payment_status is explicitly paid, or status is paid
   const isPaid = ps === "paid" || ps === "succeeded" || s === "paid";
 
-  // Payment is pending if not paid AND status is past proposal acceptance
-  const isPaymentPending =
-    !isPaid &&
-    (ps === "pending" ||
-      [
-        "accepted",
-        "confirmed",
-        "accepted_pending_payment",
-        "payment_pending",
-        "payment pending",
-        "scheduled",
-        "in_progress",
-        "in process",
-        "in_process",
-        "active",
-        "en route",
-        "arrived",
-        "completed",
-        "reviewed",
-      ].includes(s));
+  // Status is at or past proposal acceptance
+  const isPastAcceptance = [
+    "accepted",
+    "accepted_pending_payment",
+    "confirmed",
+    "payment_pending",
+    "payment pending",
+    "paid",
+    "scheduled",
+    "in_progress",
+    "in process",
+    "in_process",
+    "en route",
+    "arrived",
+    "completed",
+    "reviewed",
+  ].includes(s);
 
   const states: Record<string, TimelineStepState> = {};
 
-  if (isPaid) {
-    states["Payment Pending"] = "crossed";
-    states["Paid"] = "done";
-  } else if (isPaymentPending) {
-    states["Payment Pending"] = "done";
-    states["Paid"] = "crossed";
+  if (isPastAcceptance) {
+    if (isPaid) {
+      states["Payment Pending"] = "done";
+      states["Paid"] = "done";
+    } else if (ps === "failed") {
+      states["Paid"] = "crossed";
+    }
   }
 
   return states;

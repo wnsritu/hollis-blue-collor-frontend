@@ -34,11 +34,14 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   active: "success",
   confirmed: "success",
   accepted: "success",
+  jobaccepted: "success",
+  jobacceptance: "success",
   approved: "success",
   published: "success",
   provided: "success",
   workcompleted: "success",
   verified: "success",
+  reviewed: "success",
 
   // Purple - Matching / AI leads
   matching: "purple",
@@ -57,6 +60,7 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   requested: "warning",
   pendingreview: "warning",
   pendingacceptance: "warning",
+  requestreceived: "warning",
   quotepending: "warning",
   paymentpending: "warning",
   acceptedpendingpayment: "warning",
@@ -76,6 +80,7 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
 
   // Teal - Arrival
   arrived: "teal",
+  arrivedatsite: "teal",
 
   // Cyan - Scheduled
   scheduled: "cyan",

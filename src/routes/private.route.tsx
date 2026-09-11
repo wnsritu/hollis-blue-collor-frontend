@@ -41,6 +41,7 @@ const CustomerOrderDetail = lazy(() => import("@/pages/customer/CustomerOrderDet
 const ReportIssue = lazy(() => import("@/pages/customer/ReportIssue"));
 const CustomerProfile = lazy(() => import("@/pages/customer/CustomerProfile"));
 const CustomerProjects = lazy(() => import("@/pages/customer/CustomerProjects"));
+const CustomerPayments = lazy(() => import("@/pages/customer/CustomerPayments"));
 const CustomerReviews = lazy(() => import("@/pages/customer/CustomerReviews"));
 
 // Role-adaptive shared pages
@@ -123,6 +124,7 @@ export const PrivateRoutes = () => (
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />
       <Route path={routeMap.CUSTOMER_PROFILE.path} element={<CustomerProfile />} />
       <Route path={routeMap.CUSTOMER_PROJECTS.path} element={<CustomerProjects />} />
+      <Route path={routeMap.CUSTOMER_PAYMENTS.path} element={<CustomerPayments />} />
       <Route path={routeMap.CUSTOMER_REVIEWS.path} element={<CustomerReviews />} />
     </Route>
 
