@@ -40,8 +40,18 @@ export const saveProviderSetupApi = (data: any) => {
 export const verifyProviderApi = (data: {
   id: number;
   verified: "unverified" | "verified" | "rejected";
+  reason?: string;
 }) => {
-  return apiClient.put("/provider/verify-provider", data);
+  if (data.verified === "rejected") {
+    return apiClient.put(ENDPOINTS.admin.rejectProvider(data.id), {
+      rejection_reason: data.reason || "Provider verification rejected by admin",
+    });
+  }
+  return apiClient.put(ENDPOINTS.admin.approveProvider(data.id));
+};
+
+export const updateSelfStatusApi = (status: "active" | "paused") => {
+  return apiClient.patch(ENDPOINTS.provider.updateSelfStatus, { status });
 };
 
 export const getTimeSlotsApi = () => {
