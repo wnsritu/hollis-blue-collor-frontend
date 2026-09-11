@@ -36,6 +36,9 @@ export interface NormalizedBooking {
   isCustom: boolean;
   isCompleted: boolean;
   isCancelled: boolean;
+  isRejected: boolean;
+  isNoShow: boolean;
+  isCancelledOnly: boolean;
   isPriceUpdated: boolean;
   customerStatusLabel: string;
   providerStatusLabel: string;
@@ -108,6 +111,9 @@ export function normalizeBooking(b: any): NormalizedBooking {
       isCustom: false,
       isCompleted: false,
       isCancelled: false,
+      isRejected: false,
+      isNoShow: false,
+      isCancelledOnly: false,
       isPriceUpdated: false,
       customerStatusLabel: "Pending Acceptance",
       providerStatusLabel: "Request Received",
@@ -130,7 +136,10 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
   const appointmentStatus = String(b.appointment_status || status);
 
-  const isCancelled = ["cancelled", "canceled", "rejected", "no-show"].includes(normalizedRaw);
+  const isRejected = ["rejected", "declined"].includes(normalizedRaw);
+  const isNoShow = ["no-show", "noshow"].includes(normalizedRaw);
+  const isCancelledOnly = ["cancelled", "canceled"].includes(normalizedRaw);
+  const isCancelled = isCancelledOnly || isRejected || isNoShow;
   const isCompleted = ["completed", "delivered", "reviewed", "finished", "work completed"].includes(normalizedRaw);
   const isPriceUpdated = normalizedRaw === "price updated" || normalizedRaw === "price_updated";
 
@@ -305,6 +314,9 @@ export function normalizeBooking(b: any): NormalizedBooking {
     isCustom,
     isCompleted,
     isCancelled,
+    isRejected,
+    isNoShow,
+    isCancelledOnly,
     isPriceUpdated,
     customerStatusLabel: getBookingStatusDisplay(appointmentStatus || status, "customer", {
       isPaid,

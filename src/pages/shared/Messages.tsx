@@ -240,6 +240,16 @@ export const Messages: React.FC = () => {
 
   const isBlockedByOther = isThreadBlocked && !isBlockedByMe;
 
+  const isThreadReadOnly = useMemo(() => {
+    if (!activeThread) return false;
+    if (activeThread.is_read_only || activeThread.isReadOnly) return true;
+    const bStatus = String(activeThread.booking?.appointment_status || activeThread.booking?.status || "").toLowerCase();
+    if (["completed", "cancelled", "no-show", "finished", "delivered", "rejected"].includes(bStatus)) return true;
+    const pStatus = String(activeThread.project?.status || "").toLowerCase();
+    if (["completed", "cancelled"].includes(pStatus)) return true;
+    return false;
+  }, [activeThread]);
+
   // Handlers
   const handleSend = async () => {
     if ((!draft.trim() && !pendingFile) || !activeThread || isThreadBlocked || sending) return;
@@ -489,7 +499,7 @@ export const Messages: React.FC = () => {
               </DropdownMenu>
             </header>
 
-            {/* BLOCKED BANNER */}
+            {/* BLOCKED & READ-ONLY BANNERS */}
             {isBlockedByMe && (
               <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive">
                 <ShieldAlert size={15} />
@@ -500,6 +510,12 @@ export const Messages: React.FC = () => {
               <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive">
                 <ShieldAlert size={15} />
                 You have been blocked by {titleFor(activeThread)}. You can no longer send messages to this user.
+              </div>
+            )}
+            {isThreadReadOnly && !isThreadBlocked && (
+              <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                <MessageSquare size={15} />
+                This conversation is read-only because the booking or project has been completed or cancelled.
               </div>
             )}
 
@@ -636,7 +652,7 @@ export const Messages: React.FC = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled={isThreadBlocked}
+                  disabled={isThreadBlocked || isThreadReadOnly}
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Attach file or image"
                   title="Attach file or image"
@@ -645,7 +661,7 @@ export const Messages: React.FC = () => {
                 </Button>
                 <Input
                   value={draft}
-                  disabled={isThreadBlocked}
+                  disabled={isThreadBlocked || isThreadReadOnly}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder={
@@ -653,10 +669,12 @@ export const Messages: React.FC = () => {
                       ? "User is blocked. Unblock to type…"
                       : isBlockedByOther
                       ? "You have been blocked by this user."
+                      : isThreadReadOnly
+                      ? "This conversation is read-only (completed or cancelled)."
                       : "Write a message…"
                   }
                 />
-                <Button onClick={handleSend} disabled={isThreadBlocked || sending} aria-label="Send message">
+                <Button onClick={handleSend} disabled={isThreadBlocked || isThreadReadOnly || sending} aria-label="Send message">
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </Button>
               </div>

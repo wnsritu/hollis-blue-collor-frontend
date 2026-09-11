@@ -1,4 +1,5 @@
 import React from "react";
+import toast from "react-hot-toast";
 import { CalendarDays, Clock, MapPin, Loader2, CalendarCheck, RefreshCw, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ export const AppointmentsPage: React.FC = () => {
     handleOpenReschedule,
     handleRescheduleSubmit,
     handleConfirmReschedule,
+    handleRejectReschedule,
     handleUpdateStatus,
   } = useAppointments();
 
@@ -201,22 +203,93 @@ export const AppointmentsPage: React.FC = () => {
                     {!n.isCompleted && !n.isCancelled && (
                       <>
                         {isRescheduled ? (
-                          <Button
-                            size="sm"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            onClick={() => handleConfirmReschedule(apt.id)}
-                          >
-                            Confirm Reschedule
-                          </Button>
-                        ) : (
-                          n.status !== "Confirmed" && (
+                          <>
                             <Button
                               size="sm"
-                              onClick={() => handleUpdateStatus(apt.id, "Confirmed")}
+                              className="bg-primary text-primary-foreground hover:bg-primary/90"
+                              onClick={() => handleConfirmReschedule(apt.id)}
                             >
-                              Confirm
+                              Confirm Reschedule
                             </Button>
-                          )
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                              onClick={() => handleRejectReschedule(apt.id)}
+                            >
+                              Decline Reschedule
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {n.appointmentStatus === "Requested" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateStatus(apt.id, "Confirmed")}
+                              >
+                                Confirm
+                              </Button>
+                            )}
+                            {n.appointmentStatus === "Confirmed" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUpdateStatus(apt.id, "En Route")}
+                                >
+                                  On My Way
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(apt.id, "Arrived")}
+                                >
+                                  Mark Arrived
+                                </Button>
+                              </>
+                            )}
+                            {n.appointmentStatus === "En Route" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateStatus(apt.id, "Arrived")}
+                              >
+                                Mark Arrived
+                              </Button>
+                            )}
+                            {n.appointmentStatus === "Arrived" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(apt.id, "In Progress")}
+                                >
+                                  Start Job
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                  onClick={() => handleUpdateStatus(apt.id, "Completed")}
+                                >
+                                  Mark Complete
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
+                                  onClick={() => handleUpdateStatus(apt.id, "No-show")}
+                                >
+                                  Mark No-Show
+                                </Button>
+                              </>
+                            )}
+                            {n.appointmentStatus === "In Progress" && (
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                onClick={() => handleUpdateStatus(apt.id, "Completed")}
+                              >
+                                Mark Complete
+                              </Button>
+                            )}
+                          </>
                         )}
                         <Button
                           size="sm"
@@ -232,16 +305,6 @@ export const AppointmentsPage: React.FC = () => {
                         >
                           Cancel
                         </Button>
-                        {n.status !== "No-show" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleUpdateStatus(apt.id, "No-show")}
-                          >
-                            Mark No-Show
-                          </Button>
-                        )}
                       </>
                     )}
                     {n.isCompleted && (
@@ -250,13 +313,37 @@ export const AppointmentsPage: React.FC = () => {
                       </span>
                     )}
                     {n.isCancelled && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUpdateStatus(apt.id, "Requested")}
-                      >
-                        Request again
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateStatus(apt.id, "Requested")}
+                        >
+                          Request again
+                        </Button>
+                        {n.isNoShow && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={async () => {
+                              try {
+                                const { http } = await import("@/lib/api/http");
+                                await http.post("/disputes/create", {
+                                  booking_id: apt.id,
+                                  reason: "No-show Contest",
+                                  description: "Customer contesting false no-show claim",
+                                  refund_requested: n.totalAmount || 0,
+                                });
+                                toast.success("Dispute submitted successfully! Our support team will review your case.");
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.message || err?.message || "Failed to submit dispute.");
+                              }
+                            }}
+                          >
+                            Dispute No-Show
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

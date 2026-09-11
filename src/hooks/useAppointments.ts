@@ -133,6 +133,16 @@ export function useAppointments() {
     }
   };
 
+  const handleRejectReschedule = async (id: number | string) => {
+    try {
+      await appointmentApi.rejectReschedule(id);
+      toast.success("Reschedule request declined.");
+      fetchAppointments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to decline reschedule.");
+    }
+  };
+
   const filteredAppointments = appointments
     .filter((apt) => {
       const normalized = normalizeBooking(apt);
@@ -203,6 +213,7 @@ export function useAppointments() {
     handleOpenReschedule,
     handleRescheduleSubmit,
     handleConfirmReschedule,
+    handleRejectReschedule,
     handleUpdateStatus,
     filteredAppointments,
     fetchAppointments,
