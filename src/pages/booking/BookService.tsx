@@ -28,6 +28,11 @@ import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
+import { useFormik } from "formik";
+import {
+  bookingAddressValidationSchema,
+  type BookingAddressFormValues,
+} from "@/validations/booking";
 
 export default function BookService() {
   const {
@@ -71,6 +76,31 @@ export default function BookService() {
     handleProceedToStep3,
     handleCreateBookingAndPay,
   } = useBookService();
+
+  const addressFormik = useFormik<BookingAddressFormValues>({
+    initialValues: {
+      name: details.name || user?.full_name || "",
+      phone: details.phone || user?.phone || "",
+      address: details.address || "",
+      city: details.city || "",
+      zip: details.zip || "",
+      notes: details.notes || "",
+    },
+    enableReinitialize: true,
+    validationSchema: bookingAddressValidationSchema,
+    onSubmit: (values) => {
+      setDetails(values);
+      if (!selectedDate) {
+        toast.error("Please select a preferred service date.");
+        return;
+      }
+      if (!selectedTimeSlotId) {
+        toast.error("Please select an available time slot for this provider.");
+        return;
+      }
+      setStep(2);
+    },
+  });
 
 
   if (loading) {
@@ -358,65 +388,165 @@ export default function BookService() {
                 <CardContent className="p-5 space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="name" className="text-xs font-semibold">Your Full Name</Label>
+                      <Label htmlFor="name" className="text-xs font-semibold">
+                        Your Full Name <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="name"
-                        value={details.name}
-                        onChange={(e) => setDetails({ ...details, name: e.target.value })}
+                        name="name"
+                        value={addressFormik.values.name}
+                        onChange={addressFormik.handleChange}
+                        onBlur={addressFormik.handleBlur}
                         placeholder="John Doe"
+                        className={
+                          addressFormik.touched.name && addressFormik.errors.name
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
                       />
+                      {addressFormik.touched.name && addressFormik.errors.name && (
+                        <p className="text-xs font-medium text-destructive mt-1">
+                          {addressFormik.errors.name}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="phone" className="text-xs font-semibold">Phone Number</Label>
+                      <Label htmlFor="phone" className="text-xs font-semibold">
+                        Phone Number <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="phone"
-                        value={details.phone}
-                        onChange={(e) => setDetails({ ...details, phone: e.target.value })}
+                        name="phone"
+                        value={addressFormik.values.phone}
+                        onChange={addressFormik.handleChange}
+                        onBlur={addressFormik.handleBlur}
                         placeholder="(512) 555-0100"
+                        className={
+                          addressFormik.touched.phone && addressFormik.errors.phone
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
                       />
+                      {addressFormik.touched.phone && addressFormik.errors.phone && (
+                        <p className="text-xs font-medium text-destructive mt-1">
+                          {addressFormik.errors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="address" className="text-xs font-semibold">Street Address</Label>
+                    <Label htmlFor="address" className="text-xs font-semibold">
+                      Street Address <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="address"
-                      value={details.address}
-                      onChange={(e) => setDetails({ ...details, address: e.target.value })}
+                      name="address"
+                      value={addressFormik.values.address}
+                      onChange={addressFormik.handleChange}
+                      onBlur={addressFormik.handleBlur}
                       placeholder="123 Main Street"
+                      className={
+                        addressFormik.touched.address && addressFormik.errors.address
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
+                    {addressFormik.touched.address && addressFormik.errors.address && (
+                      <p className="text-xs font-medium text-destructive mt-1">
+                        {addressFormik.errors.address}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="city" className="text-xs font-semibold">City</Label>
+                      <Label htmlFor="city" className="text-xs font-semibold">
+                        City <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="city"
-                        value={details.city}
-                        onChange={(e) => setDetails({ ...details, city: e.target.value })}
+                        name="city"
+                        value={addressFormik.values.city}
+                        onChange={addressFormik.handleChange}
+                        onBlur={addressFormik.handleBlur}
                         placeholder="Austin"
+                        className={
+                          addressFormik.touched.city && addressFormik.errors.city
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
                       />
+                      {addressFormik.touched.city && addressFormik.errors.city && (
+                        <p className="text-xs font-medium text-destructive mt-1">
+                          {addressFormik.errors.city}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="zip" className="text-xs font-semibold">ZIP / Postal Code</Label>
+                      <Label htmlFor="zip" className="text-xs font-semibold">
+                        ZIP / Postal Code <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="zip"
-                        value={details.zip}
-                        onChange={(e) => setDetails({ ...details, zip: e.target.value })}
+                        name="zip"
+                        value={addressFormik.values.zip}
+                        onChange={addressFormik.handleChange}
+                        onBlur={addressFormik.handleBlur}
                         placeholder="78701"
+                        className={
+                          addressFormik.touched.zip && addressFormik.errors.zip
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
                       />
+                      {addressFormik.touched.zip && addressFormik.errors.zip && (
+                        <p className="text-xs font-medium text-destructive mt-1">
+                          {addressFormik.errors.zip}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="notes" className="text-xs font-semibold">Special Instructions or Notes (Optional)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notes" className="text-xs font-semibold">
+                        Special Instructions or Notes (Optional)
+                      </Label>
+                      <span
+                        className={`text-[11px] ${
+                          addressFormik.values.notes.length > 450
+                            ? "text-amber-500 font-semibold"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {addressFormik.values.notes.length} / 500 characters
+                      </span>
+                    </div>
                     <Textarea
                       id="notes"
+                      name="notes"
                       rows={3}
-                      value={details.notes}
-                      onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                      value={addressFormik.values.notes}
+                      onChange={addressFormik.handleChange}
+                      onBlur={addressFormik.handleBlur}
                       placeholder="Gate code, parking instructions, or specific areas of focus..."
+                      className={
+                        addressFormik.touched.notes && addressFormik.errors.notes
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
+                    {addressFormik.touched.notes && addressFormik.errors.notes && (
+                      <p className="text-xs font-medium text-destructive mt-1">
+                        {addressFormik.errors.notes}
+                      </p>
+                    )}
+                    {addressFormik.values.notes.length > 450 && (
+                      <p className="text-[11px] text-amber-500 font-medium">
+                        Approaching maximum character limit (500 characters).
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -425,7 +555,11 @@ export default function BookService() {
                 <Button variant="outline" onClick={() => setStep(0)}>
                   <ArrowLeft size={16} className="mr-1.5" /> Back to Services
                 </Button>
-                <Button size="lg" onClick={handleProceedToStep3} className="gap-2 shadow-sm">
+                <Button
+                  size="lg"
+                  onClick={() => addressFormik.handleSubmit()}
+                  className="gap-2 shadow-sm"
+                >
                   Review & Pay <ArrowRight size={16} />
                 </Button>
               </div>

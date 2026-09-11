@@ -189,9 +189,20 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         <form onSubmit={formik.handleSubmit} className="mt-4 space-y-5">
           {/* Title */}
           <div className="space-y-1.5">
-            <Label htmlFor="title" className="font-medium">
-              Project Title <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="title" className="font-medium">
+                Project Title <span className="text-destructive">*</span>
+              </Label>
+              <span
+                className={`text-xs ${
+                  formik.values.title.length > 110
+                    ? "text-amber-500 font-semibold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {formik.values.title.length} / 120
+              </span>
+            </div>
             <Input
               id="title"
               name="title"
@@ -199,10 +210,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               value={formik.values.title}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              className={formik.touched.title && formik.errors.title ? "border-destructive" : ""}
+              className={formik.touched.title && formik.errors.title ? "border-destructive focus-visible:ring-destructive" : ""}
             />
             {formik.touched.title && formik.errors.title && (
               <p className="text-xs font-medium text-destructive mt-1">{formik.errors.title}</p>
+            )}
+            {formik.values.title.length > 0 && formik.values.title.length < 3 && (
+              <p className="text-xs text-amber-500 font-medium">
+                Title must be at least 3 characters.
+              </p>
             )}
           </div>
 
@@ -234,7 +250,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     formik.setFieldValue("service_type_id", "");
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={formik.touched.category_id && formik.errors.category_id ? "border-destructive focus:ring-destructive" : ""}>
                     <SelectValue placeholder={loadingCatalog ? "Loading..." : "Select category"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -284,21 +300,37 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="desc" className="font-medium">
-              Description & Details <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="desc" className="font-medium">
+                Description & Details <span className="text-destructive">*</span>
+              </Label>
+              <span
+                className={`text-xs ${
+                  formik.values.description.length > 1900
+                    ? "text-amber-500 font-semibold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {formik.values.description.length} / 2000
+              </span>
+            </div>
             <Textarea
               id="desc"
               name="description"
               rows={4}
-              placeholder="Describe the issue, work scope, size, or any specific requirements for the pro..."
+              placeholder="Describe the issue, work scope, size, or any specific requirements for the pro (min 10 characters)..."
               value={formik.values.description}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              className={formik.touched.description && formik.errors.description ? "border-destructive" : ""}
+              className={formik.touched.description && formik.errors.description ? "border-destructive focus-visible:ring-destructive" : ""}
             />
             {formik.touched.description && formik.errors.description && (
               <p className="text-xs font-medium text-destructive mt-1">{formik.errors.description}</p>
+            )}
+            {formik.values.description.length > 0 && formik.values.description.length < 10 && (
+              <p className="text-xs text-amber-500 font-medium">
+                Please enter at least {10 - formik.values.description.length} more character(s).
+              </p>
             )}
           </div>
 
@@ -357,7 +389,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                   placeholder="78701"
                   value={formik.values.zip_code}
                   onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className={formik.touched.zip_code && formik.errors.zip_code ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
+                {formik.touched.zip_code && formik.errors.zip_code && (
+                  <p className="text-xs font-medium text-destructive mt-1">{formik.errors.zip_code}</p>
+                )}
               </div>
             </div>
           </div>
