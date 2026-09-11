@@ -52,8 +52,6 @@ import { isCustomer } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { cn } from "@/lib/utils";
 
-type ChatTab = "project" | "normal";
-
 export const Messages: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,7 +60,6 @@ export const Messages: React.FC = () => {
   const side = userIsCustomer ? "customer" : "provider";
 
   // State
-  const [activeTab, setActiveTab] = useState<ChatTab>("project");
   const [threads, setThreads] = useState<any[]>([]);
   const [activeThreadId, setActiveThreadIdState] = useState<number | string | null>(null);
   const activeThreadIdRef = useRef<number | string | null>(null);
@@ -202,26 +199,17 @@ export const Messages: React.FC = () => {
     return "Direct Inquiry";
   };
 
-  const isProjectThread = (t: any) =>
-    Boolean(t.project_id || t.booking_id || t.project);
-
-  // Filtered List based on Search & Selected Tab
+  // Filtered List based on Search Query
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
-      const matchesTab =
-        activeTab === "project" ? isProjectThread(t) : !isProjectThread(t);
-
       const title = titleFor(t).toLowerCase();
       const sub = subtitleFor(t).toLowerCase();
       const lastMsg = String(t.last_message || "").toLowerCase();
       const query = q.toLowerCase().trim();
 
-      const matchesSearch =
-        !query || title.includes(query) || sub.includes(query) || lastMsg.includes(query);
-
-      return matchesTab && matchesSearch;
+      return !query || title.includes(query) || sub.includes(query) || lastMsg.includes(query);
     });
-  }, [threads, activeTab, q, userIsCustomer]);
+  }, [threads, q]);
 
   const activeThread = useMemo(() => {
     if (!threads.length) return null;
@@ -350,51 +338,10 @@ export const Messages: React.FC = () => {
     }
   };
 
-  const handleTabSelect = (tab: ChatTab) => {
-    setActiveTab(tab);
-    const matchingThreads = threads.filter((t) =>
-      tab === "project" ? isProjectThread(t) : !isProjectThread(t)
-    );
-    if (matchingThreads.length > 0) {
-      const firstTabId = matchingThreads[0].id || matchingThreads[0].chat_id;
-      setActiveThreadId(firstTabId);
-    }
-  };
-
   return (
     <div className="grid h-[calc(100vh-11rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:grid-cols-[320px_minmax(0,1fr)]">
       {/* SIDEBAR CONVERSATIONS LIST */}
       <aside className={cn("flex min-h-0 flex-col border-r border-border", mobileOpen && "hidden lg:flex")}>
-        {/* REQUIREMENT TABS: Project / Task Chat vs Normal Chat */}
-        <div className="border-b border-border bg-card p-2.5">
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1">
-            <button
-              type="button"
-              onClick={() => handleTabSelect("project")}
-              className={cn(
-                "rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer",
-                activeTab === "project"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              )}
-            >
-              Project / Task
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabSelect("normal")}
-              className={cn(
-                "rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer",
-                activeTab === "normal"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              )}
-            >
-              Normal Chat
-            </button>
-          </div>
-        </div>
-
         {/* SEARCH BAR */}
         <div className="border-b border-border p-3">
           <div className="relative">
@@ -417,7 +364,7 @@ export const Messages: React.FC = () => {
           ) : filteredThreads.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">
               <MessageSquare size={24} className="mx-auto text-muted-foreground/60 mb-2" />
-              {q ? "No matching conversations found." : `No ${activeTab === "project" ? "Project/Task" : "Normal"} chats yet.`}
+              {q ? "No matching conversations found." : "No conversations yet."}
             </div>
           ) : (
             filteredThreads.map((c) => {

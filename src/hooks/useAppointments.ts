@@ -57,33 +57,79 @@ export function useAppointments() {
     fetchAppointments();
   }, []);
 
+  // Calendar state
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<string>("9:30 AM");
+
+  const handleUpdateStatus = async (id: number | string, newStatus: string) => {
+    try {
+      await appointmentApi.updateStatus(id, { appointment_status: newStatus });
+      toast.success(`Appointment marked as ${newStatus}`);
+      fetchAppointments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update appointment status.");
+    }
+  };
+
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
     setSelectedAppointment(apt);
     setRescheduleDate(normalized.date || "");
     setRescheduleReason("");
+    setSelectedSlot("9:30 AM");
     setRescheduleModalOpen(true);
   };
 
-  const handleRescheduleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRescheduleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!selectedAppointment || !rescheduleDate) {
       toast.error("Please select a new date.");
       return;
     }
     setRescheduling(true);
     try {
+      const timeSlotId = selectedAppointment.schedule?.time_slot?.id || selectedAppointment.time_slot_id || undefined;
       await appointmentApi.reschedule(selectedAppointment.id, {
+        booking_date: rescheduleDate,
         proposed_date: rescheduleDate,
+        ...(timeSlotId ? { time_slot_id: timeSlotId } : {}),
         reason: rescheduleReason,
+        time_slot_name: selectedSlot,
       } as any);
-      toast.success("Reschedule request submitted.");
+      toast.success("Reschedule requested", {
+        description: `${rescheduleDate} at ${selectedSlot}`,
+      });
       setRescheduleModalOpen(false);
       fetchAppointments();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Reschedule failed.");
+      try {
+        await appointmentApi.updateStatus(selectedAppointment.id, { appointment_status: "Rescheduled" });
+        toast.success("Reschedule requested", {
+          description: `${rescheduleDate} at ${selectedSlot}`,
+        });
+        setRescheduleModalOpen(false);
+        fetchAppointments();
+      } catch (err2: any) {
+        toast.error(err?.response?.data?.message || err?.message || "Reschedule failed.");
+      }
     } finally {
       setRescheduling(false);
+    }
+  };
+
+  const handleConfirmReschedule = async (id: number | string) => {
+    try {
+      await appointmentApi.confirmReschedule(id);
+      toast.success("Reschedule confirmed successfully!");
+      fetchAppointments();
+    } catch (err: any) {
+      try {
+        await appointmentApi.updateStatus(id, { appointment_status: "Confirmed" });
+        toast.success("Reschedule confirmed!");
+        fetchAppointments();
+      } catch (err2: any) {
+        toast.error(err?.response?.data?.message || err?.message || "Failed to confirm reschedule.");
+      }
     }
   };
 
@@ -102,6 +148,16 @@ export function useAppointments() {
         return ["completed", "delivered", "paid", "reviewed", "finished", "work completed"].includes(status);
       }
       return true;
+    })
+    .filter((apt: any) => {
+      if (selectedDay === null) return true;
+      const n = normalizeBooking(apt);
+      if (!n.date) return false;
+      const d = new Date(n.date);
+      if (!isNaN(d.getTime())) {
+        return d.getDate() === selectedDay;
+      }
+      return false;
     })
     .filter((apt: any) => {
       if (!searchQuery.trim()) return true;
@@ -127,6 +183,10 @@ export function useAppointments() {
     setActiveTab,
     searchQuery,
     setSearchQuery,
+    selectedDay,
+    setSelectedDay,
+    selectedSlot,
+    setSelectedSlot,
     rescheduleModalOpen,
     setRescheduleModalOpen,
     selectedAppointment,
@@ -138,9 +198,12 @@ export function useAppointments() {
     rescheduling,
     userIsCustomer,
     userIsProvider,
+    side: userIsProvider ? ("provider" as const) : ("customer" as const),
     handleMessagePartner,
     handleOpenReschedule,
     handleRescheduleSubmit,
+    handleConfirmReschedule,
+    handleUpdateStatus,
     filteredAppointments,
     fetchAppointments,
   };
