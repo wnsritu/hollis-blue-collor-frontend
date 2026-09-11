@@ -10,12 +10,9 @@ import {
   Tag,
   UserCog,
   ArrowRight,
-  Inbox,
   CalendarX,
   PackageX,
 } from "lucide-react";
-import axios from "@/services/axios";
-import { getDashboardApi } from "@/services/booking";
 import {
   getProviderDashboardApi,
   ProviderJob,
@@ -23,57 +20,36 @@ import {
   ProviderEarnings,
   ProviderDashboardStats,
 } from "@/services/dashboard/dashboard.service";
-import chatApi from "@/services/chat/chat.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { PageHeader, StatCard, StatusPill, Avatar } from "@/components/shared/primitives";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/pages/customer/CustomerDashboard";
 
 const ProviderDashboard = () => {
-  const { user, fetchMe } = useAuthSession();
+  const { user } = useAuthSession();
 
   const [jobsList, setJobsList] = useState<ProviderJob[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<ProviderAppointment[]>([]);
-  const [messagesList, setMessagesList] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<ProviderEarnings | null>(null);
   const [stats, setStats] = useState<ProviderDashboardStats | null>(null);
-
-  const [legacyOrders, setLegacyOrders] = useState<any[]>([]);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Ensure profile user data is loaded
-    fetchMe();
-  }, [fetchMe]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        let res: any;
-        const [dashRes, chatRes] = await Promise.all([
-          getProviderDashboardApi().catch(() => getDashboardApi()),
-          chatApi.listUserChats().catch(() => null),
-        ]);
-        res = dashRes;
+        const res: any = await getProviderDashboardApi();
+        // http.get returns response.data directly: { success: true, data: { stats, jobs, appointments, earnings, reviews } }
+        const dData = res?.data || res;
 
-        if (res?.data?.success) {
-          const dData = res.data.data;
-          if (dData.stats) setStats(dData.stats);
-          else if (typeof dData.total_orders === "number") setStats(dData);
+        if (dData) {
+          const sData = dData.stats || dData;
+          if (sData) setStats(sData);
 
-          if (dData.jobs) setJobsList(dData.jobs);
-          if (dData.appointments) setAppointmentsList(dData.appointments);
+          if (Array.isArray(dData.jobs)) setJobsList(dData.jobs);
+          if (Array.isArray(dData.appointments)) setAppointmentsList(dData.appointments);
           if (dData.earnings) setEarnings(dData.earnings);
-        }
-
-        if (chatRes?.data && Array.isArray(chatRes.data)) {
-          setMessagesList(chatRes.data);
-        }
-
-        // Also fetch legacy order list as fallback
-        const orderRes = await axios.post("/booking/list", {}).catch(() => null);
-        if (orderRes?.data?.bookings) {
-          setLegacyOrders(orderRes.data.bookings);
+          if (Array.isArray(dData.reviews)) setReviewsList(dData.reviews);
         }
       } catch (err: any) {
         console.error("Dashboard loading error:", err);
@@ -96,8 +72,9 @@ const ProviderDashboard = () => {
     );
   }
 
-  // Dynamic business name from logged-in provider profile
+  // Dynamic business name from provider profile or stats
   const businessName =
+    stats?.business_name ||
     user?.provider?.business_name ||
     user?.business_name ||
     user?.full_name ||
@@ -112,18 +89,24 @@ const ProviderDashboard = () => {
     ? `${providerCity}${providerState ? `, ${providerState}` : ""} · Professional Plan`
     : "Professional Plan · Verified";
 
-  // Calculated metrics
-  const fixedRequestsCount = stats
-    ? stats.laundry_orders + stats.house_cleaning_orders + stats.car_wash_orders
-    : 0;
+  // Correct service type counts from API (based on project_id)
+  const fixedRequestsCount = stats?.direct_service_orders ?? stats?.fixed_orders ?? 0;
+  const quoteRequestsCount = stats?.request_quote_orders ?? stats?.quote_orders ?? 0;
+  const activeJobsCount = stats?.active_orders ?? jobsList.length;
 
-  const quoteRequestsCount = stats ? stats.pending_orders : 0;
-  const activeJobsCount = stats ? stats.active_orders : jobsList.length || 0;
-  const ratingValue = stats && typeof stats.avg_rating === "number" ? stats.avg_rating.toFixed(1) : "0.0";
-  const reviewCountHint = stats && typeof stats.review_count === "number" ? `${stats.review_count} reviews` : "0 reviews";
+  const ratingNum = stats?.avg_rating != null ? Number(stats.avg_rating) : null;
+  const ratingValue =
+    ratingNum != null && !isNaN(ratingNum)
+      ? ratingNum.toFixed(1)
+      : reviewsList.length > 0
+      ? (reviewsList.reduce((acc, curr) => acc + Number(curr.rating || 5), 0) / reviewsList.length).toFixed(1)
+      : "0.0";
+
+  const reviewCount = stats?.review_count != null ? Number(stats.review_count) : reviewsList.length;
+  const reviewCountHint = `${reviewCount} reviews`;
 
   return (
-    <div className="container-page py-8">
+    <>
       <PageHeader
         title={`Welcome, ${businessName}`}
         subtitle={locationSubtitle}
@@ -181,79 +164,52 @@ const ProviderDashboard = () => {
             }
           >
             <div className="space-y-3">
-              {jobsList.length > 0
-                ? jobsList.slice(0, 5).map((j) => {
-                    const isFixed = j.service_category?.toLowerCase().includes("laundry") ||
-                                    j.service_category?.toLowerCase().includes("cleaning") ||
-                                    j.service_category?.toLowerCase().includes("wash");
-                    return (
-                      <div
-                        key={j.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                                isFixed
-                                  ? "bg-primary-soft text-primary"
-                                  : "bg-accent-soft text-accent-soft-foreground font-bold"
-                              }`}
-                            >
-                              {isFixed ? "Fixed Service" : "Request a Quote"}
-                            </span>
-                            <span className="text-xs font-semibold text-foreground truncate">
-                              {j.service_category || j.booking_number}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            Customer: {j.customer?.full_name || "Customer"} · {j.booking_date || "Today"} · ${(j.total_amount || 0).toFixed(2)}
-                          </p>
-                        </div>
-
+              {jobsList.length > 0 ? (
+                jobsList.slice(0, 5).map((j) => {
+                  const isFixed =
+                    j.service_category?.toLowerCase().includes("laundry") ||
+                    j.service_category?.toLowerCase().includes("cleaning") ||
+                    j.service_category?.toLowerCase().includes("wash");
+                  return (
+                    <div
+                      key={j.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <StatusPill status={j.appointment_status || j.status || "Confirmed"} />
-                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                            <Link to={`/provider/order/${j.id}`}>Review</Link>
-                          </Button>
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                              isFixed
+                                ? "bg-primary-soft text-primary"
+                                : "bg-accent-soft text-accent-soft-foreground font-bold"
+                            }`}
+                          >
+                            {isFixed ? "Fixed Service" : "Request a Quote"}
+                          </span>
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {j.service_category || j.booking_number}
+                          </span>
                         </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          Customer: {j.customer?.full_name || "Customer"} · {j.booking_date || "Today"} · ${Number(j.total_amount || 0).toFixed(2)}
+                        </p>
                       </div>
-                    );
-                  })
-                : legacyOrders.length > 0 ? (
-                    legacyOrders.slice(0, 5).map((b) => (
-                      <div
-                        key={b.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3.5 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary-soft text-primary">
-                              Fixed Service
-                            </span>
-                            <span className="text-xs font-semibold text-foreground truncate">
-                              {b.service_category || `ORD-${b.id}`}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            Customer: {b.customer ? `${b.customer.first_name || ""} ${b.customer.last_name || ""}`.trim() : "Customer"} · ${b.total_amount ? Number(b.total_amount).toFixed(2) : "0.00"}
-                          </p>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                          <StatusPill status={b.status || "Confirmed"} />
-                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                            <Link to={`/provider/order/${b.id}`}>Review</Link>
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={j.appointment_status || j.status || "Confirmed"} />
+                        <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                          <Link to={`/provider/order/${j.id}`}>Review</Link>
+                        </Button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-8 text-center">
-                      <PackageX size={28} className="mx-auto text-muted-foreground/60" />
-                      <p className="mt-2 text-sm text-muted-foreground">No active service requests right now.</p>
                     </div>
-                  )}
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center">
+                  <PackageX size={28} className="mx-auto text-muted-foreground/60" />
+                  <p className="mt-2 text-sm text-muted-foreground">No active service requests right now.</p>
+                </div>
+              )}
             </div>
           </Panel>
 
@@ -318,43 +274,44 @@ const ProviderDashboard = () => {
             </div>
           </Panel>
 
-          {/* Panel: Recent Messages */}
+          {/* Panel: Recent Customer Reviews */}
           <Panel
-            title="Recent Messages"
+            title="Recent Customer Reviews"
             action={
               <Button asChild variant="ghost" size="sm">
-                <Link to="/messages">Open Inbox</Link>
+                <Link to="/provider/profile">
+                  View All <ArrowRight size={15} className="ml-1" />
+                </Link>
               </Button>
             }
           >
             <div className="space-y-3">
-              {messagesList.length > 0 ? (
-                messagesList.slice(0, 4).map((c: any) => {
-                  const custName = c.customer?.name || c.customer?.first_name || c.user?.name || `${c.user?.first_name || ''} ${c.user?.last_name || ''}`.trim() || "Customer";
-                  const initials = custName.slice(0, 2).toUpperCase();
-                  const lastText = c.last_message?.content || c.last_message || "Message thread";
-                  const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
+              {reviewsList.length > 0 ? (
+                reviewsList.slice(0, 4).map((r) => {
+                  const custName = r.customer?.full_name || "Customer";
                   return (
-                    <Link
-                      key={c.id}
-                      to="/messages"
-                      className="flex min-w-0 items-start gap-3 rounded-xl p-2 transition-colors hover:bg-muted/50"
+                    <div
+                      key={r.id}
+                      className="rounded-xl border border-border p-3 space-y-1.5 hover:bg-muted/30 transition-colors"
                     >
-                      <Avatar initials={initials || "CU"} size="sm" src={c.customer?.avatar} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-semibold">{custName}</p>
-                          <span className="shrink-0 text-xs text-muted-foreground">{time}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Avatar initials={custName.charAt(0) || "C"} size="sm" src={r.customer?.avatar} />
+                          <span className="text-sm font-semibold truncate">{custName}</span>
                         </div>
-                        <p className="truncate text-xs text-muted-foreground">{lastText}</p>
+                        <div className="flex items-center gap-1 text-amber-500 font-semibold text-xs shrink-0">
+                          <Star size={13} className="fill-amber-500 text-amber-500" />
+                          <span>{r.rating || 5.0}</span>
+                        </div>
                       </div>
-                    </Link>
+                      {r.comment && <p className="text-xs text-muted-foreground line-clamp-2">{r.comment}</p>}
+                    </div>
                   );
                 })
               ) : (
-                <div className="py-8 text-center">
-                  <Inbox size={28} className="mx-auto text-muted-foreground/60" />
-                  <p className="mt-2 text-sm text-muted-foreground">No recent customer messages.</p>
+                <div className="py-6 text-center">
+                  <Star size={24} className="mx-auto text-muted-foreground/60" />
+                  <p className="mt-2 text-sm text-muted-foreground">No recent customer reviews yet.</p>
                 </div>
               )}
             </div>
@@ -380,7 +337,7 @@ const ProviderDashboard = () => {
           </Panel>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

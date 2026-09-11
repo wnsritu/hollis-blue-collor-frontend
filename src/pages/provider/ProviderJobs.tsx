@@ -252,16 +252,17 @@ export function ProviderJobs() {
             const aptStatus = n.appointmentStatus;
             const isPriceUpdated = n.isPriceUpdated;
 
+            const normApt = (aptStatus || "").toLowerCase().trim();
             const isPendingAcceptance =
-              aptStatus === "Requested" || aptStatus === "pending" || aptStatus === "Pending Acceptance";
+              ["requested", "pending", "pending acceptance", "request received"].includes(normApt);
             const isConfirmed =
-              aptStatus === "Confirmed" || aptStatus === "accepted" || aptStatus === "Scheduled";
-            const isEnRoute = aptStatus === "En Route";
-            const isArrived = aptStatus === "Arrived";
-            const isInProgress = aptStatus === "In Progress" || aptStatus === "in_process";
+              ["confirmed", "accepted", "scheduled", "job accepted", "job acceptance"].includes(normApt);
+            const isEnRoute = ["en route", "en_route"].includes(normApt);
+            const isArrived = ["arrived", "arrived at site"].includes(normApt);
+            const isInProgress = ["in progress", "in_progress", "in_process", "in process"].includes(normApt);
             const isCompleted =
-              aptStatus === "Completed" || aptStatus === "finished" || aptStatus === "Work Completed";
-            const isDeclined = aptStatus === "Cancelled" || aptStatus === "cancelled" || aptStatus === "rejected";
+              ["completed", "finished", "delivered", "work completed", "reviewed"].includes(normApt);
+            const isDeclined = ["cancelled", "canceled", "rejected", "declined", "no-show"].includes(normApt);
 
             // Visual Stepper Index (0 to 5)
             let stepIdx = 0;
@@ -366,7 +367,7 @@ export function ProviderJobs() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={aptStatus} />
+                      <StatusPill status={n.providerStatusLabel || aptStatus} />
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                           isPaid

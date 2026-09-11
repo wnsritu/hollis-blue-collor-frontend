@@ -287,6 +287,7 @@ export const ENDPOINTS = {
     jobs: "/providers/dashboard/jobs",
     appointments: "/providers/dashboard/appointments",
     earnings: "/providers/dashboard/earnings",
+    reviews: "/providers/dashboard/reviews",
   },
 
   // ─── Uploads ───────────────────────────────────────────

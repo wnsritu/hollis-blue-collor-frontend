@@ -96,18 +96,15 @@ export const ProviderCustomRequestDetail: React.FC = () => {
             unit_price: Number(values.tax),
           });
         }
-        if (Number(values.discount) > 0) {
-          lineItems.push({
-            description: "Discount",
-            quantity: 1,
-            unit_price: -Number(values.discount),
-          });
-        }
+        const discountNum = Number(values.discount) || 0;
+        const noteWithDiscount = discountNum > 0
+          ? `${values.workDescription.trim()}\n\nNote: Includes applied discount of $${discountNum}.`
+          : values.workDescription.trim();
 
         const payload: CustomQuoteSubmitPayload = {
           amount: totalAmount,
           currency: "usd",
-          message: values.workDescription.trim(),
+          message: noteWithDiscount,
           valid_until: validUntilDate.toISOString(),
           line_items: lineItems,
         };

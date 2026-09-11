@@ -49,14 +49,14 @@ export const getBookingsApi = (data?: {
 export const normalizeToAppointmentStatus = (status?: string): string => {
   if (!status) return "Requested";
   const s = String(status).trim().toLowerCase().replace(/[-_]/g, " ");
-  if (["requested", "pending", "pending review", "pending acceptance"].includes(s)) return "Requested";
+  if (["requested", "pending", "pending review", "pending acceptance", "price updated", "price_updated"].includes(s)) return "Requested";
   if (["confirmed", "accepted"].includes(s)) return "Confirmed";
   if (["en route", "enroute"].includes(s)) return "En Route";
   if (["arrived"].includes(s)) return "Arrived";
-  if (["in progress", "inprocess", "progress"].includes(s)) return "In Progress";
+  if (["in progress", "inprocess", "progress", "in process"].includes(s)) return "In Progress";
   if (["rescheduled"].includes(s)) return "Rescheduled";
   if (["completed", "finished", "delivered"].includes(s)) return "Completed";
-  if (["cancelled", "canceled", "rejected"].includes(s)) return "Cancelled";
+  if (["cancelled", "canceled", "rejected", "expired", "payment failed", "payment_failed"].includes(s)) return "Cancelled";
   if (["no show", "noshow"].includes(s)) return "No-show";
   return status;
 };

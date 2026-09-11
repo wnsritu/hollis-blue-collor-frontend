@@ -29,14 +29,19 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   finished: "success",
   delivered: "success",
   paid: "success",
+  succeeded: "success",
+  success: "success",
   active: "success",
   confirmed: "success",
   accepted: "success",
+  jobaccepted: "success",
+  jobacceptance: "success",
   approved: "success",
   published: "success",
   provided: "success",
   workcompleted: "success",
   verified: "success",
+  reviewed: "success",
 
   // Purple - Matching / AI leads
   matching: "purple",
@@ -46,6 +51,7 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   // Brand Blue - Proposals & Quotes & Open
   proposalsreceived: "brand",
   quotereceived: "brand",
+  submitted: "brand",
   open: "brand",
   thisweek: "brand",
 
@@ -54,13 +60,17 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   requested: "warning",
   pendingreview: "warning",
   pendingacceptance: "warning",
+  requestreceived: "warning",
   quotepending: "warning",
   paymentpending: "warning",
+  acceptedpendingpayment: "warning",
   priceupdated: "warning",
   rescheduled: "warning",
   changesrequested: "warning",
   within48hours: "warning",
   inactive: "warning",
+  processing: "warning",
+  disputed: "warning",
 
   // Indigo / Transit
   inprogress: "indigo",
@@ -70,12 +80,15 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
 
   // Teal - Arrival
   arrived: "teal",
+  arrivedatsite: "teal",
 
   // Cyan - Scheduled
   scheduled: "cyan",
 
   // Red - Danger / Cancellations / Errors
   failed: "danger",
+  paymentfailed: "danger",
+  acceptedpaymentfailed: "danger",
   cancelled: "danger",
   canceled: "danger",
   declined: "danger",
@@ -83,6 +96,7 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   suspended: "danger",
   noshow: "danger",
   emergency: "danger",
+  withdrawn: "danger",
 
   // Neutral
   draft: "neutral",

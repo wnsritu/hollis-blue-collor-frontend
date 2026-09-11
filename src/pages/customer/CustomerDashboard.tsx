@@ -146,15 +146,20 @@ const CustomerDashboard = () => {
         }
       }
 
-      if (fullDashRes.data?.success) {
-        const dData = fullDashRes.data.data;
-        if (dData.stats) {
-          setActiveCount(dData.stats.active_orders ?? 0);
-          setCompletedCount(dData.stats.completed_orders ?? 0);
-        } else if (typeof dData.active_orders === "number") {
-          setActiveCount(dData.active_orders);
-          setCompletedCount(dData.completed_orders || 0);
-        }
+      if (fullDashRes?.data?.success || fullDashRes?.data) {
+        const dData = fullDashRes.data?.data || fullDashRes.data || {};
+        const rawStats = dData.stats || dData;
+
+        // Map new API field names: active_bookings, completed_services, pending_proposals, upcoming_appointments
+        const parsedActive      = rawStats.active_bookings    ?? rawStats.active_orders    ?? rawStats.active    ?? 0;
+        const parsedCompleted   = rawStats.completed_services ?? rawStats.completed_orders ?? rawStats.completed ?? 0;
+        const parsedProposals   = rawStats.pending_proposals  ?? 0;
+        const parsedUpcoming    = rawStats.upcoming_appointments ?? 0;
+
+        setActiveCount(parsedActive);
+        setCompletedCount(parsedCompleted);
+        setPendingProposalsCount(parsedProposals);
+        setUpcomingApptsCount(parsedUpcoming);
 
         if (dData.recentBookings && dData.recentBookings.length > 0) {
           setRecentBookings(dData.recentBookings);
@@ -220,7 +225,7 @@ const CustomerDashboard = () => {
   if (id && selectedOrder) {
     const normalizedOrder = normalizeBooking(selectedOrder);
     return (
-      <div className="container-page py-8">
+      <>
         <PageHeader
           title={`Order Tracking — ${normalizedOrder.displayId}`}
           subtitle={`Placed on ${normalizedOrder.formattedDate}`}
@@ -244,9 +249,8 @@ const CustomerDashboard = () => {
                     return (
                       <div key={step.label} className="flex flex-col items-center text-center">
                         <div
-                          className={`flex size-10 items-center justify-center rounded-full transition-all ${
-                            isCompleted ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`}
+                          className={`flex size-10 items-center justify-center rounded-full transition-all ${isCompleted ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           <Icon size={18} />
                         </div>
@@ -279,13 +283,13 @@ const CustomerDashboard = () => {
             </Card>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // Exact Customer Dashboard UI
   return (
-    <div className="container-page py-8">
+    <>
       <PageHeader
         title={greetingTitle}
         subtitle={userSubtitle}
@@ -533,7 +537,7 @@ const CustomerDashboard = () => {
           </Panel>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

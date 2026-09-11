@@ -290,31 +290,87 @@ function ProviderRestrictedState({
  * Provider nav — M3 Marketplace / Service-connect routes.
  */
 export const providerNav: NavItem[] = [
-  { to: "/provider/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/provider/pricing", label: "Services & Pricing", icon: Tags },
+  { to: "/provider/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  {
+    to: "/provider/pricing",
+    label: "Services & Pricing",
+    icon: Tags,
+    matchPaths: ["/provider/pricing", "/provider/services-pricing"],
+  },
   { to: "/provider/availability", label: "Availability", icon: CalendarDays },
   { to: "/appointments", label: "Schedule", icon: CalendarDays },
-  { to: "/provider/opportunities", label: "Custom Requests", icon: ListChecks },
-  { to: "/provider/jobs", label: "Active Jobs", icon: Briefcase },
-  { to: "/messages", label: "Messages", icon: MessageSquare },
-  { to: "/provider/earnings", label: "Earnings", icon: Wallet },
-  { to: "/provider/featured", label: "Subscription", icon: CreditCard },
-  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles },
-  { to: "/provider/profile", label: "Business Profile", icon: BadgeCheck },
+  {
+    to: "/provider/opportunities",
+    label: "Custom Requests",
+    icon: ListChecks,
+    matchPaths: ["/provider/opportunities", "/provider/custom-requests"],
+  },
+  {
+    to: "/provider/jobs",
+    label: "Active Jobs",
+    icon: Briefcase,
+    matchPaths: ["/provider/jobs", "/provider/orders", "/provider/order"],
+  },
+  { to: "/messages", label: "Messages", icon: MessageSquare, matchPaths: ["/messages"] },
+  { to: "/provider/earnings", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
+  { to: "/provider/featured", label: "Subscription", icon: CreditCard, exact: true },
+  {
+    to: "/provider/profile",
+    label: "Business Profile",
+    icon: BadgeCheck,
+    matchPaths: ["/provider/profile", "/provider/profile-settings"],
+  },
 ];
 
 /**
  * Customer nav — mapped to application routes.
  */
 export const customerNav: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/search", label: "Find a Pro", icon: Search },
-  { to: "/appointments", label: "My Bookings", icon: Briefcase },
-  { to: "/projects", label: "Custom Requests", icon: PlusCircle },
-  { to: "/messages", label: "Messages", icon: MessageSquare },
-  { to: "/appointments", label: "Payments", icon: CreditCard },
-  { to: "/customer/reviews", label: "Reviews", icon: Star },
-  { to: "/profile", label: "My Profile", icon: User },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/search", label: "Find a Pro", icon: Search, matchPaths: ["/search", "/book"] },
+  {
+    to: "/customer/bookings",
+    label: "My Bookings",
+    icon: Briefcase,
+    matchPaths: [
+      "/customer/bookings",
+      "/appointments",
+      "/orders",
+      "/order",
+      "/booking",
+      "/report-issue",
+    ],
+  },
+  {
+    to: "/projects",
+    label: "Custom Requests",
+    icon: PlusCircle,
+    matchPaths: ["/projects"],
+  },
+  {
+    to: "/messages",
+    label: "Messages",
+    icon: MessageSquare,
+    matchPaths: ["/messages"],
+  },
+  {
+    to: "/customer/payments",
+    label: "Payments",
+    icon: CreditCard,
+    matchPaths: ["/customer/payments", "/payments"],
+  },
+  {
+    to: "/customer/reviews",
+    label: "Reviews",
+    icon: Star,
+    matchPaths: ["/customer/reviews", "/rating"],
+  },
+  {
+    to: "/profile",
+    label: "My Profile",
+    icon: User,
+    matchPaths: ["/profile"],
+  },
 ];
 
 /**

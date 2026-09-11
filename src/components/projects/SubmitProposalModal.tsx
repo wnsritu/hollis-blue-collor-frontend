@@ -91,6 +91,22 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
       return;
     }
 
+    for (let i = 0; i < lineItems.length; i++) {
+      const it = lineItems[i];
+      if (!it.description || !it.description.trim()) {
+        toast.error(`Please provide a description for line item #${i + 1}.`);
+        return;
+      }
+      if (Number(it.quantity) <= 0) {
+        toast.error(`Quantity for "${it.description}" must be at least 1.`);
+        return;
+      }
+      if (Number(it.unit_price) < 0) {
+        toast.error(`Unit price for "${it.description}" cannot be negative.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const validUntilDate = new Date();

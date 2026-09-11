@@ -11,6 +11,7 @@ import {
   Loader2,
   MapPin,
   MessageSquare,
+  Navigation,
   Search,
   ShieldCheck,
   Star,
@@ -30,7 +31,7 @@ import { appointmentApi } from "@/services/booking";
 import { ratingApi } from "@/services/rating";
 import { chatApi } from "@/services/chat";
 import { BOOKING_FLOW, getBookingTimelineStepStates } from "@/constants";
-import { normalizeBooking, getTimelineStep } from "@/utils/bookingAdapter";
+import { normalizeBooking, getTimelineStep, getBookingStatusDisplay } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import toast from "react-hot-toast";
@@ -138,6 +139,17 @@ export const CustomerOrderDetail: React.FC = () => {
   const isCancelled = normalized.isCancelled;
   const isCompleted = normalized.isCompleted;
   const isPriceUpdated = normalized.isPriceUpdated;
+  const normStatus = (status || "").toLowerCase().trim();
+  const isEnRoute = normStatus === "en route" || normStatus === "en_route";
+  const isArrived = normStatus === "arrived" || normStatus === "arrived at site";
+  const isInProgress = ["in progress", "in_progress", "in_process", "in process"].includes(normStatus);
+
+  const isPaid = normalized.isPaid;
+  const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
+    isPaid,
+    isReviewed: reviewed,
+  });
+  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed);
 
   const serviceName = normalized.serviceName;
   const categoryName = normalized.categoryName;
@@ -157,7 +169,6 @@ export const CustomerOrderDetail: React.FC = () => {
   const totalAmountNum = normalized.totalAmount;
   const subtotalNum = normalized.subtotal;
   const serviceFeeNum = normalized.serviceFee;
-  const isPaid = normalized.isPaid;
 
   // Format Payment Date
   let formattedPaymentDate = "";
@@ -261,7 +272,7 @@ export const CustomerOrderDetail: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <StatusPill status={status} />
+            <StatusPill status={customerStatusLabel} />
 
             <span
               className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
@@ -294,6 +305,43 @@ export const CustomerOrderDetail: React.FC = () => {
       {/* Main Grid: Details & Sidebar */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
+          {/* Status Informational Banners */}
+          {isEnRoute && (
+            <section className="rounded-2xl border border-indigo-200 bg-indigo-500/10 p-4 text-xs text-indigo-900 flex items-center gap-3">
+              <Navigation size={20} className="text-indigo-600 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">Professional is En Route</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Your provider is currently traveling to your location at {formattedAddress}.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {isArrived && (
+            <section className="rounded-2xl border border-teal-200 bg-teal-500/10 p-4 text-xs text-teal-900 flex items-center gap-3">
+              <MapPin size={20} className="text-teal-600 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">Professional Arrived at Site</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Your provider has arrived at the location and is ready to start service.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {isInProgress && (
+            <section className="rounded-2xl border border-indigo-200 bg-indigo-500/10 p-4 text-xs text-indigo-900 flex items-center gap-3">
+              <Clock size={20} className="text-indigo-600 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">Service In Progress</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Your professional is actively working on your service request.
+                </p>
+              </div>
+            </section>
+          )}
+
           {/* Price Adjustment Proposed Banner */}
           {isPriceUpdated && (
             <section className="rounded-2xl border border-amber-300 bg-amber-500/10 p-6 shadow-card space-y-3">
@@ -491,8 +539,8 @@ export const CustomerOrderDetail: React.FC = () => {
             <h2 className="font-display text-lg font-bold mb-4">Order Lifecycle Status</h2>
             <Timeline
               steps={BOOKING_FLOW}
-              current={getTimelineStep(status)}
-              stepStates={getBookingTimelineStepStates(isPaid)}
+              current={currentTimelineStep}
+              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep)}
             />
           </section>
 

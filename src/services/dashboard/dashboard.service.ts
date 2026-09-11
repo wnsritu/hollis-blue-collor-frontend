@@ -7,11 +7,10 @@ export interface CustomerDashboardStats {
   active_orders: number;
   completed_orders: number;
   cancelled_orders: number;
+  pending_proposals: number;       // open projects waiting for provider quotes
+  upcoming_appointments: number;   // bookings in the next 7 days
   pending_payment: number;
   total_spent: number;
-  laundry_orders: number;
-  house_cleaning_orders: number;
-  car_wash_orders: number;
 }
 
 export interface CustomerRecentBooking {
@@ -89,14 +88,17 @@ export interface ProviderDashboardStats {
   active_orders: number;
   completed_orders: number;
   cancelled_orders: number;
-  pending_orders: number;
+  // Correct service type split (based on project_id in bookings)
+  direct_service_orders: number;   // customer booked directly
+  request_quote_orders: number;    // came through marketplace proposal
+  // Backward-compat aliases
+  fixed_orders: number;
+  quote_orders: number;
   total_amount: number;
   pending_payout: number;
   avg_rating: number;
   review_count: number;
-  laundry_orders: number;
-  house_cleaning_orders: number;
-  car_wash_orders: number;
+  business_name?: string;
 }
 
 export interface ProviderJob {
@@ -163,6 +165,7 @@ export interface ProviderDashboardPayload {
   jobs: ProviderJob[];
   appointments: ProviderAppointment[];
   earnings: ProviderEarnings;
+  reviews: any[];
 }
 
 // ─── CUSTOMER DASHBOARD APIS ──────────────────────────────────────
@@ -203,6 +206,9 @@ export const getProviderAppointmentsApi = () =>
 export const getProviderEarningsApi = () =>
   http.get<ApiSuccess<ProviderEarnings>>(ENDPOINTS.providerDashboard.earnings);
 
+export const getProviderReviewsApi = () =>
+  http.get<ApiSuccess<any[]>>(ENDPOINTS.providerDashboard.reviews);
+
 export const dashboardService = {
   getCustomerDashboard: getCustomerDashboardApi,
   getCustomerStats: getCustomerStatsApi,
@@ -217,4 +223,5 @@ export const dashboardService = {
   getProviderJobs: getProviderJobsApi,
   getProviderAppointments: getProviderAppointmentsApi,
   getProviderEarnings: getProviderEarningsApi,
+  getProviderReviews: getProviderReviewsApi,
 };

@@ -30,6 +30,7 @@ export const ROUTES = {
   PROJECT_DETAIL: "/projects/:id",
   APPOINTMENTS: "/appointments",
   CUSTOMER_BOOKINGS: "/customer/bookings",
+  CUSTOMER_PAYMENTS: "/customer/payments",
   CUSTOMER_REVIEWS: "/customer/reviews",
 
   // Provider Protected
