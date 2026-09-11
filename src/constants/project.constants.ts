@@ -47,22 +47,22 @@ export const mapProjectStatusToTimelineStep = (status?: string, proposalsCount =
   if (["open", "matching", "requested", "pending", "pending review", "pending acceptance", "quote_pending", "quote pending"].includes(s)) {
     return proposalsCount > 0 ? "Quote Received" : "Quote Pending";
   }
-  if (["proposals_received", "quote_received", "quote received"].includes(s)) {
+  if (["proposals_received", "submitted", "quote_received", "quote received"].includes(s)) {
     return "Quote Received";
   }
-  if (["accepted", "confirmed"].includes(s)) {
+  if (["accepted", "confirmed", "accepted_pending_payment"].includes(s)) {
     return "Accepted";
   }
-  if (["payment_pending", "payment pending"].includes(s)) {
+  if (["payment_pending", "payment pending", "accepted_pending_payment"].includes(s)) {
     return "Payment Pending";
   }
-  if (["paid"].includes(s)) {
+  if (["paid", "succeeded"].includes(s)) {
     return "Paid";
   }
   if (["scheduled"].includes(s)) {
     return "Scheduled";
   }
-  if (["in_progress", "in process", "in_process", "en route", "arrived"].includes(s)) {
+  if (["in_progress", "in process", "in_process", "active", "en route", "arrived"].includes(s)) {
     return "In Progress";
   }
   if (["completed", "finished", "delivered"].includes(s)) {
@@ -82,7 +82,7 @@ export const getProjectTimelineStepStates = (
   const ps = (paymentStatus || "").toLowerCase().trim();
 
   // Paid if payment_status is explicitly paid, or status is paid
-  const isPaid = ps === "paid" || s === "paid";
+  const isPaid = ps === "paid" || ps === "succeeded" || s === "paid";
 
   // Payment is pending if not paid AND status is past proposal acceptance
   const isPaymentPending =
@@ -91,12 +91,14 @@ export const getProjectTimelineStepStates = (
       [
         "accepted",
         "confirmed",
+        "accepted_pending_payment",
         "payment_pending",
         "payment pending",
         "scheduled",
         "in_progress",
         "in process",
         "in_process",
+        "active",
         "en route",
         "arrived",
         "completed",
