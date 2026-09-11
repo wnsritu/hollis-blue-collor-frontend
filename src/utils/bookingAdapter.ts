@@ -49,6 +49,7 @@ export interface NormalizedBooking {
     requestedBy: string | number | null;
     date: string | null;
     timeSlotId: number | null;
+    reason?: string | null;
   };
   dispute: {
     isDisputed: boolean;
@@ -241,10 +242,11 @@ export function normalizeBooking(b: any): NormalizedBooking {
 
   // Reschedule info
   const reschedule = {
-    requested: Boolean(b.reschedule?.requested ?? b.reschedule_requested_by),
+    requested: Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,
+    reason: b.reschedule?.reason ?? b.reschedule_reason ?? b.notes ?? null,
   };
 
   // Dispute info
