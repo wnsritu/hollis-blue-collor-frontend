@@ -55,6 +55,13 @@ export const SearchProviders: React.FC = () => {
     fetchProviders,
   } = useSearchProviders();
 
+  // Check if at least one valid search parameter is provided
+  const hasValidSearchCriteria = Boolean(
+    query.trim().length > 0 ||
+    location.trim().length > 0 ||
+    (categoryId && categoryId !== "all")
+  );
+
   const FiltersContent = () => (
     <div className="space-y-6">
       {/* Service Category */}
@@ -68,7 +75,7 @@ export const SearchProviders: React.FC = () => {
             <SelectItem value="all">All categories</SelectItem>
             {categories.map((c) => (
               <React.Fragment key={c.id}>
-                <SelectItem value={String(c.id)} className="font-bold">
+                <SelectItem value={String(c.id)}>
                   {c.name}
                 </SelectItem>
                 {c.service_types?.map((st) => (
@@ -209,7 +216,11 @@ export const SearchProviders: React.FC = () => {
                 placeholder="What service do you need?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchProviders(query, location)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  hasValidSearchCriteria &&
+                  fetchProviders(query, location)
+                }
                 className="h-11 bg-card pl-9"
               />
             </div>
@@ -222,7 +233,11 @@ export const SearchProviders: React.FC = () => {
                 placeholder={userCoords && !location ? "Near your location" : "ZIP Code or City"}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchProviders(query, location)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" &&
+                  hasValidSearchCriteria &&
+                  fetchProviders(query, location)
+                }
                 className="h-11 bg-card pl-9 pr-10"
               />
               <button
@@ -234,8 +249,12 @@ export const SearchProviders: React.FC = () => {
                 <Sparkles size={16} />
               </button>
             </div>
-            <Button onClick={() => fetchProviders(query, location)} className="h-11">
-              Search
+            <Button
+              onClick={() => hasValidSearchCriteria && fetchProviders(query, location)}
+              disabled={!hasValidSearchCriteria || loading}
+              className="h-11 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : "Search"}
             </Button>
           </div>
         </div>

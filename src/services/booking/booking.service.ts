@@ -108,8 +108,10 @@ export const bookingApi = {
   update: (id: number | string, payload: Record<string, unknown>) =>
     http.put<ApiSuccess>(ENDPOINTS.booking.edit(id), payload),
 
-  updateStatus: (id: number | string, payload: Record<string, unknown>) =>
-    http.put<ApiSuccess>(ENDPOINTS.booking.updateStatus(id), payload),
+  updateStatus: (id: number | string, payload: Record<string, unknown>) => {
+    const raw = (payload.appointment_status || payload.status) as string;
+    return appointmentApi.updateStatus(id, { appointment_status: raw as any, status: raw as any });
+  },
 
   remove: (id: number | string) =>
     http.delete<ApiSuccess>(ENDPOINTS.booking.delete(id)),
@@ -142,4 +144,10 @@ export const appointmentApi = {
 
   confirmReschedule: (id: number | string) =>
     http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.confirmReschedule(id)),
+
+  rejectReschedule: (id: number | string) =>
+    http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.rejectReschedule(id)),
+
+  getHistory: (id: number | string) =>
+    http.get<ApiSuccess<any[]>>(ENDPOINTS.appointment.history(id)),
 };

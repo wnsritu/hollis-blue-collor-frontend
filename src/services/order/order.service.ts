@@ -25,9 +25,31 @@ export const getRatingByBookingId = (id: any) => {
   return apiClient.get(`/ratings/booking-ratings/${id}`);
 };
 
-// Customer Order Details
+const normalizeStatus = (status?: string): string => {
+  if (!status) return "Requested";
+  const s = String(status).trim().toLowerCase().replace(/[-_]/g, " ");
+  if (["requested", "pending", "pending review", "pending acceptance", "price updated"].includes(s)) return "Requested";
+  if (["confirmed", "accepted"].includes(s)) return "Confirmed";
+  if (["en route", "enroute"].includes(s)) return "En Route";
+  if (["arrived"].includes(s)) return "Arrived";
+  if (["in progress", "inprocess", "progress"].includes(s)) return "In Progress";
+  if (["rescheduled"].includes(s)) return "Rescheduled";
+  if (["completed", "finished", "delivered"].includes(s)) return "Completed";
+  if (["cancelled", "canceled", "rejected", "expired", "payment failed"].includes(s)) return "Cancelled";
+  if (["no show", "noshow"].includes(s)) return "No-show";
+  return status;
+};
+
+// Rebound to real M3 Appointment Status Endpoint
 export const updateOrderStatusApi = (data: any) => {
-  return apiClient.post(`/order/update-status`, data);
+  const bookingId = typeof data === "object" ? (data?.booking_id || data?.id) : data;
+  const rawStatus = typeof data === "object" ? (data?.appointment_status || data?.status) : arguments[1];
+  const norm = normalizeStatus(rawStatus);
+  return apiClient.patch(`/appointments/${bookingId}/status`, {
+    appointment_status: norm,
+    status: norm,
+    reason: typeof data === "object" ? data?.reason : undefined,
+  });
 };
 
 export const getDisputeDetail = (data: any) => {
@@ -57,8 +79,9 @@ export const getBookinById = async (id: any) => {
 };
 
 // Update order status
-export const updateOrderStatus = async (data: any) => {
-  const res = await apiClient.post(`order/update-status`, data);
+export const updateOrderStatus = async (data: any, statusArg?: string) => {
+  const payload = typeof data === "object" ? data : { booking_id: data, status: statusArg };
+  const res = await updateOrderStatusApi(payload);
   return res.data;
 };
 

@@ -28,6 +28,7 @@ export const ENDPOINTS = {
     checkEmail: "/auth/check-email",
   },
 
+
   /** Legacy forgot-password routes still mounted on backend */
   forgotPasswordLegacy: {
     request: "/forgot-password",
@@ -76,6 +77,7 @@ export const ENDPOINTS = {
     list: "/provider/list",
     details: (id: number | string) => `/provider/details/${id}`,
     update: (id: number | string) => `/provider/update/${id}`,
+    updateSelfStatus: "/provider/status",
     services: "/provider/services",
     addService: "/provider/service/add",
     serviceById: (id: number | string) => `/provider/service/${id}`,
@@ -134,6 +136,9 @@ export const ENDPOINTS = {
     reschedule: (id: number | string) => `/appointments/${id}/reschedule`,
     confirmReschedule: (id: number | string) =>
       `/appointments/${id}/confirm-reschedule`,
+    rejectReschedule: (id: number | string) =>
+      `/appointments/${id}/reject-reschedule`,
+    history: (id: number | string) => `/appointments/${id}/history`,
   },
 
   // ─── M3 Chat ───────────────────────────────────────────

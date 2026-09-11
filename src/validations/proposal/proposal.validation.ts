@@ -112,3 +112,68 @@ export const calculateQuoteTotal = (
   const discount = Number(form.discount) || 0;
   return Math.max(0, base - discount);
 };
+
+export interface ProposalLineItem {
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface ProposalSubmissionFormValues {
+  message: string;
+  estimatedHours: string;
+  proposedDate: string;
+  validDays: string;
+  lineItems: ProposalLineItem[];
+}
+
+export const proposalSubmissionValidationSchema = Yup.object().shape({
+  message: Yup.string()
+    .trim()
+    .min(10, "Proposal description must be at least 10 characters")
+    .max(2000, "Proposal description cannot exceed 2000 characters")
+    .required("Please describe your proposal in detail"),
+
+  estimatedHours: Yup.number()
+    .typeError("Estimated hours must be a number")
+    .positive("Estimated hours must be greater than 0")
+    .nullable()
+    .transform((v, o) => (String(o).trim() === "" ? null : v)),
+
+  validDays: Yup.number()
+    .typeError("Validity days must be a number")
+    .min(1, "Validity must be at least 1 day")
+    .max(90, "Validity cannot exceed 90 days")
+    .required("Validity period is required"),
+
+  lineItems: Yup.array()
+    .of(
+      Yup.object().shape({
+        description: Yup.string()
+          .trim()
+          .min(2, "Description must be at least 2 characters")
+          .max(200, "Description cannot exceed 200 characters")
+          .required("Line item description is required"),
+        quantity: Yup.number()
+          .typeError("Quantity must be a number")
+          .min(1, "Quantity must be at least 1")
+          .required("Quantity is required"),
+        unit_price: Yup.number()
+          .typeError("Unit price must be a number")
+          .min(0, "Unit price cannot be negative")
+          .required("Unit price is required"),
+      })
+    )
+    .min(1, "At least one line item is required")
+    .test("total-greater-than-zero", "Proposal total amount must be greater than $0", (items) => {
+      if (!items || items.length === 0) return false;
+      const total = items.reduce(
+        (sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
+        0
+      );
+      return total > 0;
+    }),
+});
+
+export type ProposalSubmissionValidationSchema = typeof proposalSubmissionValidationSchema;
+
