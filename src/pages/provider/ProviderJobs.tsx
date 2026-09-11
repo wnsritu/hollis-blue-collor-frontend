@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Navigation,
   Play,
+  Star,
   Tag,
   XCircle,
   Loader2,
@@ -34,6 +35,7 @@ import { appointmentApi, bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
+import { formatDisplayDate } from "@/utils/format";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -50,6 +52,9 @@ export function ProviderJobs() {
   const [counterNote, setCounterNote] = useState("");
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+  // State for View Review Modal
+  const [viewReviewModalBooking, setViewReviewModalBooking] = useState<any | null>(null);
 
   const fetchActiveJobs = async () => {
     setLoading(true);
@@ -611,11 +616,23 @@ export function ProviderJobs() {
                         </Button>
                       )}
 
-                      {/* Completed State Indicator */}
+                      {/* Completed State Indicator & Review Button */}
                       {isCompleted && (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-xl">
                           <CheckCircle2 size={14} /> Job Completed &amp; Payout Released
                         </span>
+                      )}
+
+                      {(n.review || b.review) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setViewReviewModalBooking(b)}
+                          className="gap-1 text-xs border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 font-bold"
+                        >
+                          <Star size={14} className="fill-amber-500 text-amber-500" />
+                          View Review ({(n.review || b.review).rating} ★)
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -698,6 +715,78 @@ export function ProviderJobs() {
                   <CheckCircle2 size={15} />
                 )}
                 Propose New Price
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* VIEW REVIEW MODAL */}
+      {viewReviewModalBooking && (
+        <Dialog
+          open={Boolean(viewReviewModalBooking)}
+          onOpenChange={() => setViewReviewModalBooking(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <Star size={18} className="fill-amber-500 text-amber-500" /> Customer Review
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Review submitted by <strong>{normalizeBooking(viewReviewModalBooking).customerName}</strong> for booking{" "}
+                <strong>{normalizeBooking(viewReviewModalBooking).displayId}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+
+            {(() => {
+              const rev = normalizeBooking(viewReviewModalBooking).review || viewReviewModalBooking.review;
+              const ratingVal = Number(rev?.rating) || 0;
+              const commentText = rev?.comment || "No written review comment provided.";
+              const dateVal = rev?.created_at || rev?.createdAt;
+
+              return (
+                <div className="space-y-4 py-2">
+                  {/* STAR RATING DISPLAY */}
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={22}
+                          className={
+                            star <= ratingVal
+                              ? "fill-amber-400 text-amber-400"
+                              : "fill-muted text-muted-foreground opacity-30"
+                          }
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                      {ratingVal} out of 5 Stars
+                    </p>
+                  </div>
+
+                  {/* COMMENT BOX */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-muted-foreground">Customer Feedback</Label>
+                    <div className="rounded-xl bg-muted/40 p-3.5 text-xs text-foreground leading-relaxed italic border border-border">
+                      "{commentText}"
+                    </div>
+                  </div>
+
+                  {/* REVIEW DATE */}
+                  {dateVal && (
+                    <p className="text-[11px] text-muted-foreground text-right">
+                      Submitted on {formatDisplayDate(dateVal)}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-2">
+              <Button variant="outline" onClick={() => setViewReviewModalBooking(null)}>
+                Close
               </Button>
             </div>
           </DialogContent>
