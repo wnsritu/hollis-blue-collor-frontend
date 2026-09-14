@@ -84,7 +84,7 @@ export const SearchProviders: React.FC = () => {
                     value={`st_${st.id}`}
                     className="pl-6 text-xs text-muted-foreground"
                   >
-                    ↳ {st.name}
+                    {st.name}
                   </SelectItem>
                 ))}
               </React.Fragment>
