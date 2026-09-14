@@ -103,9 +103,10 @@ export const ProviderLeads: React.FC = () => {
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-soft-foreground">
+                    {/* <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-soft-foreground">
                       <Sparkles size={12} className="text-accent" /> {score}% Match
-                    </span>
+                    </span> */}
+                    <div />
                     <StatusPill status={project.status || "open"} />
                   </div>
 
@@ -160,13 +161,15 @@ export const ProviderLeads: React.FC = () => {
                   >
                     View Project
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(`/provider/custom-requests/${project.id}`)}
-                    className="flex-1 text-xs gap-1"
-                  >
-                    Submit Proposal <ChevronRight size={14} />
-                  </Button>
+                  {project.status !== "proposals_received" && (match as any).status !== "proposals_received" && (
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(`/provider/custom-requests/${project.id}`)}
+                      className="flex-1 text-xs gap-1"
+                    >
+                      Submit Proposal <ChevronRight size={14} />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
