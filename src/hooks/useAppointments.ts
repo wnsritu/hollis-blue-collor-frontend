@@ -46,24 +46,6 @@ export function useAppointments() {
     }
   };
 
-  const fetchAppointments = async () => {
-    setLoading(true);
-    try {
-      const res = await appointmentApi.listMine();
-      const list = (res as any)?.data || res || [];
-      setAppointments(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error("Failed to load appointments", err);
-      toast.error("Failed to load your appointments.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
   // Calendar state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>("9:30 AM");
@@ -146,46 +128,48 @@ export function useAppointments() {
     }
   };
 
-  const filteredAppointments = appointments
-    .filter((apt) => {
-      const normalized = normalizeBooking(apt);
-      const status = normalized.rawStatus;
-      if (activeTab === "All") return true;
-      if (activeTab === "Upcoming") {
-        return ["requested", "confirmed", "rescheduled", "pending", "payment pending", "paid", "scheduled"].includes(status);
-      }
-      if (activeTab === "In Progress") {
-        return ["accepted", "in_process", "in progress", "en route", "arrived"].includes(status);
-      }
-      if (activeTab === "Completed") {
-        return ["completed", "delivered", "paid", "reviewed", "finished", "work completed"].includes(status);
-      }
-      return true;
-    })
-    .filter((apt: any) => {
-      if (selectedDay === null) return true;
-      const n = normalizeBooking(apt);
-      if (!n.date) return false;
-      const d = new Date(n.date);
-      if (!isNaN(d.getTime())) {
-        return d.getDate() === selectedDay;
-      }
-      return false;
-    })
-    .filter((apt: any) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const n = normalizeBooking(apt);
-      const other = userIsCustomer ? n.providerName : n.customerName;
-      const idStr = `${n.displayId} ${n.id}`;
-      return (
-        n.serviceName.toLowerCase().includes(q) ||
-        other.toLowerCase().includes(q) ||
-        idStr.toLowerCase().includes(q) ||
-        n.serviceDescription.toLowerCase().includes(q) ||
-        n.address.toLowerCase().includes(q)
-      );
-    });
+  const fetchAppointments = async (overrideParams?: {
+    tab?: string;
+    query?: string;
+    day?: number | null;
+  }) => {
+    setLoading(true);
+    try {
+      const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
+      const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
+      const dayToUse = overrideParams?.day !== undefined ? overrideParams.day : selectedDay;
+
+      let statusTab: string | undefined = undefined;
+      if (tabToUse === "Upcoming") statusTab = "upcoming";
+      else if (tabToUse === "In Progress") statusTab = "in_progress";
+      else if (tabToUse === "Completed") statusTab = "completed";
+      else if (tabToUse === "Cancelled") statusTab = "cancelled";
+
+      const params: Record<string, unknown> = {};
+      if (statusTab) params.status_tab = statusTab;
+      if (queryToUse && queryToUse.trim()) params.search = queryToUse.trim();
+      if (dayToUse !== null && dayToUse !== undefined) params.day = dayToUse;
+
+      const res = await appointmentApi.listMine(params);
+      const list = (res as any)?.data || res || [];
+      setAppointments(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to load appointments", err);
+      toast.error("Failed to load your appointments.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchAppointments();
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [activeTab, searchQuery, selectedDay]);
+
+  // Server returned appointments filtered by status_tab, search, and day
+  const filteredAppointments = appointments;
 
   return {
     navigate,
