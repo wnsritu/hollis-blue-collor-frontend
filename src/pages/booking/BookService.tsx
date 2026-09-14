@@ -208,7 +208,7 @@ export default function BookService() {
                             <button
                               type="button"
                               onClick={() => updateQty(item.id, -1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-card text-foreground shadow-xs hover:bg-accent transition-colors"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-card text-foreground shadow-xs hover:bg-muted transition-colors"
                             >
                               <Minus size={13} />
                             </button>
@@ -216,7 +216,7 @@ export default function BookService() {
                             <button
                               type="button"
                               onClick={() => updateQty(item.id, 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-card text-foreground shadow-xs hover:bg-accent transition-colors"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-card text-foreground shadow-xs hover:bg-muted transition-colors"
                             >
                               <Plus size={13} />
                             </button>
@@ -241,24 +241,27 @@ export default function BookService() {
                 <Card className="shadow-card border-border/80">
                   <CardHeader className="pb-3 border-b border-border/60">
                     <CardTitle className="text-base font-bold text-foreground">
-                      Offered Services
+                      Additional Services by Provider
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-5 divide-y divide-border/60">
-                    {unselectedServices.map((svc) => (
-                      <div key={svc.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {unselectedServices.map((service) => (
+                      <div key={service.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                         <div className="space-y-1 min-w-0 flex-1">
-                          <h3 className="font-semibold text-sm text-foreground">{svc.name}</h3>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
-                          <p className="text-xs font-semibold text-foreground">${svc.price} <span className="font-normal text-muted-foreground">/{svc.unit}</span></p>
+                          <h4 className="text-sm font-semibold text-foreground">{service.name}</h4>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{service.description}</p>
+                          <p className="text-xs font-semibold text-primary">
+                            ${service.price} <span className="font-normal text-muted-foreground">/{service.unit || "flat rate"}</span>
+                          </p>
                         </div>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => addItem(svc)}
-                          className="gap-1.5 self-start sm:self-center border-primary/40 text-primary hover:bg-primary/10"
+                          onClick={() => addItem(service)}
+                          className="shrink-0 text-xs font-semibold gap-1.5"
                         >
-                          <Plus size={14} /> Add Service
+                          <Plus size={14} /> Add
                         </Button>
                       </div>
                     ))}
@@ -266,9 +269,22 @@ export default function BookService() {
                 </Card>
               )}
 
-              <div className="flex justify-end pt-4">
-                <Button size="lg" onClick={handleProceedToStep2} className="gap-2 shadow-sm">
-                  Continue to Schedule & Address <ArrowRight size={16} />
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setQuoteModalOpen(true)}
+                  className="w-full sm:w-auto text-xs gap-1.5"
+                >
+                  <HelpCircle size={15} /> Need a Custom Quote?
+                </Button>
+
+                <Button
+                  onClick={handleProceedToStep2}
+                  disabled={selectedItems.length === 0}
+                  className="w-full sm:w-auto gap-2 px-6"
+                >
+                  Continue to Date & Address <ArrowRight size={16} />
                 </Button>
               </div>
             </div>
@@ -285,7 +301,7 @@ export default function BookService() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
                     {dates.map((d) => {
                       const isSelected = selectedDate === d.iso;
                       const activeSlotIds = providerSchedule ? providerSchedule[d.dayOfWeekLong] || [] : null;
@@ -297,24 +313,22 @@ export default function BookService() {
                           type="button"
                           disabled={isUnavailable}
                           onClick={() => setSelectedDate(d.iso)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${isUnavailable
+                          className={`rounded-xl border p-2.5 text-center transition-all ${isUnavailable
                               ? "bg-muted/40 text-muted-foreground/60 border-border/40 cursor-not-allowed opacity-60"
                               : isSelected
-                                ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-xs"
-                                : "bg-card text-foreground border-border hover:bg-accent cursor-pointer"
+                                ? "border-primary bg-primary text-primary-foreground shadow-xs font-bold ring-2 ring-primary/20"
+                                : "border-border hover:border-primary/40 bg-card text-foreground cursor-pointer"
                             }`}
                         >
-                          <span className="text-xs font-medium uppercase opacity-80">{d.dayName}</span>
-                          <span className="text-sm font-bold mt-0.5">{d.monthDay}</span>
-                          <span className="text-[10px] mt-1 font-semibold">
+                          <span className="block text-[11px] font-medium opacity-80">
+                            {d.dayName}
+                          </span>
+                          <span className="block font-display text-lg font-bold">{d.day}</span>
+                          <span className="block text-[11px] opacity-80">
                             {isUnavailable ? (
-                              <span className="text-destructive/80">Unavailable</span>
-                            ) : activeSlotIds ? (
-                              <span className={isSelected ? "text-primary-foreground" : "text-primary"}>
-                                {activeSlotIds.length} slot(s)
-                              </span>
+                              <span className="text-destructive/80 font-medium">Unavailable</span>
                             ) : (
-                              <span className="text-muted-foreground">Available</span>
+                              d.month
                             )}
                           </span>
                         </button>
@@ -349,7 +363,7 @@ export default function BookService() {
                     }
 
                     return (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {availableSlots.map((s) => {
                           const id = Number(s.id);
                           const label = formatSlotLabel(s);
@@ -362,13 +376,17 @@ export default function BookService() {
                                 setSelectedTimeSlotId(id);
                                 setSelectedTimeSlotLabel(label);
                               }}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${isSelected
-                                  ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20 shadow-xs font-semibold"
-                                  : "bg-card text-foreground border-border hover:bg-accent"
+                              className={`flex items-center justify-between rounded-xl border p-3.5 text-sm font-semibold transition-all ${isSelected
+                                  ? "border-primary bg-primary-soft text-primary shadow-xs ring-2 ring-primary/20"
+                                  : "border-border bg-card hover:border-primary/40 text-foreground cursor-pointer"
                                 }`}
                             >
-                              <Clock size={16} className={isSelected ? "text-primary-foreground" : "text-muted-foreground"} />
-                              <span className="text-sm">{label}</span>
+                              <span>{label}</span>
+                              {isSelected && (
+                                <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                                  <CheckCircle2 size={13} />
+                                </span>
+                              )}
                             </button>
                           );
                         })}

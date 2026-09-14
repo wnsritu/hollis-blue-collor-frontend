@@ -476,7 +476,7 @@ const CleaningBookingWizard = () => {
                         key={it}
                         onClick={() => isAvailable && toggleCheck(itemKey)}
                         className={`relative group flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-all ${isAvailable
-                            ? "cursor-pointer hover:bg-accent"
+                            ? "cursor-pointer hover:bg-muted"
                             : "cursor-not-allowed opacity-50 bg-muted/40"
                           }`}
                       >
@@ -500,7 +500,7 @@ const CleaningBookingWizard = () => {
                   }
 
                   return (
-                    <label key={it} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                    <label key={it} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
                       <Checkbox checked={checked.includes(itemKey)} onCheckedChange={() => toggleCheck(itemKey)} />
                       <span className="flex-1">{it}</span>
                     </label>
