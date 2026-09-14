@@ -93,6 +93,8 @@ export interface UpcomingDay {
   dayOfWeekLong: string;
   monthDay: string;
   fullLabel: string;
+  day: number;
+  month: string;
 }
 
 /**
@@ -115,6 +117,8 @@ export function getUpcomingDays(daysCount = 14): UpcomingDay[] {
       dayOfWeekLong: format(d, "EEEE"), // "Monday"
       monthDay: format(d, "MMM d"), // "Sep 9"
       fullLabel: format(d, "MMM d, yyyy"), // "Sep 9, 2026"
+      day: d.getDate(),
+      month: format(d, "MMM"), // "Sep", "Aug"
     });
   }
 
