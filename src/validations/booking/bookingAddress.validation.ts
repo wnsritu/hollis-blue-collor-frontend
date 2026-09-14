@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { zipValidationSchema } from "../common";
 
 export interface BookingAddressFormValues {
   name: string;
@@ -46,7 +47,7 @@ export const bookingAddressValidationSchema = Yup.object().shape({
     .max(100, "City cannot exceed 100 characters")
     .required("City is required"),
 
-  zip: Yup.string().trim().optional(),
+  zip: zipValidationSchema,
 
   notes: Yup.string()
     .trim()

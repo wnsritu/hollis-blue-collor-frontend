@@ -12,6 +12,7 @@ import {
 } from "@/pages/auth/SignUp";
 import { getErrorMessage } from "@/services";
 import toast from "react-hot-toast";
+import { isValidZip } from "@/validations/common/rules";
 
 export const ONBOARDING_STEPS = ["Services", "Coverage", "Credentials"] as const;
 
@@ -188,7 +189,9 @@ export function useProviderOnboarding() {
       if (!form.address.trim()) errs.address = "Street address is required.";
       if (!form.city.trim()) errs.city = "City is required.";
       if (!form.state.trim()) errs.state = "State / Province is required.";
-
+      if (form.zip.trim() && !isValidZip(form.zip)) {
+        errs.zip = "Please enter a valid ZIP / Postal code (digits only, no letters).";
+      }
       if (!form.country.trim()) errs.country = "Country is required.";
 
       if (Object.keys(errs).length > 0) {

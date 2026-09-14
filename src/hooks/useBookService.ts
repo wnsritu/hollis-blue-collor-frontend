@@ -15,6 +15,7 @@ import type {
   CustomerBookingDetails,
 } from "@/types/booking.types";
 import { getUpcomingDays } from "@/utils/date";
+import { isValidZip } from "@/validations/common/rules";
 
 const getUpcomingDates = (daysCount = 14) => getUpcomingDays(daysCount);
 
@@ -361,6 +362,10 @@ export function useBookService() {
     }
     if (!details.address || !details.city) {
       toast.error("Please enter complete service address details (Street, City).");
+      return;
+    }
+    if (details.zip && !isValidZip(details.zip)) {
+      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
       return;
     }
     setStep(2);
