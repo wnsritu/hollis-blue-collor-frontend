@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { zipValidationSchema } from "../common";
 
 export const createProjectValidationSchema = Yup.object().shape({
   title: Yup.string()
@@ -21,13 +22,7 @@ export const createProjectValidationSchema = Yup.object().shape({
 
   city: Yup.string().trim().max(100, "City cannot exceed 100 characters").optional(),
   state: Yup.string().trim().max(50, "State cannot exceed 50 characters").optional(),
-  zip_code: Yup.string()
-    .trim()
-    .test("valid-zip", "Please enter a valid 5-digit ZIP code", (val) => {
-      if (!val) return true;
-      return /^\d{5}(-\d{4})?$/.test(val);
-    })
-    .optional(),
+  zip_code: zipValidationSchema,
 
   budget_min: Yup.number()
     .nullable()

@@ -536,7 +536,7 @@ export default function BookService() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="zip" className="text-xs font-semibold">
-                        ZIP / Postal Code <span className="text-destructive">*</span>
+                        ZIP / Postal Code
                       </Label>
                       <Input
                         id="zip"
@@ -733,7 +733,7 @@ export default function BookService() {
 
                       <div className="grid gap-2">
                         <Label htmlFor="zip" className="text-xs font-semibold">
-                          Billing ZIP <span className="text-destructive">*</span>
+                          Billing ZIP
                         </Label>
                         <Input
                           id="zip"

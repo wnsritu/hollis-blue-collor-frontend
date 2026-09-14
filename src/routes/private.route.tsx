@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Route } from "react-router-dom";
+import { Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import { routeMap } from "./routeMap";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -36,7 +36,6 @@ const SupportSettings = lazy(() => import("@/pages/support/SupportSettings"));
 
 // Customer pages
 const CustomerDashboard = lazy(() => import("@/pages/customer/CustomerDashboard"));
-const OrderTracking = lazy(() => import("@/pages/customer/OrderTracking"));
 const CustomerOrderDetail = lazy(() => import("@/pages/customer/CustomerOrderDetail"));
 const ReportIssue = lazy(() => import("@/pages/customer/ReportIssue"));
 const CustomerProfile = lazy(() => import("@/pages/customer/CustomerProfile"));
@@ -118,7 +117,8 @@ export const PrivateRoutes = () => (
       }
     >
       <Route path={routeMap.CUSTOMER_DASHBOARD.path} element={<CustomerDashboard />} />
-      <Route path={routeMap.CUSTOMER_ORDERS.path} element={<OrderTracking />} />
+      <Route path="/orders" element={<Navigate to="/customer/bookings" replace />} />
+      <Route path="orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />

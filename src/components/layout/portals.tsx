@@ -335,7 +335,6 @@ export const customerNav: NavItem[] = [
     matchPaths: [
       "/customer/bookings",
       "/appointments",
-      "/orders",
       "/order",
       "/booking",
       "/report-issue",

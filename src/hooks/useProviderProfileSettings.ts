@@ -12,6 +12,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import type { Category } from "@/types/api/catalog";
 import type { BankAccountType } from "@/types/api/provider";
 import type { ProviderProfileTab, FAQItem, BankForm } from "@/types/provider.types";
+import { isValidZip } from "@/validations/common/rules";
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
@@ -307,6 +308,11 @@ export function useProviderProfileSettings() {
     }
     if (!about.trim() || about.trim().length < 10) {
       toast.error("About / description must be at least 10 characters.");
+      setTab("info");
+      return;
+    }
+    if (zip.trim() && !isValidZip(zip)) {
+      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
       setTab("info");
       return;
     }

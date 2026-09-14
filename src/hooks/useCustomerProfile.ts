@@ -8,6 +8,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { CustomerProfileTab } from "@/types/customer.types";
+import { isValidZip } from "@/validations/common/rules";
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
@@ -239,6 +240,11 @@ export function useCustomerProfile() {
 
     if (!fullName.trim()) {
       toast.error("Full name is required.");
+      return;
+    }
+
+    if (zipCode.trim() && !isValidZip(zipCode)) {
+      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
       return;
     }
 
