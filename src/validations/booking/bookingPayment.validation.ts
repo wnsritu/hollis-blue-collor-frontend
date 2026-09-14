@@ -43,10 +43,7 @@ export const bookingPaymentValidationSchema = Yup.object().shape({
     .required("CVC is required")
     .matches(/^\d{3,4}$/, "CVC must be 3 or 4 digits"),
 
-  zip: Yup.string()
-    .trim()
-    .required("Billing ZIP is required")
-    .matches(/^\d{5}(-\d{4})?$/, "Enter a valid 5-digit ZIP code"),
+  zip: Yup.string().trim().optional(),
 
   nameOnCard: Yup.string()
     .trim()

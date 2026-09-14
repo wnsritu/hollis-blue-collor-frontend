@@ -188,11 +188,7 @@ export function useProviderOnboarding() {
       if (!form.address.trim()) errs.address = "Street address is required.";
       if (!form.city.trim()) errs.city = "City is required.";
       if (!form.state.trim()) errs.state = "State / Province is required.";
-      if (!form.zip.trim()) {
-        errs.zip = "ZIP / Postal code is required.";
-      } else if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim()) && form.zip.trim().length < 3) {
-        errs.zip = "Please enter a valid 5-digit ZIP code.";
-      }
+
       if (!form.country.trim()) errs.country = "Country is required.";
 
       if (Object.keys(errs).length > 0) {

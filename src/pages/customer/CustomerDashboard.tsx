@@ -348,7 +348,7 @@ const CustomerDashboard = () => {
             title="Recent bookings"
             action={
               <Button asChild variant="ghost" size="sm">
-                <Link to="/orders">
+                <Link to="/customer/bookings">
                   View all <ArrowRight size={15} className="ml-1" />
                 </Link>
               </Button>

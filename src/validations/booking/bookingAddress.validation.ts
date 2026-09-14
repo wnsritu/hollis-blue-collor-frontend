@@ -46,10 +46,7 @@ export const bookingAddressValidationSchema = Yup.object().shape({
     .max(100, "City cannot exceed 100 characters")
     .required("City is required"),
 
-  zip: Yup.string()
-    .trim()
-    .required("ZIP / Postal code is required")
-    .matches(/^[a-zA-Z0-9\s-]{3,10}$/, "Please enter a valid ZIP / Postal code"),
+  zip: Yup.string().trim().optional(),
 
   notes: Yup.string()
     .trim()

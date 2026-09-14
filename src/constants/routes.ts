@@ -20,7 +20,7 @@ export const ROUTES = {
 
   // Customer Protected
   CUSTOMER_DASHBOARD: "/dashboard",
-  CUSTOMER_ORDERS: "/orders",
+  CUSTOMER_ORDERS: "/customer/bookings",
   CUSTOMER_ORDER_DETAIL: "/order/:id",
   CUSTOMER_BOOKINGS_DETAIL: "/customer/bookings/:id",
   CUSTOMER_REPORT_ISSUE: "/report-issue/:id",

@@ -360,7 +360,6 @@ export default function ProviderOnboarding() {
                     if (fieldErrors.zip) setFieldErrors({ ...fieldErrors, zip: undefined });
                   }}
                   error={fieldErrors.zip}
-                  required
                 />
                 <Field
                   label="Country"

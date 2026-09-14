@@ -359,8 +359,8 @@ export function useBookService() {
       toast.error("Please select a time slot available for this provider.");
       return;
     }
-    if (!details.address || !details.city || !details.zip) {
-      toast.error("Please enter complete service address details (Street, City, ZIP).");
+    if (!details.address || !details.city) {
+      toast.error("Please enter complete service address details (Street, City).");
       return;
     }
     setStep(2);
