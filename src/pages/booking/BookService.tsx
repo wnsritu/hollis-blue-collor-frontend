@@ -14,6 +14,7 @@ import {
   Star,
   Trash2,
   CreditCard,
+  Lock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,9 @@ import { useFormik } from "formik";
 import {
   bookingAddressValidationSchema,
   type BookingAddressFormValues,
+  bookingPaymentValidationSchema,
+  type BookingPaymentFormValues,
+  DEFAULT_BOOKING_PAYMENT_VALUES,
 } from "@/validations/booking";
 
 export default function BookService() {
@@ -99,6 +103,14 @@ export default function BookService() {
         return;
       }
       setStep(2);
+    },
+  });
+
+  const paymentFormik = useFormik<BookingPaymentFormValues>({
+    initialValues: DEFAULT_BOOKING_PAYMENT_VALUES,
+    validationSchema: bookingPaymentValidationSchema,
+    onSubmit: () => {
+      handleCreateBookingAndPay();
     },
   });
 
@@ -587,88 +599,210 @@ export default function BookService() {
           {/* STEP 2: REVIEW & PAY */}
           {step === 2 && (
             <div className="space-y-6">
-              {/* Summary Cards */}
+              {/* Review Order Details */}
               <Card className="shadow-card border-border/80">
                 <CardHeader className="pb-3 border-b border-border/60">
-                  <CardTitle className="text-base font-bold text-foreground">Review Booking Details</CardTitle>
+                  <CardTitle className="text-base font-bold text-foreground">Review Order Details</CardTitle>
                 </CardHeader>
-                <CardContent className="p-5 space-y-6">
-                  {/* Provider Info */}
-                  <div className="flex items-center gap-3 pb-4 border-b border-border/60">
-                    <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="md" />
-                    <div>
-                      <h3 className="font-bold text-sm text-foreground">{businessName}</h3>
-                      <p className="text-xs text-muted-foreground">{provider.city || "Austin"}, {provider.state || "TX"}</p>
+                <CardContent className="p-5">
+                  <dl className="divide-y divide-border/60 text-sm">
+                    <div className="flex justify-between items-center py-2.5">
+                      <dt className="text-muted-foreground">Provider</dt>
+                      <dd className="font-bold text-foreground">{businessName}</dd>
                     </div>
-                  </div>
-
-                  {/* Selected Services Breakdown */}
-                  <div>
-                    <h4 className="font-semibold text-xs text-muted-foreground uppercase mb-3">Services Requested</h4>
-                    <div className="space-y-2.5">
-                      {selectedItems.map((item) => (
-                        <div key={item.id} className="flex justify-between items-center text-sm">
-                          <div>
-                            <span className="font-medium text-foreground">{item.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">(x{item.qty})</span>
-                          </div>
-                          <span className="font-semibold text-foreground">${Number(item.price) * (item.qty || 1)}</span>
-                        </div>
-                      ))}
+                    <div className="flex justify-between items-center py-2.5">
+                      <dt className="text-muted-foreground">Date & Time</dt>
+                      <dd className="font-semibold text-foreground">
+                        {selectedDateObj?.fullLabel || selectedDate} {selectedTimeSlotLabel ? `(${selectedTimeSlotLabel})` : ""}
+                      </dd>
                     </div>
-                  </div>
-
-                  {/* Appointment Schedule */}
-                  <div className="pt-4 border-t border-border/60 grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase mb-1">Date & Time</h4>
-                      <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                        <CalendarDays size={15} className="text-primary" />
-                        {selectedDateObj?.fullLabel || selectedDate}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                        <Clock size={14} />
-                        {selectedTimeSlotLabel}
-                      </p>
+                    <div className="flex justify-between items-center py-2.5">
+                      <dt className="text-muted-foreground">Service Address</dt>
+                      <dd className="font-medium text-foreground text-right">
+                        {details.address ? `${details.address}, ${details.city}, ${details.zip}` : "No address provided"}
+                      </dd>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase mb-1">Service Address</h4>
-                      <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                        <MapPin size={15} className="text-primary" />
-                        {details.address}, {details.city}, {details.zip}
-                      </p>
-                    </div>
-                  </div>
+                  </dl>
                 </CardContent>
               </Card>
 
-              {/* Secure Payment Card */}
-              <Card className="shadow-card border-border/80">
-                <CardContent className="p-6 text-center space-y-4">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <CreditCard size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base text-foreground">Ready to Complete Booking</h3>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                      Clicking below will create your booking and take you to your bookings page.
-                      {/* Clicking below will create your booking and open the secure Stripe checkout modal to complete payment. */}
-                    </p>
+              {/* Payment Method & Payment Summary Panels */}
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                {/* Payment Method Card */}
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+                  <h2 className="font-display text-lg font-bold text-foreground">Payment method</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Enter your credit card or payment details below to complete your order securely.
+                  </p>
+
+                  <div className="mt-5 grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="cardNumber" className="text-xs font-semibold">
+                        Card number <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="relative">
+                        <CreditCard
+                          size={16}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                          id="cardNumber"
+                          name="cardNumber"
+                          placeholder="4242 4242 4242 4242"
+                          value={paymentFormik.values.cardNumber}
+                          onChange={paymentFormik.handleChange}
+                          onBlur={paymentFormik.handleBlur}
+                          inputMode="numeric"
+                          className={`pl-9 ${
+                            paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                      {paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber && (
+                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.cardNumber}</p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="grid gap-2">
+                        <Label htmlFor="expiry" className="text-xs font-semibold">
+                          Expiry <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="expiry"
+                          name="expiry"
+                          placeholder="09 / 29"
+                          value={paymentFormik.values.expiry}
+                          onChange={paymentFormik.handleChange}
+                          onBlur={paymentFormik.handleBlur}
+                          className={
+                            paymentFormik.touched.expiry && paymentFormik.errors.expiry
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }
+                        />
+                        {paymentFormik.touched.expiry && paymentFormik.errors.expiry && (
+                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.expiry}</p>
+                        )}
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="cvc" className="text-xs font-semibold">
+                          CVC <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="cvc"
+                          name="cvc"
+                          placeholder="123"
+                          value={paymentFormik.values.cvc}
+                          onChange={paymentFormik.handleChange}
+                          onBlur={paymentFormik.handleBlur}
+                          className={
+                            paymentFormik.touched.cvc && paymentFormik.errors.cvc
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }
+                        />
+                        {paymentFormik.touched.cvc && paymentFormik.errors.cvc && (
+                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.cvc}</p>
+                        )}
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="zip" className="text-xs font-semibold">
+                          Billing ZIP <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="zip"
+                          name="zip"
+                          placeholder="78704"
+                          value={paymentFormik.values.zip}
+                          onChange={paymentFormik.handleChange}
+                          onBlur={paymentFormik.handleBlur}
+                          className={
+                            paymentFormik.touched.zip && paymentFormik.errors.zip
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }
+                        />
+                        {paymentFormik.touched.zip && paymentFormik.errors.zip && (
+                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.zip}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="nameOnCard" className="text-xs font-semibold">
+                        Name on card <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="nameOnCard"
+                        name="nameOnCard"
+                        placeholder="e.g. John Doe"
+                        value={paymentFormik.values.nameOnCard}
+                        onChange={paymentFormik.handleChange}
+                        onBlur={paymentFormik.handleBlur}
+                        className={
+                          paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                      />
+                      {paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard && (
+                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.nameOnCard}</p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="pt-2">
-                    <Button
-                      size="lg"
-                      onClick={handleCreateBookingAndPay}
-                      disabled={submitting}
-                      className="w-full sm:w-auto px-8 gap-2 shadow-md"
-                    >
-                      <ShieldCheck size={18} />
-                      {submitting ? "Creating Booking..." : `Pay Total $${grandTotal}`}
-                    </Button>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-4">
+                    <ShieldCheck size={14} className="text-success" /> Secure 256-bit SSL encrypted transaction.
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Payment Summary Card */}
+                <div className="h-max rounded-2xl border border-border bg-card p-6 shadow-card">
+                  <h2 className="font-display text-lg font-bold text-foreground">Payment Summary</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Paying through Hollis platform to {businessName}
+                  </p>
+
+                  <dl className="mt-5 space-y-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-foreground">Subtotal (Services)</dt>
+                      <dd className="font-semibold text-foreground">${subtotal}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Service Fee (10%)</dt>
+                      <dd className="text-muted-foreground font-medium">${serviceFee}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="my-4 border-t border-border/60" />
+
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">Total due</span>
+                    <span className="font-display text-2xl font-bold text-foreground">${grandTotal}</span>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    type="button"
+                    onClick={() => paymentFormik.handleSubmit()}
+                    disabled={submitting}
+                    className="mt-5 w-full gap-2 shadow-sm font-semibold"
+                  >
+                    {submitting ? (
+                      "Processing..."
+                    ) : (
+                      <>
+                        <Lock size={16} /> Pay & Confirm Booking
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
 
               <div className="flex justify-start">
                 <Button variant="outline" onClick={() => setStep(1)}>
