@@ -107,7 +107,7 @@ export const Messages: React.FC = () => {
 
       const stateSelectedId = (location.state as any)?.selectedChatId;
       const currentActive = activeThreadIdRef.current;
-      if (stateSelectedId && !currentActive) {
+      if (stateSelectedId) {
         setActiveThreadId(stateSelectedId);
       } else if (validThreads.length > 0 && !currentActive) {
         setActiveThreadId(validThreads[0].id || validThreads[0].chat_id);
@@ -132,6 +132,14 @@ export const Messages: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Sync active thread if redirected from an external page (e.g. "Message Pro" button)
+  useEffect(() => {
+    const stateSelectedId = (location.state as any)?.selectedChatId;
+    if (stateSelectedId) {
+      setActiveThreadId(stateSelectedId);
+    }
+  }, [location.state]);
+
   // Fetch Messages for Active Thread with Polling
   useEffect(() => {
     if (!activeThreadId) return;
@@ -151,7 +159,9 @@ export const Messages: React.FC = () => {
           }
         }
       } catch (err) {
-        if (!silent) console.error("Failed to load messages", err);
+        if (!silent) {
+          console.error("Failed to load messages", err);
+        }
       } finally {
         if (!silent) setLoadingMessages(false);
       }
@@ -159,13 +169,13 @@ export const Messages: React.FC = () => {
 
     fetchMessagesForThread(false);
 
-    const msgInterval = setInterval(() => {
+    const interval = setInterval(() => {
       fetchMessagesForThread(true);
-    }, 4000);
+    }, 3000);
 
     return () => {
       cancelled = true;
-      clearInterval(msgInterval);
+      clearInterval(interval);
     };
   }, [activeThreadId]);
 
@@ -177,16 +187,19 @@ export const Messages: React.FC = () => {
   // Derived Title and Subtitle Helpers
   const titleFor = (t: any) => {
     if (!t) return "Conversation";
-    if (userIsCustomer) {
+    if (t.other_user?.full_name) return t.other_user.full_name;
+    if (t.other_user?.business_name) return t.other_user.business_name;
+    if (side === "customer") {
       return (
         t.provider?.business_name ||
         t.provider?.user?.full_name ||
-        t.other_user?.full_name ||
-        "Professional"
+        t.provider_name ||
+        "Service Professional"
       );
     }
     return (
       t.customer?.full_name ||
+      t.customer_name ||
       t.other_user?.full_name ||
       "Customer"
     );
@@ -214,12 +227,14 @@ export const Messages: React.FC = () => {
   const activeThread = useMemo(() => {
     if (!threads.length) return null;
     if (!activeThreadId) return threads[0];
+    const target = String(activeThreadId);
     return (
       threads.find(
         (t) =>
-          String(t.id) === String(activeThreadId) ||
-          String(t.chat_id) === String(activeThreadId) ||
-          String(t.id || t.chat_id) === String(activeThreadId)
+          String(t.id) === target ||
+          String(t.chat_id) === target ||
+          (t.booking_id && String(t.booking_id) === target) ||
+          (t.project_id && String(t.project_id) === target)
       ) || threads[0]
     );
   }, [threads, activeThreadId]);

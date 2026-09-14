@@ -197,10 +197,12 @@ export function ProviderJobs() {
         project_id: b.project_id || undefined,
         booking_id: b.id,
       });
-      const chat = (res as any)?.data || res;
-      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+      const raw = (res as any)?.data || res;
+      const chat = raw?.data || raw;
+      const chatId = chat?.id || chat?.chat_id || raw?.id || raw?.chat_id || b.id;
+      navigate("/messages", { state: { selectedChatId: chatId } });
     } catch (err) {
-      navigate("/messages");
+      navigate("/messages", { state: { selectedChatId: b.id } });
     }
   };
 

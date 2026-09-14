@@ -32,10 +32,12 @@ export function useAppointments() {
         project_id: b.project_id || undefined,
         booking_id: b.id,
       });
-      const chat = (res as any)?.data || res;
-      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+      const raw = (res as any)?.data || res;
+      const chat = raw?.data || raw;
+      const chatId = chat?.id || chat?.chat_id || raw?.id || raw?.chat_id || b.id;
+      navigate("/messages", { state: { selectedChatId: chatId } });
     } catch {
-      navigate("/messages");
+      navigate("/messages", { state: { selectedChatId: b.id } });
     }
   };
 
@@ -96,17 +98,13 @@ export function useAppointments() {
         reason: rescheduleReason,
         time_slot_name: selectedSlot,
       } as any);
-      toast.success("Reschedule requested", {
-        description: `${rescheduleDate} at ${selectedSlot}`,
-      });
+      toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
       setRescheduleModalOpen(false);
       fetchAppointments();
     } catch (err: any) {
       try {
         await appointmentApi.updateStatus(selectedAppointment.id, { appointment_status: "Rescheduled" });
-        toast.success("Reschedule requested", {
-          description: `${rescheduleDate} at ${selectedSlot}`,
-        });
+        toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
         setRescheduleModalOpen(false);
         fetchAppointments();
       } catch (err2: any) {

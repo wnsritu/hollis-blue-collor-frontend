@@ -242,10 +242,12 @@ export const CustomerOrderDetail: React.FC = () => {
         project_id: booking.project_id || undefined,
         booking_id: booking.id,
       });
-      const chat = (res as any)?.data || res;
-      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+      const raw = (res as any)?.data || res;
+      const chat = raw?.data || raw;
+      const chatId = chat?.id || chat?.chat_id || raw?.id || raw?.chat_id || booking.id;
+      navigate("/messages", { state: { selectedChatId: chatId } });
     } catch (err) {
-      navigate("/messages");
+      navigate("/messages", { state: { selectedChatId: booking.id } });
     }
   };
 
