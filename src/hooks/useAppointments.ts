@@ -27,6 +27,11 @@ export function useAppointments() {
   const userIsProvider = isProvider(user?.role_id);
 
   const handleMessagePartner = async (b: any) => {
+    const normalized = normalizeBooking(b);
+    if (normalized.isCancelled) {
+      toast.error("Chat is unavailable for cancelled bookings.");
+      return;
+    }
     try {
       const res = await chatApi.createChat({
         project_id: b.project_id || undefined,
@@ -96,17 +101,13 @@ export function useAppointments() {
         reason: rescheduleReason,
         time_slot_name: selectedSlot,
       } as any);
-      toast.success("Reschedule requested", {
-        description: `${rescheduleDate} at ${selectedSlot}`,
-      });
+      toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
       setRescheduleModalOpen(false);
       fetchAppointments();
     } catch (err: any) {
       try {
         await appointmentApi.updateStatus(selectedAppointment.id, { appointment_status: "Rescheduled" });
-        toast.success("Reschedule requested", {
-          description: `${rescheduleDate} at ${selectedSlot}`,
-        });
+        toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
         setRescheduleModalOpen(false);
         fetchAppointments();
       } catch (err2: any) {
