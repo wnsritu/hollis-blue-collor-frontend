@@ -99,6 +99,9 @@ export const bookingApi = {
   add: (payload: Record<string, unknown> | FormData) =>
     http.post<ApiSuccess>(ENDPOINTS.booking.add, payload),
 
+  calculatePrice: (payload: Record<string, unknown>) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.calculatePrice, payload),
+
   list: (payload?: Record<string, unknown>) =>
     http.post<ApiSuccess>(ENDPOINTS.booking.list, payload),
 

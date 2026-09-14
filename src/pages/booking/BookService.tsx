@@ -73,7 +73,10 @@ export default function BookService() {
     removeItem,
     subtotal,
     serviceFee,
+    serviceFeeRate,
+    taxAmount,
     grandTotal,
+    formattedPrices,
     selectedDateObj,
     unselectedServices,
     handleProceedToStep2,
@@ -782,19 +785,25 @@ export default function BookService() {
                   <dl className="mt-5 space-y-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-foreground">Subtotal (Services)</dt>
-                      <dd className="font-semibold text-foreground">${subtotal}</dd>
+                      <dd className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Service Fee (10%)</dt>
-                      <dd className="text-muted-foreground font-medium">${serviceFee}</dd>
+                      <dt className="text-muted-foreground">Service Fee ({serviceFeeRate || 10}%)</dt>
+                      <dd className="text-muted-foreground font-medium">{formattedPrices?.service_fee || `$${serviceFee}`}</dd>
                     </div>
+                    {taxAmount > 0 && (
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Taxes</dt>
+                        <dd className="text-muted-foreground font-medium">{formattedPrices?.tax_amount || `$${taxAmount}`}</dd>
+                      </div>
+                    )}
                   </dl>
 
                   <div className="my-4 border-t border-border/60" />
 
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground">Total due</span>
-                    <span className="font-display text-2xl font-bold text-foreground">${grandTotal}</span>
+                    <span className="font-display text-2xl font-bold text-foreground">{formattedPrices?.total || `$${grandTotal}`}</span>
                   </div>
 
                   <Button
@@ -882,15 +891,21 @@ export default function BookService() {
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">${subtotal}</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Service Fee (10%)</span>
-                  <span className="font-semibold text-foreground">${serviceFee}</span>
+                  <span>Service Fee ({serviceFeeRate || 10}%)</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
                 </div>
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Taxes</span>
+                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount}`}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border/60">
                   <span>Total</span>
-                  <span className="text-primary text-base">${grandTotal}</span>
+                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal}`}</span>
                 </div>
               </div>
             </CardContent>

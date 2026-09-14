@@ -219,6 +219,7 @@ export const ENDPOINTS = {
 
   booking: {
     add: "/booking/add",
+    calculatePrice: "/booking/calculate-price",
     list: "/booking/list",
     details: (id: number | string) => `/booking/${id}`,
     edit: (id: number | string) => `/booking/${id}`,

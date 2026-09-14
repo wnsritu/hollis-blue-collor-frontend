@@ -227,11 +227,13 @@ export function normalizeBooking(b: any): NormalizedBooking {
 
   const subtotal = Number(
     b.pricing?.subtotal ??
+    b.subtotal ??
     (totalAmount > 0 ? Math.round((totalAmount / 1.1) * 100) / 100 : 0)
   );
 
   const serviceFee = Number(
     b.pricing?.service_fee ??
+    b.service_fee ??
     Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
   );
 
