@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { zipValidationSchema } from "../common";
 
 export interface BookingPaymentFormValues {
   cardNumber: string;
@@ -43,10 +44,7 @@ export const bookingPaymentValidationSchema = Yup.object().shape({
     .required("CVC is required")
     .matches(/^\d{3,4}$/, "CVC must be 3 or 4 digits"),
 
-  zip: Yup.string()
-    .trim()
-    .required("Billing ZIP is required")
-    .matches(/^\d{5}(-\d{4})?$/, "Enter a valid 5-digit ZIP code"),
+  zip: zipValidationSchema,
 
   nameOnCard: Yup.string()
     .trim()

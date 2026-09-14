@@ -518,7 +518,7 @@ export function useCarWashBookingWizard() {
         success: (res: any) => {
           if (res?.success) {
             clearCarWashBookingState();
-            navigate("/orders");
+            navigate("/customer/bookings");
             return "Booking created successfully!";
           }
           throw new Error(res?.message || "Failed to create booking");

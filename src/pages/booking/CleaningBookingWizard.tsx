@@ -647,7 +647,7 @@ const CleaningBookingWizard = () => {
           <div className="grid gap-3 sm:grid-cols-3">
             <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
             <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-            <Input placeholder="ZIP" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value })} />
+            <Input placeholder="ZIP" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value.replace(/[^\d-]/g, "") })} />
           </div>
         </div>
       )}

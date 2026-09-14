@@ -29,7 +29,7 @@ const Checkout = () => {
         <CheckCircle size={64} className="text-secondary" />
         <h1 className="mt-4 font-heading text-2xl font-bold text-foreground">{t("paymentSuccess")}</h1>
         <p className="mt-2 text-muted-foreground">{t("orderPlaced")}</p>
-        <Button className="mt-6" onClick={() => navigate("/orders")}>{t("trackOrder")}</Button>
+        <Button className="mt-6" onClick={() => navigate("/customer/bookings")}>{t("trackOrder")}</Button>
       </div>
     );
   }
