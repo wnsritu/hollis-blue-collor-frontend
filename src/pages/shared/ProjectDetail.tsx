@@ -232,14 +232,14 @@ export const ProjectDetail: React.FC = () => {
                     Find Matches
                   </Button>
                 )}
-                <Button
+                {/* <Button
                   size="sm"
                   variant="destructive"
                   onClick={() => { }}
                   disabled={project.status === "cancelled"}
                 >
                   Cancel Project
-                </Button>
+                </Button> */}
               </>
             )}
             {userIsProvider && project.status === "open" && (

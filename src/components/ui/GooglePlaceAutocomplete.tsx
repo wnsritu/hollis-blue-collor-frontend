@@ -13,6 +13,10 @@ interface Props {
   }) => void;
   placeholder?: string;
   className?: string;
+  id?: string;
+  name?: string;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }
 
 const GooglePlaceAutocomplete = ({
@@ -21,6 +25,10 @@ const GooglePlaceAutocomplete = ({
   onSelect,
   placeholder,
   className,
+  id,
+  name,
+  onBlur,
+  disabled,
 }: Props) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -74,9 +82,13 @@ const GooglePlaceAutocomplete = ({
   return (
     <Input
       ref={inputRef}
+      id={id}
+      name={name}
       value={value}
       placeholder={placeholder || "Search address..."}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      disabled={disabled}
       className={className}
     />
   );

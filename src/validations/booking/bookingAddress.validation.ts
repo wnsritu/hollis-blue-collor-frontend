@@ -48,8 +48,8 @@ export const bookingAddressValidationSchema = Yup.object().shape({
 
   zip: Yup.string()
     .trim()
-    .required("ZIP code is required")
-    .matches(/^\d{5}(-\d{4})?$/, "ZIP code must be a valid 5-digit US ZIP code (e.g. 78701)"),
+    .required("ZIP / Postal code is required")
+    .matches(/^[a-zA-Z0-9\s-]{3,10}$/, "Please enter a valid ZIP / Postal code"),
 
   notes: Yup.string()
     .trim()
