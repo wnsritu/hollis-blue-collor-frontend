@@ -27,6 +27,11 @@ export function useAppointments() {
   const userIsProvider = isProvider(user?.role_id);
 
   const handleMessagePartner = async (b: any) => {
+    const normalized = normalizeBooking(b);
+    if (normalized.isCancelled) {
+      toast.error("Chat is unavailable for cancelled bookings.");
+      return;
+    }
     try {
       const res = await chatApi.createChat({
         project_id: b.project_id || undefined,

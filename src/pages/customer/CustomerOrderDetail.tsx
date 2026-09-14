@@ -237,6 +237,10 @@ export const CustomerOrderDetail: React.FC = () => {
   }
 
   const handleOpenChat = async () => {
+    if (isCancelled) {
+      toast.error("Chat is unavailable for cancelled bookings.");
+      return;
+    }
     try {
       const res = await chatApi.createChat({
         project_id: booking.project_id || undefined,
@@ -304,9 +308,11 @@ export const CustomerOrderDetail: React.FC = () => {
               {isPaid ? "Payment: Paid" : "Payment: Pending"}
             </span>
 
-            <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
-              <MessageSquare size={14} /> Message Pro
-            </Button>
+            {!isCancelled && (
+              <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
+                <MessageSquare size={14} /> Message Pro
+              </Button>
+            )}
 
             {!isPaid && !isCancelled && (
               <Button

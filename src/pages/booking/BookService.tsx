@@ -22,11 +22,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { parseGooglePlace } from "@/utils/googlePlaces";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
 import { useFormik } from "formik";
@@ -146,6 +148,17 @@ export default function BookService() {
     .slice(0, 2)
     .toUpperCase();
 
+  const providerLocation =
+    [provider.city, provider.state || provider.user?.state].filter(Boolean).join(", ") ||
+    provider.service_location_address ||
+    "Austin, TX";
+
+  const enteredAddress = addressFormik.values.address || details.address;
+  const enteredCity = addressFormik.values.city || details.city;
+  const summaryLocation = enteredAddress
+    ? [enteredAddress, enteredCity].filter(Boolean).join(", ")
+    : providerLocation;
+
   return (
     <div className="min-h-screen bg-background pb-16">
       {/* Header Banner */}
@@ -182,7 +195,7 @@ export default function BookService() {
                         {(provider.verified === "verified" || provider.verified === "approved") && <VerifiedBadge compact />}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
-                        {provider.category?.name || "Services"} • {provider.city || "Austin"}, {provider.state || "TX"}
+                        {provider.category?.name || "Services"} • {providerLocation}
                       </p>
                       <div className="flex items-center gap-1 text-xs text-amber-500 mt-1">
                         <Star size={13} className="fill-amber-500 text-amber-500" />
@@ -469,13 +482,21 @@ export default function BookService() {
                     <Label htmlFor="address" className="text-xs font-semibold">
                       Street Address <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <GooglePlaceAutocomplete
                       id="address"
                       name="address"
                       value={addressFormik.values.address}
-                      onChange={addressFormik.handleChange}
+                      placeholder="Search street address or landmark..."
+                      onChange={(val) => {
+                        addressFormik.setFieldValue("address", val);
+                      }}
                       onBlur={addressFormik.handleBlur}
-                      placeholder="123 Main Street"
+                      onSelect={(place) => {
+                        const parsed = parseGooglePlace(place);
+                        addressFormik.setFieldValue("address", parsed.address || place.address);
+                        if (parsed.city) addressFormik.setFieldValue("city", parsed.city);
+                        if (parsed.zip) addressFormik.setFieldValue("zip", parsed.zip);
+                      }}
                       className={
                         addressFormik.touched.address && addressFormik.errors.address
                           ? "border-destructive focus-visible:ring-destructive"
@@ -827,7 +848,7 @@ export default function BookService() {
                 <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="sm" />
                 <div className="min-w-0">
                   <p className="font-bold text-xs text-foreground truncate">{businessName}</p>
-                  <p className="text-[11px] text-muted-foreground">{provider.city || "Austin"}, {provider.state || "TX"}</p>
+                  <p className="text-[11px] text-muted-foreground">{providerLocation}</p>
                 </div>
               </div>
 
@@ -861,12 +882,10 @@ export default function BookService() {
                     <span className="truncate">{selectedTimeSlotLabel}</span>
                   </div>
                 )}
-                {details.address && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin size={13} className="text-primary shrink-0" />
-                    <span className="truncate">{details.address}, {details.city}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={13} className="text-primary shrink-0" />
+                  <span className="truncate">{summaryLocation}</span>
+                </div>
               </div>
 
               {/* Price Calculation Breakdown */}
