@@ -23,6 +23,7 @@ import {
   validateBankRoutingNumber,
   validateLicenseNumber,
   validateInsurancePolicy,
+  extractApiFieldErrors,
 } from "@/utils/providerValidation";
 import { sanitizePhoneInput } from "@/utils/format";
 
@@ -391,6 +392,68 @@ export function useProviderProfileSettings() {
     loadAll();
   }, [loadAll]);
 
+  const checkBusinessInfoErrors = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+
+    const nErr = validateFullName(ownerName);
+    if (nErr) errs.ownerName = nErr;
+
+    const bErr = validateBusinessName(businessName);
+    if (bErr) errs.businessName = bErr;
+
+    if (!about.trim()) {
+      errs.about = "Service description is required.";
+    } else if (about.trim().length < 10) {
+      errs.about = "Service description must be at least 10 characters.";
+    }
+
+    if (mobile.trim()) {
+      const pErr = validatePhone(mobile);
+      if (pErr) errs.mobile = pErr;
+    }
+
+    const yErr = validateYearsOfExperience(years);
+    if (yErr) errs.years = yErr;
+
+    if (!address.trim()) errs.address = "Service location address is required.";
+    if (!city.trim()) errs.city = "City is required.";
+    if (!state.trim()) errs.state = "State is required.";
+    if (!country.trim()) errs.country = "Country is required.";
+
+    if (zip.trim()) {
+      const zErr = validateZipCode(zip);
+      if (zErr) errs.zip = zErr;
+    }
+
+    const licErr = validateLicenseNumber(licenseNumber);
+    if (licErr) {
+      errs.licenseNumber = licErr;
+      errs.license = licErr;
+    }
+
+    const insErr = validateInsurancePolicy(insurancePolicy);
+    if (insErr) {
+      errs.insurancePolicy = insErr;
+      errs.insurance = insErr;
+    }
+
+    return errs;
+  };
+
+  const checkBankDetailsErrors = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!bank.bank_name.trim()) errs.bank_name = "Bank name is required.";
+    if (!bank.bank_account_holder.trim()) errs.bank_account_holder = "Account holder name is required.";
+
+    const accErr = validateBankAccountNumber(bank.bank_account_number);
+    if (accErr) errs.bank_account_number = accErr;
+
+    const routeErr = validateBankRoutingNumber(bank.bank_routing_number);
+    if (routeErr) errs.bank_routing_number = routeErr;
+
+    return errs;
+  };
+
   const buildProfilePayload = () => {
     const chosenServiceNames = availableServiceItems
       .filter((svc) => selectedServiceIds.includes(String(svc.id)) || selectedServiceIds.includes(svc.name))
@@ -420,25 +483,62 @@ export function useProviderProfileSettings() {
       services: chosenServiceNames,
       certifications: certList,
       faqs: faqs.map(({ question, answer }) => ({ question, answer })),
-      license_number: licenseNumber.trim() || null,
-      insurance_policy: insurancePolicy.trim() || null,
+      license_number: licenseNumber.trim(),
+      insurance_policy: insurancePolicy.trim(),
     };
   };
 
-  const saveProfile = async () => {
-    if (!businessName.trim()) {
-      toast.error("Business name is required.");
-      setTab("info");
-      return;
-    }
-    if (!about.trim() || about.trim().length < 10) {
-      toast.error("About / description must be at least 10 characters.");
-      setTab("info");
-      return;
-    }
-    if (zip.trim() && !isValidZip(zip)) {
-      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
-      setTab("info");
+  const saveProfile = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    const errs = checkBusinessInfoErrors();
+    const keys = Object.keys(errs);
+
+    if (keys.length > 0) {
+      setFieldErrors(errs);
+      toast.error("Please fix the validation errors before saving.");
+
+      if (activeTab !== "info") {
+        setSearchParams({});
+      }
+
+      const elemIdMap: Record<string, string> = {
+        ownerName: "ownerName",
+        businessName: "bn",
+        about: "ab",
+        mobile: "pmobile",
+        years: "years",
+        address: "address",
+        city: "city",
+        state: "state",
+        zip: "zip",
+        country: "country",
+        licenseNumber: "lic",
+        license: "lic",
+        insurancePolicy: "ins",
+        insurance: "ins",
+      };
+
+      setTimeout(() => {
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }, 100);
+
       return;
     }
 
@@ -452,34 +552,72 @@ export function useProviderProfileSettings() {
             full_name: ownerName.trim() || undefined,
             phone: mobile.trim() || undefined,
           });
-        } catch {
-          /* non-blocking */
+        } catch (uErr: any) {
+          const apiErrs = extractApiFieldErrors(uErr);
+          if (Object.keys(apiErrs).length > 0) {
+            setFieldErrors((prev) => ({ ...prev, ...apiErrs }));
+          }
         }
       }
 
+      setFieldErrors({});
       setSavedOwnerName(ownerName.trim());
       setSavedBusinessName(businessName.trim());
       toast.success("Profile saved successfully.");
       await loadAll();
-    } catch (err) {
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiErrs }));
+      }
       toast.error(getErrorMessage(err, "Failed to save profile."));
     } finally {
       setSaving(false);
     }
   };
 
-  const saveBank = async () => {
+  const saveBank = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
     if (!providerId) {
       toast.error("Provider profile not found.");
       return;
     }
-    if (
-      !bank.bank_name.trim() ||
-      !bank.bank_account_holder.trim() ||
-      !bank.bank_account_number.trim() ||
-      !bank.bank_routing_number.trim()
-    ) {
-      toast.error("Please fill all bank fields.");
+
+    const errs = checkBankDetailsErrors();
+    const keys = Object.keys(errs);
+
+    if (keys.length > 0) {
+      setFieldErrors(errs);
+      toast.error("Please fix the bank details validation errors.");
+
+      const elemIdMap: Record<string, string> = {
+        bank_name: "bankname",
+        bank_account_holder: "holder",
+        bank_account_number: "account",
+        bank_routing_number: "routing",
+      };
+
+      setTimeout(() => {
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }, 100);
+
       return;
     }
 
@@ -492,9 +630,14 @@ export function useProviderProfileSettings() {
         bank_routing_number: bank.bank_routing_number.trim(),
         bank_account_type: bank.bank_account_type,
       });
-      toast.success("Bank details saved.");
+      setFieldErrors({});
+      toast.success("Bank details saved successfully.");
       await loadAll();
-    } catch (err) {
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors(apiErrs);
+      }
       toast.error(getErrorMessage(err, "Failed to save bank details."));
     } finally {
       setSaving(false);
