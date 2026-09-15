@@ -35,8 +35,8 @@ export function validatePhone(phone: string): string | undefined {
     return "Mobile phone number is required.";
   }
   const digits = phone.replace(/\D/g, "");
-  if (digits.length < 10 || digits.length > 15) {
-    return "Phone number must be between 10 and 15 digits.";
+  if (digits.length !== 10) {
+    return "Mobile phone number must be exactly 10 digits.";
   }
   return undefined;
 }
@@ -45,9 +45,13 @@ export function validateEmail(email: string): string | undefined {
   if (!email || !email.trim()) {
     return "Email address is required.";
   }
+  const trimmed = email.trim();
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!regex.test(email.trim())) {
+  if (!regex.test(trimmed)) {
     return "Please enter a valid email address.";
+  }
+  if (trimmed.length > 255) {
+    return "Email address cannot exceed 255 characters.";
   }
   return undefined;
 }
@@ -56,10 +60,11 @@ export function validateBusinessName(name: string): string | undefined {
   if (!name || !name.trim()) {
     return "Business name is required.";
   }
-  if (name.trim().length < 2) {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) {
     return "Business name must be at least 2 characters.";
   }
-  if (name.trim().length > 150) {
+  if (trimmed.length > 150) {
     return "Business name cannot exceed 150 characters.";
   }
   return undefined;
@@ -69,11 +74,28 @@ export function validateFullName(name: string): string | undefined {
   if (!name || !name.trim()) {
     return "Full name is required.";
   }
-  if (name.trim().length < 2) {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) {
     return "Full name must be at least 2 characters.";
   }
-  if (name.trim().length > 150) {
+  if (trimmed.length > 150) {
     return "Full name cannot exceed 150 characters.";
+  }
+  if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) {
+    return "Full name can only contain letters and spaces.";
+  }
+  return undefined;
+}
+
+export function validatePassword(password: string): string | undefined {
+  if (!password) {
+    return "Password is required.";
+  }
+  if (password.length < 6) {
+    return "Password must be at least 6 characters long.";
+  }
+  if (password.length > 128) {
+    return "Password cannot exceed 128 characters.";
   }
   return undefined;
 }

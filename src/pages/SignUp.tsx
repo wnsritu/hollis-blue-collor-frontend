@@ -18,6 +18,7 @@ import {
   validateEmail,
   validateFullName,
   validateBusinessName,
+  validatePassword,
 } from "@/utils/providerValidation";
 
 export const PROVIDER_SIGNUP_DRAFT_KEY = "hollis_provider_signup_draft";
@@ -84,11 +85,8 @@ export function SignUp() {
     const phoneErr = validatePhone(form.mobile);
     if (phoneErr) errs.mobile = phoneErr;
 
-    if (!form.password) {
-      errs.password = "Password is required.";
-    } else if (form.password.length < 6) {
-      errs.password = "Password must be at least 6 characters long.";
-    }
+    const passErr = validatePassword(form.password);
+    if (passErr) errs.password = passErr;
 
     if (!form.confirmPassword) {
       errs.confirmPassword = "Please confirm your password.";
@@ -250,7 +248,9 @@ export function SignUp() {
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="fullname">Full Name</Label>
+                    <Label htmlFor="fullname">
+                      Full Name <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="fullname"
                       value={form.name}
@@ -266,7 +266,9 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="bname">Business Name</Label>
+                    <Label htmlFor="bname">
+                      Business Name <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="bname"
                       value={form.businessName}
@@ -284,7 +286,9 @@ export function SignUp() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="remail">Email Address</Label>
+                    <Label htmlFor="remail">
+                      Email Address <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="remail"
                       type="email"
@@ -301,18 +305,21 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="rmobile">Mobile Number</Label>
+                    <Label htmlFor="rmobile">
+                      Mobile Number <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="rmobile"
                       type="tel"
+                      maxLength={10}
                       value={form.mobile}
                       onChange={(e) => {
-                        const val = sanitizePhoneInput(e.target.value);
+                        const val = sanitizePhoneInput(e.target.value).slice(0, 10);
                         setForm({ ...form, mobile: val });
                         if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
                       }}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
-                      placeholder="(512) 555-0148"
+                      placeholder="9876543210"
                     />
                     {fieldErrors.mobile && (
                       <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
@@ -323,7 +330,9 @@ export function SignUp() {
             ) : (
               <>
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">
+                    Full Name <span className="text-destructive font-bold ml-0.5">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={form.name}
@@ -340,7 +349,9 @@ export function SignUp() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="remail">Email ID</Label>
+                    <Label htmlFor="remail">
+                      Email ID <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="remail"
                       type="email"
@@ -357,18 +368,21 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="rmobile">Mobile Number</Label>
+                    <Label htmlFor="rmobile">
+                      Mobile Number <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="rmobile"
                       type="tel"
+                      maxLength={10}
                       value={form.mobile}
                       onChange={(e) => {
-                        const val = sanitizePhoneInput(e.target.value);
+                        const val = sanitizePhoneInput(e.target.value).slice(0, 10);
                         setForm({ ...form, mobile: val });
                         if (fieldErrors.mobile) setFieldErrors({ ...fieldErrors, mobile: undefined });
                       }}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
-                      placeholder="(512) 555-0148"
+                      placeholder="9876543210"
                     />
                     {fieldErrors.mobile && (
                       <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
@@ -380,7 +394,9 @@ export function SignUp() {
 
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="rpass">Password</Label>
+                <Label htmlFor="rpass">
+                  Password <span className="text-destructive font-bold ml-0.5">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="rpass"
@@ -406,7 +422,9 @@ export function SignUp() {
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="rconfpass">Confirm Password</Label>
+                <Label htmlFor="rconfpass">
+                  Confirm Password <span className="text-destructive font-bold ml-0.5">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="rconfpass"

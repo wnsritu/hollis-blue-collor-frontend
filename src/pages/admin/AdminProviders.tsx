@@ -52,7 +52,8 @@ export function AdminProviders() {
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [verificationFilter, setVerificationFilter] = useState("all");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -75,18 +76,42 @@ export function AdminProviders() {
   const [submittingAction, setSubmittingAction] = useState(false);
 
   useEffect(() => {
-    fetchProviders(currentPage);
-  }, [currentPage]);
+    fetchProviders(currentPage, searchQuery, verificationFilter, accountStatusFilter);
+  }, [currentPage, verificationFilter, accountStatusFilter]);
 
-  const fetchProviders = async (page = 1) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProviders(1, searchQuery, verificationFilter, accountStatusFilter);
+      if (currentPage !== 1) setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchProviders = async (
+    page = currentPage,
+    search = searchQuery,
+    vFilter = verificationFilter,
+    aFilter = accountStatusFilter
+  ) => {
     try {
       setLoading(true);
-      const res: any = await adminApi.listProviders({ page, limit: 10 });
+      const params: Record<string, any> = { page, limit: 10 };
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+      if (vFilter !== "all") {
+        params.verified = vFilter; // "verified", "pending", "rejected"
+      }
+      if (aFilter !== "all") {
+        params.status = aFilter; // "active", "inactive"
+      }
+
+      const res: any = await adminApi.listProviders(params);
       
       const payload = res?.data?.data || res?.data || res;
       const list = Array.isArray(payload) ? payload : (payload?.items || payload?.providers || []);
-      const total = payload?.pagination?.total || payload?.total || list.length;
-      const pages = payload?.pagination?.totalPages || payload?.totalPages || Math.ceil(total / 10) || 1;
+      const total = res?.total || res?.data?.total || payload?.total || payload?.pagination?.total || list.length;
+      const pages = res?.pagination?.totalPages || res?.data?.pagination?.totalPages || payload?.totalPages || payload?.pagination?.totalPages || Math.ceil(total / 10) || 1;
 
       setProviders(list);
       setTotalCount(total);
@@ -196,35 +221,6 @@ export function AdminProviders() {
     }
   };
 
-  const filtered = providers.filter((p) => {
-    const dbStatus = String(p.status || "").toLowerCase();
-    const dbVerified = String(p.verified || "").toLowerCase();
-
-    const isVerified = dbVerified === "verified" || dbVerified === "approved";
-    const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
-    const isSuspended = dbStatus === "paused" || dbStatus === "suspended";
-    const isPending = !isVerified && !isRejected && !isSuspended;
-
-    // Filter matching
-    if (statusFilter === "Pending" && !isPending) return false;
-    if (statusFilter === "Active" && !isVerified) return false;
-    if (statusFilter === "Suspended" && !isSuspended) return false;
-    if (statusFilter === "Rejected" && !isRejected) return false;
-
-    // Search query matching
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const busName = String(p.business_name || p.name || "").toLowerCase();
-      const ownerName = String(`${p.user?.first_name || ""} ${p.user?.last_name || ""}`).toLowerCase();
-      const cat = getCategoryName(p.category || p.subcategory).toLowerCase();
-      const loc = `${p.city || ""} ${p.state || ""}`.toLowerCase();
-
-      return busName.includes(q) || ownerName.includes(q) || cat.includes(q) || loc.includes(q);
-    }
-
-    return true;
-  });
-
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -242,16 +238,40 @@ export function AdminProviders() {
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48 bg-card border-border">
-              <SelectValue />
+          {/* Verification Status Filter */}
+          <Select
+            value={verificationFilter}
+            onValueChange={(val) => {
+              setVerificationFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-52 bg-card border-border">
+              <SelectValue placeholder="Verification Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="Pending">Pending Review</SelectItem>
-              <SelectItem value="Active">Active (Verified)</SelectItem>
-              <SelectItem value="Suspended">Suspended (Paused)</SelectItem>
-              <SelectItem value="Rejected">Rejected</SelectItem>
+              <SelectItem value="all">All Verifications</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="pending">Pending Review</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Account Status Filter */}
+          <Select
+            value={accountStatusFilter}
+            onValueChange={(val) => {
+              setAccountStatusFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-48 bg-card border-border">
+              <SelectValue placeholder="Account Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Account Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -279,8 +299,8 @@ export function AdminProviders() {
                   <p className="mt-2 text-xs text-muted-foreground">Loading provider directory...</p>
                 </TableCell>
               </TableRow>
-            ) : filtered.length > 0 ? (
-              filtered.map((p) => {
+            ) : providers.length > 0 ? (
+              providers.map((p) => {
                 const pId = p.id;
                 const busName = String(p.business_name || p.name || "Company / Business Name");
                 const ownerName = String(
@@ -439,7 +459,7 @@ export function AdminProviders() {
         </Table>
       </div>
 
-      {!loading && filtered.length > 0 && (
+      {!loading && providers.length > 0 && (
         <div className="mt-4 flex justify-center">
           <PaginationController
             currentPage={currentPage}
