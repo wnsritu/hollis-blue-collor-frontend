@@ -62,10 +62,18 @@ export const ROUTES = {
   ADMIN_SPONSORED: "/admin/sponsored",
   ADMIN_COINS: "/admin/coins",
   ADMIN_FEATURED: "/admin/featured",
+  ADMIN_REPORTS: "/admin/reports",
+  ADMIN_PAYOUTS: "/admin/payouts",
+  ADMIN_COMMISSION: "/admin/commission",
+  ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
+  ADMIN_FEATURED_PLANS: "/admin/featured-plans",
+  ADMIN_FEATURED_LISTINGS: "/admin/featured-listings",
+  ADMIN_TRANSACTIONS: "/admin/transactions",
   ADMIN_MESSAGES_DETAIL: "/admin/messages/:id",
   ADMIN_PROFILE: "/admin/profile",
   ADMIN_SUPPORT_AGENTS: "/admin/support-agents",
   ADMIN_SETTINGS: "/admin/settings",
+
 
   // Support Protected
   SUPPORT_DASHBOARD: "/support-dashboard",

@@ -283,3 +283,12 @@ export function LoadingScreen() {
     </div>
   );
 }
+
+export function MockNotice({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+

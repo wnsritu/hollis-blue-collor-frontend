@@ -339,7 +339,21 @@ export const Messages: React.FC = () => {
     if (!activeThread || isBlockedByOther) return;
     const currentId = activeThread.id || activeThread.chat_id;
     try {
-      await chatApi.block(currentId);
+      const res: any = await chatApi.block(currentId);
+      const updatedChat = res?.data || res;
+      if (updatedChat) {
+        setThreads((prevThreads) =>
+          prevThreads.map((t: any) =>
+            String(t.id || t.chat_id) === String(currentId)
+              ? {
+                  ...t,
+                  is_blocked: Boolean(updatedChat.is_blocked),
+                  blocked_by_user_id: updatedChat.blocked_by_user_id,
+                }
+              : t
+          )
+        );
+      }
       if (isBlockedByMe) {
         toast.success(`Unblocked ${titleFor(activeThread)}`);
       } else {

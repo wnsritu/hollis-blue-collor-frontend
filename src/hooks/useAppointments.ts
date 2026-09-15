@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appointmentApi } from "@/services/booking";
@@ -168,8 +168,37 @@ export function useAppointments() {
     return () => clearTimeout(handler);
   }, [activeTab, searchQuery, selectedDay]);
 
-  // Server returned appointments filtered by status_tab, search, and day
-  const filteredAppointments = appointments;
+  // Status tab filtering matching backend business rules & UI requirements
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((apt) => {
+      const n = normalizeBooking(apt);
+      const tab = (activeTab || "All").toLowerCase();
+
+      if (tab === "all") return true;
+
+      const raw = (n.rawStatus || "").toLowerCase();
+      const apptSt = n.appointmentStatus || "";
+
+      const isCompleted = n.isCompleted || ["completed", "finished", "delivered", "reviewed", "work completed"].includes(raw);
+      const isCancelled = n.isCancelled || ["cancelled", "canceled", "rejected", "declined", "no-show", "noshow", "expired"].includes(raw);
+      const isInProgress = ["en route", "en_route", "arrived", "arrived at site", "in_progress", "in progress", "in_process", "in process"].includes(raw) ||
+        ["En Route", "Arrived", "In Progress"].includes(apptSt);
+
+      if (tab === "upcoming") {
+        return !isCompleted && !isCancelled && !isInProgress;
+      }
+      if (tab === "in progress" || tab === "in_progress") {
+        return !isCompleted && !isCancelled && isInProgress;
+      }
+      if (tab === "completed") {
+        return isCompleted;
+      }
+      if (tab === "cancelled" || tab === "canceled") {
+        return isCancelled;
+      }
+      return true;
+    });
+  }, [appointments, activeTab]);
 
   return {
     navigate,

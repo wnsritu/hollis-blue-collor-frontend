@@ -12,6 +12,12 @@ import {
   ShieldCheck,
   DollarSign,
   LayoutGrid,
+  CreditCard,
+  Sparkles,
+  Percent,
+  Wallet,
+  BarChart3,
+  Receipt,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
@@ -20,6 +26,8 @@ import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
+  { label: "Customers", to: "/admin/customers", icon: Users },
+  { label: "Providers", to: "/admin/providers", icon: Building2 },
   {
     label: "Category Management",
     to: "/admin/categories",
@@ -29,17 +37,22 @@ const adminNav: NavItem[] = [
       { label: "Services", to: "/admin/services" },
     ],
   },
-  { label: "Customers", to: "/admin/customers", icon: Users },
-  { label: "Providers", to: "/admin/providers", icon: Building2 },
-  { label: "Orders", to: "/admin/orders", icon: ClipboardList },
+  { label: "Service Bookings", to: "/admin/orders", icon: ClipboardList },
+  { label: "Subscriptions", to: "/admin/subscriptions", icon: CreditCard },
+  { label: "Featured Plans", to: "/admin/featured-plans", icon: Sparkles },
+  { label: "Featured Listings", to: "/admin/featured-listings", icon: Star },
+  { label: "Commission", to: "/admin/commission", icon: Percent },
+  { label: "Payout Queue", to: "/admin/payouts", icon: Wallet },
+  { label: "Transactions", to: "/admin/transactions", icon: Receipt },
   { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
   { label: "Reviews Directory", to: "/admin/reviews", icon: Star },
-  { label: "Sponsored Listings", to: "/admin/sponsored", icon: Star },
+  { label: "Reports", to: "/admin/reports", icon: BarChart3 },
   { label: "Coins Management", to: "/admin/coins", icon: Coins },
   { label: "Featured Pricing", to: "/admin/featured", icon: DollarSign },
   { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
-  { label: "Settings", to: "/admin/settings", icon: Settings },
+  { label: "Platform Settings", to: "/admin/settings", icon: Settings },
 ];
+
 
 export const AdminLayout = () => {
   const navigate = useNavigate();
