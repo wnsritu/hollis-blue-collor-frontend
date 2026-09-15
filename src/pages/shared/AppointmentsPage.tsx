@@ -420,7 +420,8 @@ export const AppointmentsPage: React.FC = () => {
             const n = normalizeBooking(apt);
             const isFixed = !n.isCustom;
             const displayPrice = n.totalAmount;
-            const isRescheduled = n.reschedule.requested || n.appointmentStatus === "Rescheduled";
+            const isTerminal = n.isCancelled || n.isCompleted || n.isRejected;
+            const isRescheduled = !isTerminal && (n.reschedule.requested || n.appointmentStatus === "Rescheduled");
 
             return (
               <div
