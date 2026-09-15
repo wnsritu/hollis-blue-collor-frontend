@@ -554,14 +554,33 @@ const ProviderProfileSettings = () => {
         about: "ab",
         mobile: "pmobile",
         years: "years",
+        address: "address",
+        city: "city",
+        state: "state",
         zip: "zip",
+        country: "country",
+        licenseNumber: "lic",
+        license: "lic",
+        insurancePolicy: "ins",
+        insurance: "ins",
       };
-      const elementId = elemIdMap[keys[0]] || keys[0];
       setTimeout(() => {
-        const elem = document.getElementById(elementId);
-        if (elem) {
-          elem.scrollIntoView({ behavior: "smooth", block: "center" });
-          elem.focus();
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
       }, 100);
 
@@ -619,12 +638,23 @@ const ProviderProfileSettings = () => {
         bank_account_number: "account",
         bank_routing_number: "routing",
       };
-      const elementId = elemIdMap[keys[0]] || keys[0];
       setTimeout(() => {
-        const elem = document.getElementById(elementId);
-        if (elem) {
-          elem.scrollIntoView({ behavior: "smooth", block: "center" });
-          elem.focus();
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
       }, 100);
 
