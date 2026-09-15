@@ -972,7 +972,7 @@ const handleVerifyOtp = async (otp: string) => {
                       label={t("lastName")}
                       value={provForm.businessName}
                       onChange={(v) => handleProvChange("businessName", v)}
-                      placeholder="Maria's Laundry"
+                      placeholder="Apex Home Solutions"
                       error={errors.businessName}
                       required
                     />

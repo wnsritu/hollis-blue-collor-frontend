@@ -9,6 +9,7 @@ export interface CustomerDashboardStats {
   cancelled_orders: number;
   pending_proposals: number;       // open projects waiting for provider quotes
   upcoming_appointments: number;   // bookings in the next 7 days
+  next_upcoming_date?: string;     // e.g. "Aug 26, 8:00 AM"
   pending_payment: number;
   total_spent: number;
 }

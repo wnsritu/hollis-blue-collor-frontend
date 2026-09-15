@@ -9,11 +9,11 @@ import {
   Clock,
   CreditCard,
   Download,
-  Edit,
   Eye,
   FileCheck,
   FileText,
   Image as ImageIcon,
+  Landmark,
   MapPin,
   PauseCircle,
   PlayCircle,
@@ -25,10 +25,6 @@ import {
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -38,10 +34,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import Spinner from "@/components/ui/spinner";
 import { useAdminProviderDetail, maskLast4 } from "@/hooks/useAdminProviderDetail";
+import { formatPhone } from "@/utils/format";
 import { CARD_SECTION_SHADOW } from "@/styles";
 
 export function AdminProviderDetail() {
@@ -113,6 +112,7 @@ export function AdminProviderDetail() {
     );
   }
 
+
   return (
     <div className="space-y-6">
       {/* Back Button Navigation */}
@@ -136,11 +136,11 @@ export function AdminProviderDetail() {
                 {isVerified && <VerifiedBadge />}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Submitted by <strong className="text-foreground">{fullName}</strong> · {categoryName}
+                Owner: <strong className="text-foreground">{fullName}</strong> · Category: {categoryName}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                 <span>📧 {email}</span>
-                <span>📱 {formatPhone(phone)}</span>
+                <span>📱 {phone !== "—" ? formatPhone(phone) : "—"}</span>
                 <span>📍 {[provider.city, provider.state, provider.country].filter(Boolean).join(", ") || "Indore, MP"}</span>
               </div>
             </div>
@@ -227,7 +227,7 @@ export function AdminProviderDetail() {
             <div>
               <p className="font-bold">Application Rejected by Admin</p>
               <p className="mt-0.5 text-xs opacity-90">
-                Reason: {provider.rejection_reason || provider.rejectionReason || "Business verification documents are incomplete or invalid."}
+                Reason: {provider.rejection_reason || provider.rejectionReason || "Verification documents incomplete or invalid."}
               </p>
             </div>
           </div>
@@ -240,7 +240,7 @@ export function AdminProviderDetail() {
             <div>
               <p className="font-bold">Provider Account Suspended</p>
               <p className="mt-0.5 text-xs opacity-90">
-                This provider account is currently suspended by Admin and cannot receive new service requests.
+                This provider account is currently suspended by Admin.
               </p>
             </div>
           </div>
@@ -251,7 +251,7 @@ export function AdminProviderDetail() {
       <div className="space-y-6">
         {/* SECTION 1: ACCOUNT INFORMATION */}
         <Card className="shadow-card">
-          <CardHeader className="pb-3 border-b border-border flex flex-row items-center justify-between">
+          <CardHeader className="pb-3 border-b border-border">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <User size={18} className="text-primary" /> Account Information
             </CardTitle>
@@ -268,14 +268,14 @@ export function AdminProviderDetail() {
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Mobile Number</dt>
-                <dd className="font-medium text-foreground mt-0.5">{formatPhone(phone)}</dd>
+                <dd className="font-medium text-foreground mt-0.5">{phone !== "—" ? formatPhone(phone) : "—"}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Email Verification Status</dt>
                 <dd className="mt-0.5">
                   {emailVerified ? (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-success">
-                      <CheckCircle2 size={13} /> Verified via OTP
+                      <CheckCircle2 size={13} /> Verified
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-warning">
@@ -309,14 +309,18 @@ export function AdminProviderDetail() {
                 <dt className="text-xs text-muted-foreground font-medium">Primary Category</dt>
                 <dd className="font-medium text-foreground mt-0.5">{categoryName}</dd>
               </div>
+              <div>
+                <dt className="text-xs text-muted-foreground font-medium">Account Status</dt>
+                <dd className="font-medium text-foreground capitalize mt-0.5">{provider.status || "active"}</dd>
+              </div>
             </div>
 
             <Separator />
 
             <div>
-              <dt className="text-xs text-muted-foreground font-medium">Business Description</dt>
+              <dt className="text-xs text-muted-foreground font-medium">Service Description</dt>
               <dd className="mt-1 leading-relaxed text-muted-foreground rounded-xl bg-muted/50 p-4 border border-border">
-                {provider.service_description || "No description provided."}
+                {provider.service_description || provider.description || provider.bio || "No description provided."}
               </dd>
             </div>
           </CardContent>
@@ -330,11 +334,15 @@ export function AdminProviderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm">
-              <span className="text-xs text-muted-foreground block">Category Hierarchy</span>
-              <span className="font-bold text-primary text-base">Home Services</span>
-              <span className="mx-2 text-muted-foreground">→</span>
-              <span className="font-semibold text-foreground">{categoryName}</span>
+            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground block">Category:</span>
+              <span className="font-bold text-primary text-base">{categoryName}</span>
+              {subCategoryName && (
+                <>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-semibold text-foreground">{subCategoryName}</span>
+                </>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -726,6 +734,7 @@ export function AdminProviderDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {/* DOCUMENT PREVIEW MODAL */}
       {selectedDocPreview && (

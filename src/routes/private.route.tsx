@@ -20,10 +20,18 @@ const AdminReviews = lazy(() => import("@/pages/admin/AdminReviews"));
 const AdminSponsored = lazy(() => import("@/pages/admin/AdminSponsored"));
 const AdminCoins = lazy(() => import("@/pages/admin/AdminCoins"));
 const AdminFeaturedPricing = lazy(() => import("@/pages/admin/AdminFeaturedPricing"));
+const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
+const AdminPayouts = lazy(() => import("@/pages/admin/AdminPayouts"));
+const AdminCommission = lazy(() => import("@/pages/admin/AdminCommission"));
+const AdminSubscriptions = lazy(() => import("@/pages/admin/AdminSubscriptions"));
+const AdminFeaturedPlans = lazy(() => import("@/pages/admin/AdminFeaturedPlans"));
+const AdminFeaturedListings = lazy(() => import("@/pages/admin/AdminFeaturedListings"));
+const AdminTransactions = lazy(() => import("@/pages/admin/AdminTransactions"));
 const AdminConversation = lazy(() => import("@/pages/admin/AdminConversation"));
 const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
 const SupportAgentsPage = lazy(() => import("@/pages/admin/SupportAgentsPage"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+
 
 // Support pages
 const SupportDashboard = lazy(() => import("@/pages/support/SupportAgent"));
@@ -84,6 +92,13 @@ export const PrivateRoutes = () => (
       <Route path="sponsored" element={<AdminSponsored />} />
       <Route path="coins" element={<AdminCoins />} />
       <Route path="featured" element={<AdminFeaturedPricing />} />
+      <Route path="reports" element={<AdminReports />} />
+      <Route path="payouts" element={<AdminPayouts />} />
+      <Route path="commission" element={<AdminCommission />} />
+      <Route path="subscriptions" element={<AdminSubscriptions />} />
+      <Route path="featured-plans" element={<AdminFeaturedPlans />} />
+      <Route path="featured-listings" element={<AdminFeaturedListings />} />
+      <Route path="transactions" element={<AdminTransactions />} />
       <Route path="messages/:id" element={<AdminConversation />} />
       <Route path="profile" element={<AdminProfile />} />
       <Route path="support-agents" element={<SupportAgentsPage />} />

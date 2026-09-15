@@ -33,7 +33,11 @@ export const AdminReviews: React.FC = () => {
   const fetchReviews = async () => {
     setLoading(true);
     try {
-      const res = await ratingApi.adminList();
+      const params: Record<string, unknown> = {};
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (statusFilter && statusFilter !== "all") params.status = statusFilter.toLowerCase();
+
+      const res = await ratingApi.adminList(params);
       const resData = (res as any)?.data || res;
       const list = Array.isArray(resData) ? resData : resData?.rows || [];
       setReviews(list);
@@ -46,8 +50,11 @@ export const AdminReviews: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    const handler = setTimeout(() => {
+      fetchReviews();
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery, statusFilter]);
 
   const handleModerate = async (reviewId: number, action: string) => {
     setModeratingId(reviewId);
@@ -62,28 +69,7 @@ export const AdminReviews: React.FC = () => {
     }
   };
 
-  const filteredReviews = reviews.filter((r: any) => {
-    const textStr = `${r.customer_name || r.customer?.full_name || ""} ${r.provider_name || r.provider?.business_name || ""} ${r.comment || ""} ${r.job_id || ""}`.toLowerCase();
-    const matchesSearch = !searchQuery.trim() || textStr.includes(searchQuery.toLowerCase());
-
-    const statusMap = {
-      visible: "Published",
-      Published: "Published",
-      hidden: "Hidden",
-      Hidden: "Hidden",
-      flagged: "Flagged",
-      Flagged: "Flagged",
-      removed: "Removed",
-      Removed: "Removed",
-    };
-    const normStatus = statusMap[r.status] || r.status || "Published";
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      normStatus.toLowerCase() === statusFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus;
-  });
+  const filteredReviews = reviews;
 
   return (
     <div className="space-y-6">

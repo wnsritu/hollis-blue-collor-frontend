@@ -17,6 +17,7 @@ import {
   X,
   Loader2,
   MessageSquare,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -107,10 +108,14 @@ export const Messages: React.FC = () => {
 
       const stateSelectedId = (location.state as any)?.selectedChatId;
       const currentActive = activeThreadIdRef.current;
-      if (stateSelectedId && !currentActive) {
-        setActiveThreadId(stateSelectedId);
-      } else if (validThreads.length > 0 && !currentActive) {
-        setActiveThreadId(validThreads[0].id || validThreads[0].chat_id);
+
+      if (!currentActive) {
+        if (stateSelectedId) {
+          setActiveThreadId(stateSelectedId);
+          navigate(location.pathname, { replace: true, state: {} });
+        } else if (validThreads.length > 0) {
+          setActiveThreadId(validThreads[0].id || validThreads[0].chat_id);
+        }
       }
     } catch (err) {
       if (!silent) {
@@ -124,50 +129,60 @@ export const Messages: React.FC = () => {
 
   useEffect(() => {
     fetchThreads(false);
-
-    const interval = setInterval(() => {
-      fetchThreads(true);
-    }, 4000);
-
-    return () => clearInterval(interval);
   }, []);
 
-  // Fetch Messages for Active Thread with Polling
+  // Sync active thread if redirected from an external page (e.g. "Message Pro" button)
+  useEffect(() => {
+    const stateSelectedId = (location.state as any)?.selectedChatId;
+    if (stateSelectedId && String(stateSelectedId) !== String(activeThreadIdRef.current)) {
+      setActiveThreadId(stateSelectedId);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
+  // Fetch Messages for Active Thread
   useEffect(() => {
     if (!activeThreadId) return;
     let cancelled = false;
 
-    const fetchMessagesForThread = async (silent = false) => {
-      if (!silent) setLoadingMessages(true);
+    const fetchMessagesForThread = async () => {
+      setLoadingMessages(true);
       try {
         const res = await chatApi.getMessages(activeThreadId);
         const list = (res as any)?.data || res || [];
         if (!cancelled) {
-          setMessages(Array.isArray(list) ? list : []);
-          try {
-            await chatApi.markAsRead({ chat_id: activeThreadId });
-          } catch {
-            /* ignore */
+          const msgList = Array.isArray(list) ? list : [];
+          setMessages(msgList);
+
+          const hasUnreadFromPartner = msgList.some(
+            (m: any) =>
+              (m.is_read === false || m.read === false) &&
+              Number(m.sender_id) !== Number(user?.id)
+          );
+
+          if (hasUnreadFromPartner) {
+            try {
+              await chatApi.markAsRead({ chat_id: activeThreadId });
+            } catch {
+              /* ignore */
+            }
           }
         }
       } catch (err) {
-        if (!silent) console.error("Failed to load messages", err);
+        if (!cancelled) {
+          console.error("Failed to load messages", err);
+        }
       } finally {
-        if (!silent) setLoadingMessages(false);
+        if (!cancelled) setLoadingMessages(false);
       }
     };
 
-    fetchMessagesForThread(false);
-
-    const msgInterval = setInterval(() => {
-      fetchMessagesForThread(true);
-    }, 4000);
+    fetchMessagesForThread();
 
     return () => {
       cancelled = true;
-      clearInterval(msgInterval);
     };
-  }, [activeThreadId]);
+  }, [activeThreadId, user?.id]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -177,16 +192,19 @@ export const Messages: React.FC = () => {
   // Derived Title and Subtitle Helpers
   const titleFor = (t: any) => {
     if (!t) return "Conversation";
-    if (userIsCustomer) {
+    if (t.other_user?.full_name) return t.other_user.full_name;
+    if (t.other_user?.business_name) return t.other_user.business_name;
+    if (side === "customer") {
       return (
         t.provider?.business_name ||
         t.provider?.user?.full_name ||
-        t.other_user?.full_name ||
-        "Professional"
+        t.provider_name ||
+        "Service Professional"
       );
     }
     return (
       t.customer?.full_name ||
+      t.customer_name ||
       t.other_user?.full_name ||
       "Customer"
     );
@@ -195,6 +213,8 @@ export const Messages: React.FC = () => {
   const subtitleFor = (t: any) => {
     if (!t) return "";
     if (t.project?.title) return `Project: ${t.project.title}`;
+    const bNum = t.booking?.booking_number || t.booking_number;
+    if (bNum) return `Booking #${bNum}`;
     if (t.booking_id) return `Booking #${t.booking_id}`;
     return "Direct Inquiry";
   };
@@ -214,12 +234,14 @@ export const Messages: React.FC = () => {
   const activeThread = useMemo(() => {
     if (!threads.length) return null;
     if (!activeThreadId) return threads[0];
+    const target = String(activeThreadId);
     return (
       threads.find(
         (t) =>
-          String(t.id) === String(activeThreadId) ||
-          String(t.chat_id) === String(activeThreadId) ||
-          String(t.id || t.chat_id) === String(activeThreadId)
+          String(t.id) === target ||
+          String(t.chat_id) === target ||
+          (t.booking_id && String(t.booking_id) === target) ||
+          (t.project_id && String(t.project_id) === target)
       ) || threads[0]
     );
   }, [threads, activeThreadId]);
@@ -317,7 +339,21 @@ export const Messages: React.FC = () => {
     if (!activeThread || isBlockedByOther) return;
     const currentId = activeThread.id || activeThread.chat_id;
     try {
-      await chatApi.block(currentId);
+      const res: any = await chatApi.block(currentId);
+      const updatedChat = res?.data || res;
+      if (updatedChat) {
+        setThreads((prevThreads) =>
+          prevThreads.map((t: any) =>
+            String(t.id || t.chat_id) === String(currentId)
+              ? {
+                  ...t,
+                  is_blocked: Boolean(updatedChat.is_blocked),
+                  blocked_by_user_id: updatedChat.blocked_by_user_id,
+                }
+              : t
+          )
+        );
+      }
       if (isBlockedByMe) {
         toast.success(`Unblocked ${titleFor(activeThread)}`);
       } else {
@@ -352,9 +388,9 @@ export const Messages: React.FC = () => {
     <div className="grid h-[calc(100vh-11rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:grid-cols-[320px_minmax(0,1fr)]">
       {/* SIDEBAR CONVERSATIONS LIST */}
       <aside className={cn("flex min-h-0 flex-col border-r border-border", mobileOpen && "hidden lg:flex")}>
-        {/* SEARCH BAR */}
-        <div className="border-b border-border p-3">
-          <div className="relative">
+        {/* SEARCH & REFRESH BAR */}
+        <div className="border-b border-border p-3 flex items-center gap-2">
+          <div className="relative flex-1">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
@@ -363,6 +399,23 @@ export const Messages: React.FC = () => {
               className="h-9 pl-9"
             />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            title="Refresh conversations"
+            onClick={() => {
+              fetchThreads(false);
+              if (activeThreadId) {
+                chatApi.getMessages(activeThreadId).then((res) => {
+                  const list = (res as any)?.data || res || [];
+                  setMessages(Array.isArray(list) ? list : []);
+                });
+              }
+            }}
+          >
+            <RefreshCw size={15} className={loadingThreads ? "animate-spin" : ""} />
+          </Button>
         </div>
 
         {/* THREAD LIST */}

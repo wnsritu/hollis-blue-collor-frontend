@@ -56,12 +56,19 @@ export function ProviderJobs() {
   // State for View Review Modal
   const [viewReviewModalBooking, setViewReviewModalBooking] = useState<any | null>(null);
 
-  const fetchActiveJobs = async () => {
+  const fetchActiveJobs = async (tabOverride?: string) => {
     setLoading(true);
     try {
+      const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
+      const queryParams: Record<string, unknown> = { limit: 100 };
+      if (tabToUse === "active") queryParams.status_tab = "in_progress";
+      else if (tabToUse === "completed") queryParams.status_tab = "completed";
+      else if (tabToUse === "fixed") queryParams.job_type = "fixed";
+      else if (tabToUse === "quote") queryParams.job_type = "quote";
+
       const [aptRes, bookingRes] = await Promise.allSettled([
-        appointmentApi.listMine(),
-        bookingApi.list({ limit: 100 }),
+        appointmentApi.listMine(queryParams),
+        bookingApi.list(queryParams),
       ]);
 
       let aptList: any[] = [];
@@ -110,7 +117,7 @@ export function ProviderJobs() {
 
   useEffect(() => {
     fetchActiveJobs();
-  }, []);
+  }, [activeTab]);
 
   // Classify direct fixed services vs request a quote / project flow
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
@@ -197,10 +204,12 @@ export function ProviderJobs() {
         project_id: b.project_id || undefined,
         booking_id: b.id,
       });
-      const chat = (res as any)?.data || res;
-      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+      const raw = (res as any)?.data || res;
+      const chat = raw?.data || raw;
+      const chatId = chat?.id || chat?.chat_id || raw?.id || raw?.chat_id || b.id;
+      navigate("/messages", { state: { selectedChatId: chatId } });
     } catch (err) {
-      navigate("/messages");
+      navigate("/messages", { state: { selectedChatId: b.id } });
     }
   };
 

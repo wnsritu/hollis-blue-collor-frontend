@@ -52,7 +52,7 @@ export function useSignUpForm() {
   };
 
   const updateMobile = (value: string) => {
-    const val = sanitizePhoneInput(value);
+    const val = sanitizePhoneInput(value).slice(0, 10);
     setForm((prev) => ({ ...prev, mobile: val }));
     if (fieldErrors.mobile) {
       setFieldErrors((prev) => ({ ...prev, mobile: undefined }));
@@ -90,9 +90,9 @@ export function useSignUpForm() {
     }
 
     if (!form.mobile.trim()) {
-      errs.mobile = "Mobile number is required.";
-    } else if (!isValidPhone(form.mobile)) {
-      errs.mobile = "Please enter a valid 10-digit mobile number.";
+      errs.mobile = "Mobile phone number is required.";
+    } else if (form.mobile.replace(/\D/g, "").length !== 10) {
+      errs.mobile = "Mobile phone number must be exactly 10 digits.";
     }
 
     if (!form.password) {

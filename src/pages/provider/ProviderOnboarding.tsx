@@ -11,9 +11,9 @@ import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { parseGooglePlace } from "@/utils/googlePlaces";
 import { CATEGORY_ICONS, CATEGORY_FALLBACK_DESC } from "@/constants";
 import { useProviderOnboarding } from "@/hooks/useProviderOnboarding";
@@ -296,37 +296,46 @@ export default function ProviderOnboarding() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2 sm:col-span-2">
                   <Label htmlFor="address">
-                    Street Address <span className="text-destructive">*</span>
+                    Street Address <span className="text-destructive font-bold ml-0.5">*</span>
                   </Label>
                   <GooglePlaceAutocomplete
                     value={form.address}
                     placeholder="Start typing your street address..."
+                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                     onChange={(val) => {
                       set({ address: val });
                       if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: undefined }));
                     }}
                     onSelect={(place) => {
-                      const parsed = parseGooglePlace(place);
+                      const comps = place.fullPlace?.address_components || [];
+                      const get = (type: string) =>
+                        comps.find((c) => c.types.includes(type))?.long_name || "";
+                      const addressVal = place.address || form.address;
+                      const cityVal = get("locality") || get("sublocality") || form.city;
+                      const stateVal = get("administrative_area_level_1") || form.state;
+                      const zipVal = get("postal_code") || form.zip;
+                      const countryVal = get("country") || form.country;
+
                       set({
-                        address: parsed.address,
-                        city: parsed.city || form.city,
-                        state: parsed.state || form.state,
-                        zip: parsed.zip || form.zip,
-                        country: parsed.country || form.country,
-                        latitude: parsed.lat != null ? parsed.lat : null,
-                        longitude: parsed.lng != null ? parsed.lng : null,
+                        address: addressVal,
+                        city: cityVal,
+                        state: stateVal,
+                        zip: zipVal,
+                        country: countryVal,
+                        latitude: place.lat || null,
+                        longitude: place.lng || null,
                       });
+
                       setFieldErrors((prev) => {
                         const next = { ...prev };
                         delete next.address;
-                        if (parsed.city) delete next.city;
-                        if (parsed.state) delete next.state;
-                        if (parsed.zip) delete next.zip;
-                        if (parsed.country) delete next.country;
+                        if (cityVal) delete next.city;
+                        if (stateVal) delete next.state;
+                        if (zipVal) delete next.zip;
+                        if (countryVal) delete next.country;
                         return next;
                       });
                     }}
-                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                   {fieldErrors.address && (
                     <p className="text-xs font-medium text-destructive">{fieldErrors.address}</p>
@@ -523,7 +532,7 @@ function Field({
   return (
     <div className="grid gap-2">
       <Label htmlFor={label}>
-        {label} {required && <span className="text-destructive">*</span>}
+        {label} {required && <span className="text-destructive font-bold ml-0.5">*</span>}
       </Label>
       <Input
         id={label}
