@@ -15,6 +15,7 @@ import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { catalogApi } from "@/api/modules/catalog.api";
@@ -29,6 +30,7 @@ import {
 } from "@/pages/SignUp";
 import { getErrorMessage } from "@/lib/api/errors";
 import toast from "react-hot-toast";
+import { validateZipCode } from "@/utils/providerValidation";
 
 const OnboardingHeader = () => (
   <header className="border-b border-border/80 bg-background/95 backdrop-blur-md">
@@ -100,7 +102,7 @@ export default function ProviderOnboarding() {
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
   const [form, setForm] = useState({
     address: "",
-    country: "United States",
+    country: "",
     city: "",
     state: "",
     zip: "",
@@ -221,27 +223,56 @@ export default function ProviderOnboarding() {
 
     if (step === 1) {
       const errs: Record<string, string> = {};
-      if (!form.address.trim()) errs.address = "Street address is required.";
-      if (!form.city.trim()) errs.city = "City is required.";
-      if (!form.state.trim()) errs.state = "State / Province is required.";
-      if (!form.zip.trim()) {
-        errs.zip = "ZIP / Postal code is required.";
-      } else if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim()) && form.zip.trim().length < 3) {
-        errs.zip = "Please enter a valid 5-digit ZIP code.";
+      if (!form.address.trim()) {
+        errs.address = "Street address is required.";
+      } else if (form.address.trim().length < 3) {
+        errs.address = "Street address must be at least 3 characters.";
       }
-      if (!form.country.trim()) errs.country = "Country is required.";
+
+      if (!form.city.trim()) {
+        errs.city = "City is required.";
+      } else if (form.city.trim().length < 3) {
+        errs.city = "City must be at least 3 characters.";
+      }
+
+      if (!form.state.trim()) {
+        errs.state = "State / Province is required.";
+      } else if (form.state.trim().length < 2) {
+        errs.state = "State / Province must be at least 2 characters.";
+      }
+
+      if (!form.country.trim()) {
+        errs.country = "Country is required.";
+      } else if (form.country.trim().length < 2) {
+        errs.country = "Country must be at least 2 characters.";
+      }
+
+      if (form.zip.trim()) {
+        const zipErr = validateZipCode(form.zip);
+        if (zipErr) errs.zip = zipErr;
+      }
 
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
-        setError("Please complete all required service coverage fields.");
+        setError("Please fix the validation errors above before continuing.");
         return;
       }
     }
 
     if (step === 2) {
       const errs: Record<string, string> = {};
-      if (!form.license.trim()) errs.license = "License number is required.";
-      if (!form.insurance.trim()) errs.insurance = "Insurance policy number is required.";
+      if (!form.license.trim()) {
+        errs.license = "License number is required.";
+      } else if (form.license.trim().length < 3) {
+        errs.license = "License number must be at least 3 characters.";
+      }
+
+      if (!form.insurance.trim()) {
+        errs.insurance = "Insurance policy number is required.";
+      } else if (form.insurance.trim().length < 3) {
+        errs.insurance = "Insurance policy number must be at least 3 characters.";
+      }
+
       if (!form.licenseDocumentPath) errs.licenseDocument = "Please upload your business license document.";
       if (!form.insuranceDocumentPath) errs.insuranceDocument = "Please upload your insurance certificate.";
 
@@ -599,17 +630,42 @@ export default function ProviderOnboarding() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2 sm:col-span-2">
                   <Label htmlFor="address">
-                    Street Address <span className="text-destructive">*</span>
+                    Street Address <span className="text-destructive font-bold ml-0.5">*</span>
                   </Label>
-                  <Input
-                    id="address"
-                    placeholder="Start typing your street address..."
+                  <GooglePlaceAutocomplete
                     value={form.address}
-                    onChange={(e) => {
-                      set({ address: e.target.value });
+                    onChange={(val) => {
+                      set({ address: val });
                       if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: undefined });
                     }}
+                    placeholder="Start typing your street address..."
                     className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                    onSelect={(place) => {
+                      const comps = place.fullPlace?.address_components || [];
+                      const get = (type: string) =>
+                        comps.find((c) => c.types.includes(type))?.long_name || "";
+                      const addressVal = place.address || form.address;
+                      const cityVal = get("locality") || get("sublocality") || form.city;
+                      const stateVal = get("administrative_area_level_1") || form.state;
+                      const zipVal = get("postal_code") || form.zip;
+                      const countryVal = get("country") || form.country;
+
+                      set({
+                        address: addressVal,
+                        city: cityVal,
+                        state: stateVal,
+                        zip: zipVal,
+                        country: countryVal,
+                      });
+
+                      const newErrors = { ...fieldErrors };
+                      if (addressVal) delete newErrors.address;
+                      if (cityVal) delete newErrors.city;
+                      if (stateVal) delete newErrors.state;
+                      if (zipVal) delete newErrors.zip;
+                      if (countryVal) delete newErrors.country;
+                      setFieldErrors(newErrors);
+                    }}
                   />
                   {fieldErrors.address && (
                     <p className="text-xs font-medium text-destructive">{fieldErrors.address}</p>
@@ -643,7 +699,6 @@ export default function ProviderOnboarding() {
                     if (fieldErrors.zip) setFieldErrors({ ...fieldErrors, zip: undefined });
                   }}
                   error={fieldErrors.zip}
-                  required
                 />
                 <Field
                   label="Country"
@@ -799,7 +854,7 @@ function Field({
   return (
     <div className="grid gap-2">
       <Label htmlFor={label}>
-        {label} {required && <span className="text-destructive">*</span>}
+        {label} {required && <span className="text-destructive font-bold ml-0.5">*</span>}
       </Label>
       <Input
         id={label}

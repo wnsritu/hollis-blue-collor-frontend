@@ -26,6 +26,7 @@ import { Avatar } from "@/components/shared/primitives";
 import { sanitizePhoneInput } from "@/utils/format";
 import Spinner from "@/components/ui/spinner";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
+import { cn } from "@/lib/utils";
 
 import { authApi } from "@/api/modules/auth.api";
 import { customerApi } from "@/api/modules/customer.api";
@@ -33,39 +34,42 @@ import { userApi } from "@/api/modules/user.api";
 import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
+import { extractApiFieldErrors } from "@/utils/providerValidation";
 
 type ProfileTab = "profile" | "security";
+
+interface FieldErrors {
+  fullName?: string;
+  mobileNumber?: string;
+  zipCode?: string;
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+}
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
     return ((res as { data: T }).data ?? res) as T;
   }
-
   return res as T;
 }
 
 function initialsFrom(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-
   if (!parts.length) return "CU";
-
   if (parts.length === 1) {
     return parts[0].slice(0, 2).toUpperCase();
   }
-
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 const CustomerProfile = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-
   const tabParam = (searchParams.get("tab") as ProfileTab) || "profile";
-
   const activeTab: ProfileTab =
     tabParam === "security" ? "security" : "profile";
 
   const { user, fetchMe, updateUser } = useAuthSession();
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -95,14 +99,129 @@ const CustomerProfile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Input Field Validation Errors
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
   const setTab = (tab: ProfileTab) => {
+    setFieldErrors({});
     setSearchParams(tab === "profile" ? {} : { tab });
+  };
+
+  const handleFullNameChange = (val: string) => {
+    setFullName(val);
+    let err: string | undefined;
+    if (!val.trim()) {
+      err = "Full name is required.";
+    } else if (val.trim().length < 2) {
+      err = "Full name must be at least 2 characters.";
+    }
+    setFieldErrors((prev) => ({ ...prev, fullName: err }));
+  };
+
+  const handleMobileNumberChange = (val: string) => {
+    const sanitized = sanitizePhoneInput(val);
+    setMobileNumber(sanitized);
+    let err: string | undefined;
+    if (sanitized.trim()) {
+      const digits = sanitized.replace(/\D/g, "");
+      if (digits.length < 10) {
+        err = "Phone number must be at least 10 digits.";
+      }
+    }
+    setFieldErrors((prev) => ({ ...prev, mobileNumber: err }));
+  };
+
+  const handleZipCodeChange = (val: string) => {
+    setZipCode(val);
+    let err: string | undefined;
+    if (val.trim() && val.trim().length < 3) {
+      err = "Please enter a valid postal code.";
+    }
+    setFieldErrors((prev) => ({ ...prev, zipCode: err }));
+  };
+
+  const handleCurrentPasswordChange = (val: string) => {
+    setCurrentPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "Please enter your current password.";
+    }
+    setFieldErrors((prev) => ({ ...prev, currentPassword: err }));
+  };
+
+  const handleNewPasswordChange = (val: string) => {
+    setNewPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "New password is required.";
+    } else if (val.length < 6) {
+      err = "New password must be at least 6 characters.";
+    }
+    setFieldErrors((prev) => ({ ...prev, newPassword: err }));
+
+    if (confirmPassword) {
+      const cErr = val !== confirmPassword ? "New passwords do not match." : undefined;
+      setFieldErrors((prev) => ({ ...prev, confirmPassword: cErr }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (val: string) => {
+    setConfirmPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "Please confirm your new password.";
+    } else if (newPassword !== val) {
+      err = "New passwords do not match.";
+    }
+    setFieldErrors((prev) => ({ ...prev, confirmPassword: err }));
+  };
+
+  const validateProfileForm = (): boolean => {
+    const errs: FieldErrors = {};
+    if (!fullName.trim()) {
+      errs.fullName = "Full name is required.";
+    } else if (fullName.trim().length < 2) {
+      errs.fullName = "Full name must be at least 2 characters.";
+    }
+
+    if (mobileNumber.trim()) {
+      const digits = mobileNumber.replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 15) {
+        errs.mobileNumber = "Phone number must be 10 to 15 digits.";
+      }
+    }
+
+    if (zipCode.trim() && zipCode.trim().length < 3) {
+      errs.zipCode = "Please enter a valid postal code.";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const validatePasswordForm = (): boolean => {
+    const errs: FieldErrors = {};
+    if (!currentPassword) {
+      errs.currentPassword = "Please enter your current password.";
+    }
+    if (!newPassword) {
+      errs.newPassword = "New password is required.";
+    } else if (newPassword.length < 6) {
+      errs.newPassword = "New password must be at least 6 characters.";
+    }
+    if (!confirmPassword) {
+      errs.confirmPassword = "Please confirm your new password.";
+    } else if (newPassword !== confirmPassword) {
+      errs.confirmPassword = "New passwords do not match.";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
-
       let profile: any = null;
 
       try {
@@ -118,9 +237,7 @@ const CustomerProfile = () => {
 
       const name =
         profile.full_name ||
-        [profile.first_name, profile.last_name]
-          .filter(Boolean)
-          .join(" ") ||
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
         user?.full_name ||
         "";
 
@@ -130,7 +247,6 @@ const CustomerProfile = () => {
       setStatus(String(profile.status || "active"));
 
       const photo = profile.profile_image || profile.profile_photo;
-
       if (photo) {
         setAvatarPreview(resolveMediaUrl(String(photo)));
       } else {
@@ -139,57 +255,23 @@ const CustomerProfile = () => {
 
       // Populate address details
       const primaryAddr =
-        profile.address ||
-        profile.addresses?.[0]?.address_line ||
-        "";
-
-      const primaryCity =
-        profile.city ||
-        profile.addresses?.[0]?.city ||
-        "";
-
-      const primaryState =
-        profile.state ||
-        profile.addresses?.[0]?.state ||
-        "";
-
-      const primaryZip =
-        profile.zip_code ||
-        profile.addresses?.[0]?.zip_code ||
-        "";
-
-      const primaryCountry =
-        profile.country ||
-        profile.addresses?.[0]?.country ||
-        "";
-
-      const primaryLat =
-        profile.latitude ??
-        profile.addresses?.[0]?.latitude ??
-        null;
-
-      const primaryLng =
-        profile.longitude ??
-        profile.addresses?.[0]?.longitude ??
-        null;
+        profile.address || profile.addresses?.[0]?.address_line || "";
+      const primaryCity = profile.city || profile.addresses?.[0]?.city || "";
+      const primaryState = profile.state || profile.addresses?.[0]?.state || "";
+      const primaryZip = profile.zip_code || profile.addresses?.[0]?.zip_code || "";
+      const primaryCountry = profile.country || profile.addresses?.[0]?.country || "";
+      const primaryLat = profile.latitude ?? profile.addresses?.[0]?.latitude ?? null;
+      const primaryLng = profile.longitude ?? profile.addresses?.[0]?.longitude ?? null;
 
       setAddress(primaryAddr);
       setCity(primaryCity);
       setState(primaryState);
       setZipCode(primaryZip);
       setCountry(primaryCountry);
-
-      setLatitude(
-        primaryLat !== null ? Number(primaryLat) : null
-      );
-
-      setLongitude(
-        primaryLng !== null ? Number(primaryLng) : null
-      );
+      setLatitude(primaryLat !== null ? Number(primaryLat) : null);
+      setLongitude(primaryLng !== null ? Number(primaryLng) : null);
     } catch (err) {
-      toast.error(
-        getErrorMessage(err, "Failed to load profile.")
-      );
+      toast.error(getErrorMessage(err, "Failed to load profile."));
     } finally {
       setLoading(false);
     }
@@ -199,11 +281,8 @@ const CustomerProfile = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -213,7 +292,6 @@ const CustomerProfile = () => {
 
     try {
       setAvatarPreview(URL.createObjectURL(file));
-
       const formData = new FormData();
       formData.append("profile_photo", file);
 
@@ -226,17 +304,15 @@ const CustomerProfile = () => {
       if (newPhotoPath) {
         updateUser({ profile_image: newPhotoPath, profile_photo: newPhotoPath });
       }
-      toast.success("Profile photo uploaded.");
+      toast.success("Profile photo uploaded successfully.");
 
       try {
         await fetchMe();
       } catch {
-        // Ignore fetchMe errors.
+        /* non-blocking */
       }
     } catch (err) {
-      toast.error(
-        getErrorMessage(err, "Photo upload failed.")
-      );
+      toast.error(getErrorMessage(err, "Photo upload failed."));
     }
   };
 
@@ -245,137 +321,109 @@ const CustomerProfile = () => {
       setAvatarPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       updateUser({ profile_photo: null, profile_image: null });
-      await userApi.updateCustomerProfile({
-        full_name: fullName.trim() || undefined,
-        profile_photo: null,
-        profile_image: null,
-      });
 
       try {
-        await customerApi.updateMyProfile({
+        await userApi.updateCustomerProfile({
           full_name: fullName.trim() || undefined,
           profile_photo: null,
           profile_image: null,
         });
       } catch {
-        // Ignore fallback errors.
+        await customerApi.updateMyProfile({
+          full_name: fullName.trim() || undefined,
+          profile_photo: null,
+          profile_image: null,
+        });
       }
 
       toast.success("Profile photo removed successfully.");
-
       try {
         await fetchMe();
       } catch {
-        // Ignore fetchMe errors.
+        /* non-blocking */
       }
     } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          "Failed to remove profile photo."
-        )
-      );
+      toast.error(getErrorMessage(err, "Failed to remove profile photo."));
     }
   };
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
-    if (!fullName.trim()) {
-      toast.error("Full name is required.");
+    if (!validateProfileForm()) {
       return;
     }
 
     try {
       setSaving(true);
-
       const profilePayload = {
         full_name: fullName.trim(),
         phone: mobileNumber.trim() || undefined,
-
         address: address.trim() || undefined,
         address_line: address.trim() || undefined,
-
         city: city.trim() || undefined,
         state: state.trim() || undefined,
         country: country.trim() || undefined,
         zip_code: zipCode.trim() || undefined,
-
         latitude: latitude ?? undefined,
         longitude: longitude ?? undefined,
       };
 
-      await userApi.updateCustomerProfile(profilePayload);
-
       try {
-        await customerApi.updateMyProfile(profilePayload);
+        await userApi.updateCustomerProfile(profilePayload);
       } catch {
-        // Primary path already succeeded.
+        await customerApi.updateMyProfile(profilePayload);
       }
 
-      toast.success("Profile information saved successfully.");
+      updateUser({
+        full_name: fullName.trim(),
+        phone: mobileNumber.trim(),
+      });
 
+      toast.success("Profile information saved successfully.");
       try {
         await fetchMe();
       } catch {
-        // Ignore fetchMe errors.
+        /* non-blocking */
       }
-
       await loadProfile();
-    } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          "Failed to save profile."
-        )
-      );
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors(apiErrs);
+      }
+      toast.error(getErrorMessage(err, "Failed to save profile."));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUpdatePassword = async (
-    e?: React.FormEvent
-  ) => {
+  const handleUpdatePassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
-    if (!currentPassword) {
-      toast.error("Please enter your current password.");
-      return;
-    }
-
-    if (!newPassword || newPassword.length < 6) {
-      toast.error(
-        "New password must be at least 6 characters."
-      );
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match.");
+    if (!validatePasswordForm()) {
+      toast.error("Please fix password validation errors.");
       return;
     }
 
     try {
       setSaving(true);
-
       await authApi.changePassword({
         old_password: currentPassword,
         new_password: newPassword,
       });
 
       toast.success("Password updated successfully.");
-
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          "Failed to update password."
-        )
-      );
+      setFieldErrors({});
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors(apiErrs);
+      }
+      toast.error(getErrorMessage(err, "Failed to update password."));
     } finally {
       setSaving(false);
     }
@@ -396,50 +444,31 @@ const CustomerProfile = () => {
           <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
             My Profile
           </h1>
-
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your personal details, address, and password
-            security.
+            Manage your personal details, address, and password security.
           </p>
         </div>
 
         {activeTab === "profile" ? (
-          <Button
-            onClick={() => handleSaveProfile()}
-            disabled={saving}
-          >
+          <Button type="button" onClick={(e) => handleSaveProfile(e)} disabled={saving}>
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         ) : (
-          <Button
-            onClick={() => handleUpdatePassword()}
-            disabled={saving}
-          >
+          <Button type="button" onClick={(e) => handleUpdatePassword(e)} disabled={saving}>
             {saving ? "Updating…" : "Update Password"}
           </Button>
         )}
       </div>
 
       <div className="mb-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) =>
-            setTab(v as ProfileTab)
-          }
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setTab(v as ProfileTab)}>
           <TabsList className="grid h-auto w-full max-w-md grid-cols-2">
-            <TabsTrigger
-              value="profile"
-              className="gap-2 py-2"
-            >
+            <TabsTrigger value="profile" className="gap-2 py-2">
               <User size={16} />
               Profile
             </TabsTrigger>
 
-            <TabsTrigger
-              value="security"
-              className="gap-2 py-2"
-            >
+            <TabsTrigger value="security" className="gap-2 py-2">
               <Lock size={16} />
               Password &amp; Security
             </TabsTrigger>
@@ -454,21 +483,14 @@ const CustomerProfile = () => {
               {/* Personal Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">
-                    Personal Information
-                  </CardTitle>
-
+                  <CardTitle className="text-lg">Personal Information</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Update your contact details used for service
-                    bookings and communications.
+                    Update your contact details used for service bookings and communications.
                   </p>
                 </CardHeader>
 
                 <CardContent>
-                  <form
-                    onSubmit={handleSaveProfile}
-                    className="space-y-5"
-                  >
+                  <form onSubmit={handleSaveProfile} className="space-y-5">
                     {/* Profile Photo */}
                     <div className="rounded-xl border border-border bg-surface p-4">
                       <div className="flex flex-col items-center gap-4 sm:flex-row">
@@ -480,10 +502,7 @@ const CustomerProfile = () => {
                               className="size-16 rounded-full object-cover"
                             />
                           ) : (
-                            <Avatar
-                              initials={initialsFrom(fullName)}
-                              size="lg"
-                            />
+                            <Avatar initials={initialsFrom(fullName)} size="lg" />
                           )}
                         </div>
 
@@ -491,7 +510,6 @@ const CustomerProfile = () => {
                           <p className="text-sm font-bold text-foreground">
                             Profile Photo
                           </p>
-
                           <p className="text-xs text-muted-foreground">
                             JPG, PNG or GIF. Max size 5MB.
                           </p>
@@ -511,9 +529,7 @@ const CustomerProfile = () => {
                               variant="outline"
                               size="sm"
                               className="h-8 gap-1.5 text-xs"
-                              onClick={() =>
-                                fileInputRef.current?.click()
-                              }
+                              onClick={() => fileInputRef.current?.click()}
                             >
                               <Camera size={13} />
                               Change Photo
@@ -538,53 +554,51 @@ const CustomerProfile = () => {
 
                     {/* Full Name */}
                     <div className="grid gap-2">
-                      <Label htmlFor="fullName">
-                        Full Name
-                      </Label>
-
+                      <Label htmlFor="fullName">Full Name</Label>
                       <Input
                         id="fullName"
                         value={fullName}
-                        onChange={(e) =>
-                          setFullName(e.target.value)
-                        }
+                        onChange={(e) => handleFullNameChange(e.target.value)}
+                        onBlur={() => handleFullNameChange(fullName)}
                         placeholder="e.g. John Smith"
+                        className={cn(
+                          fieldErrors.fullName &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.fullName && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.fullName}
+                        </p>
+                      )}
                     </div>
 
                     {/* Email */}
                     <div className="grid gap-2">
-                      <Label htmlFor="email">
-                        Email Address
-                      </Label>
-
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        readOnly
-                      />
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input id="email" type="email" value={email} readOnly className="bg-muted/50" />
                     </div>
 
                     {/* Mobile Number */}
                     <div className="grid gap-2">
-                      <Label htmlFor="mobileNumber">
-                        Mobile Number
-                      </Label>
-
+                      <Label htmlFor="mobileNumber">Mobile Number</Label>
                       <Input
                         id="mobileNumber"
                         type="tel"
                         value={mobileNumber}
-                        onChange={(e) =>
-                          setMobileNumber(
-                            sanitizePhoneInput(
-                              e.target.value
-                            )
-                          )
-                        }
+                        onChange={(e) => handleMobileNumberChange(e.target.value)}
+                        onBlur={() => handleMobileNumberChange(mobileNumber)}
                         placeholder="e.g. (555) 234-5678"
+                        className={cn(
+                          fieldErrors.mobileNumber &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.mobileNumber && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.mobileNumber}
+                        </p>
+                      )}
                     </div>
                   </form>
                 </CardContent>
@@ -594,10 +608,7 @@ const CustomerProfile = () => {
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <MapPin
-                      size={18}
-                      className="text-primary"
-                    />
+                    <MapPin size={18} className="text-primary" />
                     Address &amp; Location
                   </CardTitle>
                 </CardHeader>
@@ -606,10 +617,7 @@ const CustomerProfile = () => {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* Street Address */}
                     <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="address">
-                        Street Address
-                      </Label>
-
+                      <Label htmlFor="address">Street Address</Label>
                       <GooglePlaceAutocomplete
                         value={address}
                         onChange={setAddress}
@@ -619,130 +627,81 @@ const CustomerProfile = () => {
                           setLatitude(place.lat);
                           setLongitude(place.lng);
 
-                          const comps =
-                            place.fullPlace
-                              ?.address_components || [];
+                          const comps = place.fullPlace?.address_components || [];
+                          const getComp = (type: string) =>
+                            comps.find((c) => c.types.includes(type))?.long_name || "";
 
-                          const getComp = (
-                            type: string
-                          ) =>
-                            comps.find((c) =>
-                              c.types.includes(type)
-                            )?.long_name || "";
+                          const cityVal = getComp("locality") || getComp("sublocality") || city;
+                          const stateVal = getComp("administrative_area_level_1") || state;
+                          const zipVal = getComp("postal_code") || zipCode;
+                          const countryVal = getComp("country") || country;
 
-                          const cityVal =
-                            getComp("locality") ||
-                            getComp("sublocality") ||
-                            city;
-
-                          const stateVal =
-                            getComp(
-                              "administrative_area_level_1"
-                            ) || state;
-
-                          const zipVal =
-                            getComp("postal_code") ||
-                            zipCode;
-
-                          const countryVal =
-                            getComp("country") ||
-                            country;
-
-                          if (cityVal) {
-                            setCity(cityVal);
-                          }
-
-                          if (stateVal) {
-                            setState(stateVal);
-                          }
-
-                          if (zipVal) {
-                            setZipCode(zipVal);
-                          }
-
-                          if (countryVal) {
-                            setCountry(countryVal);
-                          }
+                          if (cityVal) setCity(cityVal);
+                          if (stateVal) setState(stateVal);
+                          if (zipVal) setZipCode(zipVal);
+                          if (countryVal) setCountry(countryVal);
                         }}
                       />
                     </div>
 
                     {/* City */}
                     <div className="grid gap-2">
-                      <Label htmlFor="city">
-                        City
-                      </Label>
-
+                      <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
                         value={city}
-                        onChange={(e) =>
-                          setCity(e.target.value)
-                        }
+                        onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. New York"
                       />
                     </div>
 
                     {/* State */}
                     <div className="grid gap-2">
-                      <Label htmlFor="state">
-                        State / Province
-                      </Label>
-
+                      <Label htmlFor="state">State / Province</Label>
                       <Input
                         id="state"
                         value={state}
-                        onChange={(e) =>
-                          setState(e.target.value)
-                        }
+                        onChange={(e) => setState(e.target.value)}
                         placeholder="e.g. NY"
                       />
                     </div>
 
                     {/* ZIP */}
                     <div className="grid gap-2">
-                      <Label htmlFor="zipCode">
-                        ZIP / Postal Code
-                      </Label>
-
+                      <Label htmlFor="zipCode">ZIP / Postal Code</Label>
                       <Input
                         id="zipCode"
                         value={zipCode}
-                        onChange={(e) =>
-                          setZipCode(e.target.value)
-                        }
+                        onChange={(e) => handleZipCodeChange(e.target.value)}
+                        onBlur={() => handleZipCodeChange(zipCode)}
                         placeholder="e.g. 10001"
+                        className={cn(
+                          fieldErrors.zipCode &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.zipCode && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.zipCode}
+                        </p>
+                      )}
                     </div>
 
                     {/* Country */}
                     <div className="grid gap-2">
-                      <Label htmlFor="country">
-                        Country
-                      </Label>
-
+                      <Label htmlFor="country">Country</Label>
                       <Input
                         id="country"
                         value={country}
-                        onChange={(e) =>
-                          setCountry(e.target.value)
-                        }
+                        onChange={(e) => setCountry(e.target.value)}
                         placeholder="e.g. USA"
                       />
                     </div>
                   </div>
 
                   <div className="pt-2">
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        handleSaveProfile()
-                      }
-                      disabled={saving}
-                    >
-                      {saving
-                        ? "Saving…"
-                        : "Save Changes"}
+                    <Button type="button" onClick={(e) => handleSaveProfile(e)} disabled={saving}>
+                      {saving ? "Saving…" : "Save Changes"}
                     </Button>
                   </div>
                 </CardContent>
@@ -754,155 +713,113 @@ const CustomerProfile = () => {
           {activeTab === "security" && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Password Reset &amp; Security
-                </CardTitle>
-
+                <CardTitle className="text-lg">Password Reset &amp; Security</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Update your account password to maintain
-                  strong account security.
+                  Update your account password to maintain strong account security.
                 </p>
               </CardHeader>
 
               <CardContent>
-                <form
-                  onSubmit={handleUpdatePassword}
-                  className="space-y-5"
-                >
+                <form onSubmit={handleUpdatePassword} className="space-y-5">
                   {/* Current Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="currentPassword">
-                      Current Password
-                    </Label>
-
+                    <Label htmlFor="currentPassword">Current Password</Label>
                     <div className="relative">
                       <Input
                         id="currentPassword"
-                        type={
-                          showCurrentPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showCurrentPassword ? "text" : "password"}
                         value={currentPassword}
-                        onChange={(e) =>
-                          setCurrentPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleCurrentPasswordChange(e.target.value)}
+                        onBlur={() => handleCurrentPasswordChange(currentPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.currentPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowCurrentPassword(
-                            !showCurrentPassword
-                          )
-                        }
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showCurrentPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.currentPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.currentPassword}
+                      </p>
+                    )}
                   </div>
 
                   {/* New Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="newPassword">
-                      New Password
-                    </Label>
-
+                    <Label htmlFor="newPassword">New Password</Label>
                     <div className="relative">
                       <Input
                         id="newPassword"
-                        type={
-                          showNewPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showNewPassword ? "text" : "password"}
                         value={newPassword}
-                        onChange={(e) =>
-                          setNewPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleNewPasswordChange(e.target.value)}
+                        onBlur={() => handleNewPasswordChange(newPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.newPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowNewPassword(
-                            !showNewPassword
-                          )
-                        }
+                        onClick={() => setShowNewPassword(!showNewPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showNewPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.newPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.newPassword}
+                      </p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="confirmPassword">
-                      Confirm New Password
-                    </Label>
-
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
-                        type={
-                          showConfirmPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showConfirmPassword ? "text" : "password"}
                         value={confirmPassword}
-                        onChange={(e) =>
-                          setConfirmPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                        onBlur={() => handleConfirmPasswordChange(confirmPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.confirmPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(
-                            !showConfirmPassword
-                          )
-                        }
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showConfirmPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.confirmPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.confirmPassword}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-2">
-                    <Button
-                      type="submit"
-                      disabled={saving}
-                    >
-                      {saving
-                        ? "Updating…"
-                        : "Update Password"}
+                    <Button type="submit" disabled={saving}>
+                      {saving ? "Updating…" : "Update Password"}
                     </Button>
                   </div>
                 </form>
@@ -923,79 +840,45 @@ const CustomerProfile = () => {
                     className="size-20 rounded-full border-2 border-primary/20 object-cover"
                   />
                 ) : (
-                  <Avatar
-                    initials={initialsFrom(fullName)}
-                    size="lg"
-                  />
+                  <Avatar initials={initialsFrom(fullName)} size="lg" />
                 )}
               </div>
 
-              <CardTitle className="text-base">
-                {fullName || "Customer"}
-              </CardTitle>
-
-              <p className="text-xs text-muted-foreground">
-                {email}
-              </p>
+              <CardTitle className="text-base">{fullName || "Customer"}</CardTitle>
+              <p className="text-xs text-muted-foreground">{email}</p>
             </CardHeader>
 
             <CardContent className="space-y-4 pt-2 text-xs">
               <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
                 {/* Account Type */}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    Account Type
-                  </span>
-
-                  <span className="font-semibold text-foreground">
-                    Customer
-                  </span>
+                  <span className="text-muted-foreground">Account Type</span>
+                  <span className="font-semibold text-foreground">Customer</span>
                 </div>
 
                 {/* Status */}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    Status
-                  </span>
-
+                  <span className="text-muted-foreground">Status</span>
                   <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
                     <ShieldCheck size={13} />
-
-                    {status === "inactive"
-                      ? "Inactive"
-                      : "Active"}
+                    {status === "inactive" ? "Inactive" : "Active"}
                   </span>
                 </div>
 
                 {/* Mobile */}
                 {mobileNumber && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      Mobile
-                    </span>
-
-                    <span className="font-semibold text-foreground">
-                      {mobileNumber}
-                    </span>
+                    <span className="text-muted-foreground">Mobile</span>
+                    <span className="font-semibold text-foreground">{mobileNumber}</span>
                   </div>
                 )}
 
                 {/* Address */}
                 {address && (
                   <div className="flex items-start justify-between gap-2 border-t border-border pt-2">
-                    <span className="shrink-0 text-muted-foreground">
-                      Address
-                    </span>
-
+                    <span className="shrink-0 text-muted-foreground">Address</span>
                     <span className="text-right font-medium text-foreground">
-                      {[
-                        address,
-                        city,
-                        state,
-                        zipCode,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
+                      {[address, city, state, zipCode].filter(Boolean).join(", ")}
                     </span>
                   </div>
                 )}

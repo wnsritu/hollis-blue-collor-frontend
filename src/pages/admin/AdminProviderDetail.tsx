@@ -6,10 +6,10 @@ import {
   Building2,
   CheckCircle2,
   Download,
-  Edit,
   Eye,
   FileCheck,
   FileText,
+  Landmark,
   MapPin,
   PauseCircle,
   PlayCircle,
@@ -21,10 +21,6 @@ import {
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -33,12 +29,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import Spinner from "@/components/ui/spinner";
 import { adminApi } from "@/api/modules/admin.api";
 import { formatPhone } from "@/utils/format";
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export function AdminProviderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -52,23 +48,11 @@ export function AdminProviderDetail() {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
 
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
   const [suspendReason, setSuspendReason] = useState("");
   const [selectedDocPreview, setSelectedDocPreview] = useState<{ title: string; filename: string; url?: string } | null>(null);
-
-  // Edit Provider Form State
-  const [editForm, setEditForm] = useState({
-    businessName: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    category: "",
-    status: "active",
-  });
 
   useEffect(() => {
     if (id) {
@@ -80,28 +64,15 @@ export function AdminProviderDetail() {
     try {
       setLoading(true);
       const res: any = await adminApi.getProvider(providerId);
-      const data = res?.data?.data || res?.data || res;
+      const data = res?.data?.data || res?.data?.provider || res?.data || res?.provider || res;
       setProvider(data);
-      setEditForm({
-        businessName: data.business_name || data.name || "",
-        firstName: data.user?.first_name || "",
-        lastName: data.user?.last_name || "",
-        email: data.user?.email || data.email || "",
-        phone: data.user?.phone || data.phone || "",
-        category: data.category || data.subcategory || "General",
-        status: data.status || "active",
-      });
     } catch (err: any) {
       console.error("Failed to load provider details:", err);
       toast.error(err?.response?.data?.message || "Failed to load provider profile");
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
-
-  function fontFinally() {
-    setLoading(false);
-  }
 
   if (loading) {
     return (
@@ -124,21 +95,41 @@ export function AdminProviderDetail() {
     );
   }
 
-  // Normalizing fields
+  // Normalizing dynamic data fields from backend API
   const providerId = provider.id || id;
-  const fullName = String(`${provider.user?.first_name || ""} ${provider.user?.last_name || ""}`.trim() || provider.fullName || provider.name || "Provider");
-  const businessName = String(provider.business_name || provider.name || fullName);
-  const email = String(provider.user?.email || provider.email || "—");
-  const phone = String(provider.user?.phone || provider.phone || "—");
-  const rawCat = provider.category || provider.subcategory;
-  const categoryName = typeof rawCat === "object" ? (rawCat?.name || rawCat?.title || "General Service") : String(rawCat || "General Service");
-  const emailVerified = provider.user?.email_verified !== false && provider.emailVerified !== false;
+  const userObj = provider.user || {};
+  const fullName = String(
+    userObj.full_name ||
+    userObj.name ||
+    `${userObj.first_name || ""} ${userObj.last_name || ""}`.trim() ||
+    provider.fullName ||
+    provider.name ||
+    "Provider"
+  );
+  const businessName = String(provider.business_name || provider.businessName || fullName);
+  const email = String(userObj.email || provider.email || "—");
+  const phone = String(userObj.phone || provider.phone || "—");
+
+  const categoryName = provider.category?.name || (typeof provider.category === "string" ? provider.category : null) || "Not Assigned";
+  const subCategoryName = provider.sub_category?.name || provider.subcategory?.name || null;
+
+  const emailVerified = userObj.email_verified === true || userObj.email_verified === 1;
   const dbStatus = String(provider.status || "").toLowerCase();
   const dbVerified = String(provider.verified || "").toLowerCase();
 
   const isVerified = dbVerified === "verified" || dbVerified === "approved";
   const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
   const isSuspended = dbStatus === "paused" || dbStatus === "suspended";
+
+  // Location string construction
+  const locationParts = [
+    provider.service_location_address,
+    provider.city,
+    provider.state,
+    provider.country,
+    provider.zip_code || provider.zip,
+  ].filter(Boolean);
+  const locationDisplay = locationParts.length > 0 ? locationParts.join(", ") : "Not Specified";
 
   // Dynamic Document URLs Extraction
   const getFullDocUrl = (url: string | undefined | null) => {
@@ -162,14 +153,21 @@ export function AdminProviderDetail() {
     provider.insurance_doc
   );
 
-  // Perform Approval API Call: PUT /api/v1/admin/providers/:id/approve
+  // Bank Info normalization
+  const bankObj = provider.bank || {};
+  const bankName = bankObj.bank_name || provider.bank_name || null;
+  const bankHolder = bankObj.bank_account_holder || provider.bank_account_holder || null;
+  const bankType = bankObj.bank_account_type || provider.bank_account_type || null;
+  const bankLast4 = bankObj.account_last4 || (provider.bank_account_number ? `****${String(provider.bank_account_number).slice(-4)}` : null);
+
+  // Perform Approval API Call
   const handleConfirmApprove = async () => {
     try {
       setSubmitting(true);
       await adminApi.approveProvider(providerId);
       setShowVerifyModal(true);
       toast.success(`${businessName} has been verified and approved.`);
-      await fetchProviderDetails(providerId);
+      await fetchProviderDetails(String(providerId));
     } catch (err: any) {
       console.error("Approval error:", err);
       toast.error(err?.response?.data?.message || "Failed to approve provider.");
@@ -178,7 +176,7 @@ export function AdminProviderDetail() {
     }
   };
 
-  // Perform Rejection API Call: PUT /api/v1/admin/providers/:id/reject with { reason }
+  // Perform Rejection API Call
   const handleConfirmReject = async () => {
     const trimmedReason = rejectionReason.trim();
     if (!trimmedReason) {
@@ -199,7 +197,7 @@ export function AdminProviderDetail() {
       await adminApi.rejectProvider(providerId, { reason: trimmedReason });
       setShowRejectModal(false);
       toast.error(`Provider application for ${businessName} rejected.`);
-      await fetchProviderDetails(providerId);
+      await fetchProviderDetails(String(providerId));
     } catch (err: any) {
       console.error("Rejection error:", err);
       toast.error(err?.response?.data?.message || "Failed to reject provider.");
@@ -213,17 +211,15 @@ export function AdminProviderDetail() {
     try {
       setSubmitting(true);
       if (isSuspended) {
-        // PUT /api/v1/admin/providers/:id/unsuspend
         await adminApi.unsuspendProvider(providerId);
         toast.success(`Suspension lifted for ${businessName}. Account is now Active.`);
       } else {
-        // PUT /api/v1/admin/providers/:id/suspend with optional reason
         const payload = suspendReason.trim() ? { reason: suspendReason.trim() } : undefined;
         await adminApi.suspendProvider(providerId, payload);
         toast.success(`Provider ${businessName} has been suspended.`);
       }
       setShowSuspendModal(false);
-      await fetchProviderDetails(providerId);
+      await fetchProviderDetails(String(providerId));
     } catch (err: any) {
       console.error("Suspension error:", err);
       toast.error(err?.response?.data?.message || "Failed to update suspension status.");
@@ -231,6 +227,13 @@ export function AdminProviderDetail() {
       setSubmitting(false);
     }
   };
+
+  // Services list dynamic normalization
+  const servicesList = Array.isArray(provider.service_types) && provider.service_types.length > 0
+    ? provider.service_types
+    : Array.isArray(provider.services) && provider.services.length > 0
+    ? provider.services
+    : [];
 
   return (
     <div className="space-y-6">
@@ -255,12 +258,12 @@ export function AdminProviderDetail() {
                 {isVerified && <VerifiedBadge />}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Submitted by <strong className="text-foreground">{fullName}</strong> · {categoryName}
+                Owner: <strong className="text-foreground">{fullName}</strong> · Category: {categoryName}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                 <span>📧 {email}</span>
-                <span>📱 {formatPhone(phone)}</span>
-                <span>📍 {[provider.city, provider.state, provider.zip_code || provider.zip].filter(Boolean).join(", ") || "Austin, TX"}</span>
+                <span>📱 {phone !== "—" ? formatPhone(phone) : "—"}</span>
+                <span>📍 {locationDisplay}</span>
               </div>
             </div>
           </div>
@@ -344,7 +347,7 @@ export function AdminProviderDetail() {
             <div>
               <p className="font-bold">Application Rejected by Admin</p>
               <p className="mt-0.5 text-xs opacity-90">
-                Reason: {provider.rejection_reason || provider.rejectionReason || "Business verification documents are incomplete or invalid."}
+                Reason: {provider.rejection_reason || provider.rejectionReason || "Verification documents incomplete or invalid."}
               </p>
             </div>
           </div>
@@ -357,7 +360,7 @@ export function AdminProviderDetail() {
             <div>
               <p className="font-bold">Provider Account Suspended</p>
               <p className="mt-0.5 text-xs opacity-90">
-                This provider account is currently suspended by Admin and cannot receive new service requests.
+                This provider account is currently suspended by Admin.
               </p>
             </div>
           </div>
@@ -368,7 +371,7 @@ export function AdminProviderDetail() {
       <div className="space-y-6">
         {/* SECTION 1: ACCOUNT INFORMATION */}
         <Card className="shadow-card">
-          <CardHeader className="pb-3 border-b border-border flex flex-row items-center justify-between">
+          <CardHeader className="pb-3 border-b border-border">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <User size={18} className="text-primary" /> Account Information
             </CardTitle>
@@ -385,14 +388,14 @@ export function AdminProviderDetail() {
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Mobile Number</dt>
-                <dd className="font-medium text-foreground mt-0.5">{formatPhone(phone)}</dd>
+                <dd className="font-medium text-foreground mt-0.5">{phone !== "—" ? formatPhone(phone) : "—"}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Email Verification Status</dt>
                 <dd className="mt-0.5">
                   {emailVerified ? (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-success">
-                      <CheckCircle2 size={13} /> Verified via OTP
+                      <CheckCircle2 size={13} /> Verified
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-warning">
@@ -419,26 +422,25 @@ export function AdminProviderDetail() {
                 <dd className="font-bold text-foreground mt-0.5">{businessName}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground font-medium">Years in Business</dt>
-                <dd className="font-medium text-foreground mt-0.5">{provider.years_in_business || provider.years || 5} Years</dd>
+                <dt className="text-xs text-muted-foreground font-medium">Years of Experience</dt>
+                <dd className="font-medium text-foreground mt-0.5">
+                  {provider.years_of_experience != null
+                    ? `${provider.years_of_experience} Years`
+                    : "Not specified"}
+                </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground font-medium">Response Time Commitment</dt>
-                <dd className="font-medium text-foreground mt-0.5">{provider.response_time || provider.responseTime || "Under 30 mins"}</dd>
+                <dt className="text-xs text-muted-foreground font-medium">Account Status</dt>
+                <dd className="font-medium text-foreground capitalize mt-0.5">{provider.status || "active"}</dd>
               </div>
             </div>
 
             <Separator />
 
             <div>
-              <dt className="text-xs text-muted-foreground font-medium">Business Tagline</dt>
-              <dd className="font-medium text-foreground mt-0.5">{provider.tagline || "Licensed & insured local service professional."}</dd>
-            </div>
-
-            <div>
-              <dt className="text-xs text-muted-foreground font-medium">Business Description</dt>
+              <dt className="text-xs text-muted-foreground font-medium">Service Description</dt>
               <dd className="mt-1 leading-relaxed text-muted-foreground rounded-xl bg-muted/50 p-4 border border-border">
-                {provider.bio || provider.about || provider.description || "Providing high-quality home service solutions with complete pricing transparency and guaranteed workmanship."}
+                {provider.service_description || provider.description || provider.bio || "No description provided."}
               </dd>
             </div>
           </CardContent>
@@ -452,30 +454,43 @@ export function AdminProviderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm">
-              <span className="text-xs text-muted-foreground block">Category Hierarchy</span>
-              <span className="font-bold text-primary text-base">Home Services</span>
-              <span className="mx-2 text-muted-foreground">→</span>
-              <span className="font-semibold text-foreground">{categoryName}</span>
+            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground block">Category:</span>
+              <span className="font-bold text-primary text-base">{categoryName}</span>
+              {subCategoryName && (
+                <>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-semibold text-foreground">{subCategoryName}</span>
+                </>
+              )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(provider.services && provider.services.length > 0 ? provider.services : [
-                { id: 1, name: `${categoryName} Standard Service`, price: 120, unit: "flat rate" },
-                { id: 2, name: `${categoryName} Emergency Inspection`, price: 85, unit: "per visit" },
-              ]).map((svc: any) => (
-                <div
-                  key={svc.id}
-                  className="rounded-xl border border-border p-4 bg-card shadow-xs flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <p className="font-semibold text-sm text-foreground">{svc.name || svc.service_name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{svc.unit || "flat rate"}</p>
+            {servicesList.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {servicesList.map((svc: any, idx: number) => (
+                  <div
+                    key={svc.id || idx}
+                    className="rounded-xl border border-border p-4 bg-card shadow-xs flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <p className="font-semibold text-sm text-foreground">{svc.name || svc.service_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {svc.is_active !== false ? "Active Sub-category" : "Inactive"}
+                      </p>
+                    </div>
+                    {svc.amount != null ? (
+                      <span className="font-extrabold text-primary text-sm">${svc.amount}</span>
+                    ) : (
+                      <span className="text-xs font-medium text-muted-foreground">Standard</span>
+                    )}
                   </div>
-                  <span className="font-extrabold text-primary text-sm">${svc.price || svc.rate || 100}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic bg-muted/30 p-3 rounded-lg">
+                No specific sub-category service items configured yet.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -489,24 +504,55 @@ export function AdminProviderDetail() {
           <CardContent className="p-6 text-sm">
             <dl className="grid gap-4 sm:grid-cols-3">
               <div>
-                <dt className="text-xs text-muted-foreground font-medium">Cities Served</dt>
-                <dd className="font-bold text-foreground mt-0.5">{provider.city || provider.serviceArea || "Austin & surrounding metro"}</dd>
+                <dt className="text-xs text-muted-foreground font-medium">Operating City / Area</dt>
+                <dd className="font-bold text-foreground mt-0.5">{provider.city || "Not specified"}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground font-medium">Base Location &amp; ZIP</dt>
-                <dd className="font-medium text-foreground mt-0.5">
-                  {[provider.city, provider.state].filter(Boolean).join(", ") || "Austin, TX"} {provider.zip_code || provider.zip || "78701"}
-                </dd>
+                <dt className="text-xs text-muted-foreground font-medium">Full Operating Address</dt>
+                <dd className="font-medium text-foreground mt-0.5">{locationDisplay}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Service Radius</dt>
-                <dd className="font-medium text-foreground mt-0.5">{provider.service_radius || provider.radius || 25} Miles</dd>
+                <dd className="font-medium text-foreground mt-0.5">
+                  {provider.service_radius_miles != null
+                    ? `${provider.service_radius_miles} Miles`
+                    : "Not specified"}
+                </dd>
               </div>
             </dl>
           </CardContent>
         </Card>
 
-        {/* SECTION 5: UPLOADED DOCUMENTS */}
+        {/* SECTION 5: BANK ACCOUNT DETAILS */}
+        <Card className="shadow-card">
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Landmark size={18} className="text-primary" /> Bank Account Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 text-sm">
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <dt className="text-xs text-muted-foreground font-medium">Bank Name</dt>
+                <dd className="font-bold text-foreground mt-0.5">{bankName || "Not provided"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground font-medium">Account Holder Name</dt>
+                <dd className="font-medium text-foreground mt-0.5">{bankHolder || "Not provided"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground font-medium">Account Number</dt>
+                <dd className="font-medium text-foreground mt-0.5">{bankLast4 || "Not provided"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground font-medium">Account Type</dt>
+                <dd className="font-medium text-foreground capitalize mt-0.5">{bankType || "Not provided"}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 6: UPLOADED DOCUMENTS */}
         <Card className="shadow-card">
           <CardHeader className="pb-3 border-b border-border">
             <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -524,7 +570,7 @@ export function AdminProviderDetail() {
                   <div>
                     <p className="font-bold text-foreground">Business License Document</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {provider.license_number || provider.license || "TX-LIC-99201"}
+                      {provider.license_number || "No license number provided"}
                     </p>
                     {licenseDocUrl ? (
                       <span className="inline-block mt-2 text-[11px] font-semibold text-success bg-success-soft px-2 py-0.5 rounded-full">
@@ -568,7 +614,7 @@ export function AdminProviderDetail() {
                   <div>
                     <p className="font-bold text-foreground">Insurance Certificate</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {provider.insurance_policy || provider.insurance || "POL-88201"}
+                      {provider.insurance_policy || "No policy number provided"}
                     </p>
                     {insuranceDocUrl ? (
                       <span className="inline-block mt-2 text-[11px] font-semibold text-success bg-success-soft px-2 py-0.5 rounded-full">
@@ -661,9 +707,6 @@ export function AdminProviderDetail() {
           <DialogDescription className="mt-1 text-sm text-muted-foreground">
             <strong>{businessName}</strong> has been successfully verified. An automated confirmation email was sent to the provider.
           </DialogDescription>
-          <p className="text-xs font-medium text-foreground bg-muted p-3 rounded-xl mt-2">
-            The provider can now login and proceed to subscription.
-          </p>
           <div className="mt-5">
             <Button className="w-full" onClick={() => setShowVerifyModal(false)}>
               Done

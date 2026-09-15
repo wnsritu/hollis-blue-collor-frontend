@@ -211,11 +211,10 @@ export default function ForgotPassword() {
                         key={r.id}
                         type="button"
                         onClick={() => setRole(r.id)}
-                        className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-semibold transition-colors sm:text-sm ${
-                          role === r.id
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
+                        className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-semibold transition-colors sm:text-sm ${role === r.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                          }`}
                       >
                         <r.icon size={15} />
                         {r.label}
@@ -265,7 +264,7 @@ export default function ForgotPassword() {
                   >
                     {resending ? "Resending…" : "Resend code"}
                   </button>
-                  {role !== "provider" && (
+                  {/* {role !== "provider" && (
                     <button
                       type="button"
                       onClick={() => {
@@ -277,7 +276,7 @@ export default function ForgotPassword() {
                     >
                       <ArrowLeft size={15} /> Change email
                     </button>
-                  )}
+                  )} */}
                 </form>
               )}
 

@@ -78,19 +78,26 @@ const ProviderAvailability = () => {
     // console.log("Services List:", services);
   }, [services]);
 
-  const formatTime = (time: string, startTime?: string) => {
-    const [h, m] = time.split(":");
-    let hour = parseInt(h, 10);
+  const formatTime = (time?: string, startTime?: string) => {
+    if (!time || typeof time !== "string") return "";
+    const parts = time.split(":");
+    if (parts.length < 2) return time;
 
-    if (startTime) {
-      const startHour = parseInt(startTime.split(":")[0], 10);
-      if (hour < startHour) hour += 12;
+    let hour = parseInt(parts[0], 10);
+    if (isNaN(hour)) return time;
+
+    if (startTime && typeof startTime === "string") {
+      const startParts = startTime.split(":");
+      if (startParts.length > 0) {
+        const startHour = parseInt(startParts[0], 10);
+        if (!isNaN(startHour) && hour < startHour) hour += 12;
+      }
     }
 
     const ampm = hour >= 12 ? "PM" : "AM";
     const formattedHour = hour % 12 || 12;
 
-    return `${formattedHour}:${m} ${ampm}`;
+    return `${formattedHour}:${parts[1]} ${ampm}`;
   };
 
   const handleSave = async () => {

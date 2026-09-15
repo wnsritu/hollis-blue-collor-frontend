@@ -13,6 +13,12 @@ import { sanitizePhoneInput } from "@/utils/format";
 import { authApi } from "@/api/modules/auth.api";
 import { getErrorMessage } from "@/lib/api/errors";
 import toast from "react-hot-toast";
+import {
+  validatePhone,
+  validateEmail,
+  validateFullName,
+  validateBusinessName,
+} from "@/utils/providerValidation";
 
 export const PROVIDER_SIGNUP_DRAFT_KEY = "hollis_provider_signup_draft";
 
@@ -64,33 +70,19 @@ export function SignUp() {
   const validateForm = (): boolean => {
     const errs: Record<string, string> = {};
 
-    if (!form.name.trim()) {
-      errs.name = "Full name is required.";
-    } else if (form.name.trim().length < 2) {
-      errs.name = "Full name must be at least 2 characters.";
-    }
+    const nameErr = validateFullName(form.name);
+    if (nameErr) errs.name = nameErr;
 
     if (role === "provider") {
-      if (!form.businessName.trim()) {
-        errs.businessName = "Business name is required for professionals.";
-      } else if (form.businessName.trim().length < 2) {
-        errs.businessName = "Business name must be at least 2 characters.";
-      }
+      const bErr = validateBusinessName(form.businessName);
+      if (bErr) errs.businessName = bErr;
     }
 
-    const trimmedEmail = form.email.trim();
-    if (!trimmedEmail) {
-      errs.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      errs.email = "Please enter a valid email address (e.g. name@example.com).";
-    }
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errs.email = emailErr;
 
-    const cleanPhone = form.mobile.replace(/\D/g, "");
-    if (!form.mobile.trim()) {
-      errs.mobile = "Mobile number is required.";
-    } else if (cleanPhone.length < 10) {
-      errs.mobile = "Please enter a valid 10-digit mobile number.";
-    }
+    const phoneErr = validatePhone(form.mobile);
+    if (phoneErr) errs.mobile = phoneErr;
 
     if (!form.password) {
       errs.password = "Password is required.";
