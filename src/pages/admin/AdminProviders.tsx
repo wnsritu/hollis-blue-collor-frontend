@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { PageHeader } from "@/components/shared/primitives";
 import PaginationController from "@/components/ui/PaginationController";
 import Spinner from "@/components/ui/spinner";
+import { adminApi } from "@/services/admin";
 import {
   useAdminProviders,
   getCategoryName,
