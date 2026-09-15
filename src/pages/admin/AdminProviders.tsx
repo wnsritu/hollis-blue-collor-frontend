@@ -39,40 +39,177 @@ import {
 
 export function AdminProviders() {
   const navigate = useNavigate();
-  const {
-    providers,
-    loading,
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    totalCount,
-    showVerifySuccessModal,
-    setShowVerifySuccessModal,
-    verifiedProviderName,
-    showRejectModal,
-    setShowRejectModal,
-    targetRejectProvider,
-    rejectionReason,
-    setRejectionReason,
-    rejectionError,
-    showSuspendModal,
-    setShowSuspendModal,
-    targetSuspendProvider,
-    suspendReason,
-    setSuspendReason,
-    submittingAction,
-    handleQuickApprove,
-    handleOpenRejectModal,
-    handleConfirmReject,
-    handleOpenSuspendModal,
-    handleConfirmSuspend,
-    handleQuickUnsuspend,
-    filtered,
-  } = useAdminProviders();
+  const [providers, setProviders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [verificationFilter, setVerificationFilter] = useState("all");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Modals state
+  const [showVerifySuccessModal, setShowVerifySuccessModal] = useState(false);
+  const [verifiedProviderName, setVerifiedProviderName] = useState("");
+  
+  // Reject Modal State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [targetRejectProvider, setTargetRejectProvider] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState("");
+
+  // Suspend Modal State
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [targetSuspendProvider, setTargetSuspendProvider] = useState<any>(null);
+  const [suspendReason, setSuspendReason] = useState("");
+
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  useEffect(() => {
+    fetchProviders(currentPage, searchQuery, verificationFilter, accountStatusFilter);
+  }, [currentPage, verificationFilter, accountStatusFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProviders(1, searchQuery, verificationFilter, accountStatusFilter);
+      if (currentPage !== 1) setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchProviders = async (
+    page = currentPage,
+    search = searchQuery,
+    vFilter = verificationFilter,
+    aFilter = accountStatusFilter
+  ) => {
+    try {
+      setLoading(true);
+      const params: Record<string, any> = { page, limit: 10 };
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+      if (vFilter !== "all") {
+        params.verified = vFilter; // "verified", "pending", "rejected"
+      }
+      if (aFilter !== "all") {
+        params.status = aFilter; // "active", "inactive"
+      }
+
+      const res: any = await adminApi.listProviders(params);
+      
+      const payload = res?.data?.data || res?.data || res;
+      const list = Array.isArray(payload) ? payload : (payload?.items || payload?.providers || []);
+      const total = res?.total || res?.data?.total || payload?.total || payload?.pagination?.total || list.length;
+      const pages = res?.pagination?.totalPages || res?.data?.pagination?.totalPages || payload?.totalPages || payload?.pagination?.totalPages || Math.ceil(total / 10) || 1;
+
+      setProviders(list);
+      setTotalCount(total);
+      setTotalPages(pages);
+    } catch (err: any) {
+      console.error("Error fetching providers:", err);
+      toast.error("Failed to load provider list from server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick Approve Action
+  const handleQuickApprove = async (providerId: string | number, name: string) => {
+    try {
+      setSubmittingAction(true);
+      await adminApi.approveProvider(providerId);
+      setVerifiedProviderName(name);
+      setShowVerifySuccessModal(true);
+      toast.success(`${name} verified successfully.`);
+      await fetchProviders(currentPage);
+    } catch (err: any) {
+      console.error("Quick verify error:", err);
+      toast.error(err?.response?.data?.message || "Verification action failed.");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Open Reject Modal
+  const handleOpenRejectModal = (provider: any) => {
+    setTargetRejectProvider(provider);
+    setRejectionReason("");
+    setRejectionError("");
+    setShowRejectModal(true);
+  };
+
+  // Confirm Rejection API
+  const handleConfirmReject = async () => {
+    const trimmedReason = rejectionReason.trim();
+    if (!trimmedReason) {
+      setRejectionError("Please enter a mandatory rejection reason.");
+      return;
+    }
+    if (trimmedReason.length < 3) {
+      setRejectionError("Rejection reason must be at least 3 characters long.");
+      return;
+    }
+    if (trimmedReason.length > 1000) {
+      setRejectionError("Rejection reason cannot exceed 1000 characters.");
+      return;
+    }
+
+    if (!targetRejectProvider) return;
+
+    try {
+      setSubmittingAction(true);
+      await adminApi.rejectProvider(targetRejectProvider.id, { reason: trimmedReason });
+      setShowRejectModal(false);
+      toast.error(`Provider application for ${targetRejectProvider.business_name || targetRejectProvider.name} rejected.`);
+      await fetchProviders(currentPage);
+    } catch (err: any) {
+      console.error("Rejection error:", err);
+      toast.error(err?.response?.data?.message || "Failed to reject provider.");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Open Suspend Modal
+  const handleOpenSuspendModal = (provider: any) => {
+    setTargetSuspendProvider(provider);
+    setSuspendReason("");
+    setShowSuspendModal(true);
+  };
+
+  // Confirm Suspend API
+  const handleConfirmSuspend = async () => {
+    if (!targetSuspendProvider) return;
+    try {
+      setSubmittingAction(true);
+      const payload = suspendReason.trim() ? { reason: suspendReason.trim() } : undefined;
+      await adminApi.suspendProvider(targetSuspendProvider.id, payload);
+      setShowSuspendModal(false);
+      toast.success(`${targetSuspendProvider.business_name || targetSuspendProvider.name} has been inactivated.`);
+      await fetchProviders(currentPage);
+    } catch (err: any) {
+      console.error("Suspend error:", err);
+      toast.error(err?.response?.data?.message || "Failed to suspend provider.");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Quick Unsuspend API
+  const handleQuickUnsuspend = async (providerId: string | number, name: string) => {
+    try {
+      setSubmittingAction(true);
+      await adminApi.unsuspendProvider(providerId);
+      toast.success(`Account activated for ${name}.`);
+      await fetchProviders(currentPage);
+    } catch (err: any) {
+      console.error("Unsuspend error:", err);
+      toast.error(err?.response?.data?.message || "Failed to activate provider.");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
   return (
     <TooltipProvider>
@@ -91,16 +228,40 @@ export function AdminProviders() {
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48 bg-card border-border">
-              <SelectValue />
+          {/* Verification Status Filter */}
+          <Select
+            value={verificationFilter}
+            onValueChange={(val) => {
+              setVerificationFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-52 bg-card border-border">
+              <SelectValue placeholder="Verification Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="Pending">Pending Review</SelectItem>
-              <SelectItem value="Active">Active (Verified)</SelectItem>
-              <SelectItem value="Suspended">Suspended (Paused)</SelectItem>
-              <SelectItem value="Rejected">Rejected</SelectItem>
+              <SelectItem value="all">All Verifications</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="pending">Pending Review</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Account Status Filter */}
+          <Select
+            value={accountStatusFilter}
+            onValueChange={(val) => {
+              setAccountStatusFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-48 bg-card border-border">
+              <SelectValue placeholder="Account Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Account Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -128,8 +289,8 @@ export function AdminProviders() {
                   <p className="mt-2 text-xs text-muted-foreground">Loading provider directory...</p>
                 </TableCell>
               </TableRow>
-            ) : filtered.length > 0 ? (
-              filtered.map((p) => {
+            ) : providers.length > 0 ? (
+              providers.map((p) => {
                 const pId = p.id;
                 const busName = String(p.business_name || p.name || "Company / Business Name");
                 const ownerName = String(
@@ -288,7 +449,7 @@ export function AdminProviders() {
         </Table>
       </div>
 
-      {!loading && filtered.length > 0 && (
+      {!loading && providers.length > 0 && (
         <div className="mt-4 flex justify-center">
           <PaginationController
             currentPage={currentPage}
