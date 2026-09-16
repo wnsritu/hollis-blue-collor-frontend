@@ -41,9 +41,9 @@ const normalizeStatus = (status?: string): string => {
 };
 
 // Rebound to real M3 Appointment Status Endpoint
-export const updateOrderStatusApi = (data: any) => {
+export const updateOrderStatusApi = (data: any, statusArg?: any) => {
   const bookingId = typeof data === "object" ? (data?.booking_id || data?.id) : data;
-  const rawStatus = typeof data === "object" ? (data?.appointment_status || data?.status) : arguments[1];
+  const rawStatus = typeof data === "object" ? (data?.appointment_status || data?.status) : statusArg;
   const norm = normalizeStatus(rawStatus);
   return apiClient.patch(`/appointments/${bookingId}/status`, {
     appointment_status: norm,

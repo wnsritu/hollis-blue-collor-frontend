@@ -16,11 +16,11 @@ export const DEFAULT_SLOTS = [
 ];
 
 export const DEFAULT_SCHEDULE: Record<string, number[]> = {
-  Monday: [1, 2, 3],
-  Tuesday: [1, 2, 3],
-  Wednesday: [1, 2, 3],
-  Thursday: [1, 2, 3],
-  Friday: [1, 2, 3, 4],
-  Saturday: [2, 3],
+  Monday: [],
+  Tuesday: [],
+  Wednesday: [],
+  Thursday: [],
+  Friday: [],
+  Saturday: [],
   Sunday: [],
 };

@@ -27,16 +27,23 @@ export const formatPhone = (phone: string) => {
   return phone;
 };
 
-export const formatTimeSlot = (startTime: string, endTime: string) => {
-  const formatTime = (time: string) => {
-    if (!time) return "";
-    const [hour, min] = time.split(":");
-    let h = parseInt(hour);
+export const formatTimeSlot = (startTime?: string, endTime?: string) => {
+  const formatTime = (time?: string) => {
+    if (!time || typeof time !== "string") return "";
+    const parts = time.split(":");
+    if (parts.length < 2) return time;
+    let h = parseInt(parts[0], 10);
+    if (isNaN(h)) return time;
     const ampm = h >= 12 ? "PM" : "AM";
     h = h % 12 || 12;
-    return `${h}:${min} ${ampm}`;
+    return `${h}:${parts[1]} ${ampm}`;
   };
-  return `${formatTime(startTime)} – ${formatTime(endTime)}`;
+  const start = formatTime(startTime);
+  const end = formatTime(endTime);
+  if (!start && !end) return "";
+  if (!end) return start;
+  if (!start) return end;
+  return `${start} – ${end}`;
 };
 
 export const formatStatus = (status: string) => {
@@ -69,4 +76,4 @@ export const formatDisplayTime = (timeStr?: string | null): string => {
 };
 
 export const SERVICE_CATEGORIES = ["Laundry", "House Cleaning", "Car Wash"];
-export const ALL_SERVICE_CATEGORIES = ["All", ...SERVICE_CATEGORIES];
+export const ALL_SERVICE_CATEGORIES = ["All", ...SERVICE_CATEGORIES];

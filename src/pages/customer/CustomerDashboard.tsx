@@ -22,17 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader, StatCard, StatusPill, Avatar, Stars } from "@/components/shared/primitives";
-import { getOrderList, getOrderDetails } from "@/services/order";
+import { getOrderDetails } from "@/services/order";
 import { getDashboardApi } from "@/services/booking";
 import {
   getCustomerDashboardApi,
-  searchProvidersNearLocationApi,
   CustomerRecentBooking,
   CustomerAppointment,
   CustomerMessage,
   RecommendedProvider,
 } from "@/services/dashboard/dashboard.service";
-import chatApi from "@/services/chat/chat.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 
@@ -71,6 +69,7 @@ const CustomerDashboard = () => {
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [pendingProposalsCount, setPendingProposalsCount] = useState<number>(0);
   const [upcomingApptsCount, setUpcomingApptsCount] = useState<number>(0);
+  const [nextUpcomingDate, setNextUpcomingDate] = useState<string | null>(null);
 
   const [recentBookings, setRecentBookings] = useState<CustomerRecentBooking[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<CustomerAppointment[]>([]);
@@ -102,55 +101,13 @@ const CustomerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      let reqData = { page: 1, limit: 10, status: "" };
-      const [orderRes, fullDashRes, chatRes, nearbyRes]: any = await Promise.all([
-        getOrderList(reqData).catch(() => ({ data: { success: false } })),
-        getCustomerDashboardApi().catch(() => getDashboardApi()),
-        chatApi.listUserChats().catch(() => null),
-        searchProvidersNearLocationApi(10).catch(() => null),
-      ]);
-
-      if (orderRes.data?.success && orderRes.data?.bookings) {
-        setOrders(orderRes.data.bookings || []);
-      }
-
-      // Process chat list API for messages
-      if (chatRes?.data && Array.isArray(chatRes.data)) {
-        const mappedChats: CustomerMessage[] = chatRes.data.map((c: any) => ({
-          chat_id: c.id,
-          last_message: c.last_message?.content || c.last_message || "Chat conversation",
-          last_message_time: c.last_message_at || c.updated_at || "",
-          provider: {
-            id: c.provider?.id || c.provider_id || 0,
-            business_name: c.provider?.business_name || c.provider?.name || `${c.provider?.first_name || ''} ${c.provider?.last_name || ''}`.trim() || "Provider",
-            avatar: c.provider?.profile_photo || c.provider?.avatar,
-          },
-        }));
-        setMessagesList(mappedChats);
-      }
-
-      // Process 10-mile radius search API for recommended providers
-      if (nearbyRes?.data) {
-        const rawProviders = Array.isArray(nearbyRes.data)
-          ? nearbyRes.data
-          : nearbyRes.data.providers || nearbyRes.data.rows || [];
-        if (rawProviders.length > 0) {
-          const mappedRecs: RecommendedProvider[] = rawProviders.map((p: any) => ({
-            id: p.id,
-            business_name: p.business_name || p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Professional",
-            rating: p.rating || p.avg_rating || 5.0,
-            location: p.city || p.location || p.state || "Within 10 miles",
-            avatar: p.profile_photo || p.avatar,
-          }));
-          setRecommendedList(mappedRecs);
-        }
-      }
+      const fullDashRes: any = await getCustomerDashboardApi().catch(() => getDashboardApi());
 
       if (fullDashRes?.data?.success || fullDashRes?.data) {
         const dData = fullDashRes.data?.data || fullDashRes.data || {};
         const rawStats = dData.stats || dData;
 
-        // Map new API field names: active_bookings, completed_services, pending_proposals, upcoming_appointments
+        // Map stats: active_bookings, completed_services, pending_proposals, upcoming_appointments
         const parsedActive      = rawStats.active_bookings    ?? rawStats.active_orders    ?? rawStats.active    ?? 0;
         const parsedCompleted   = rawStats.completed_services ?? rawStats.completed_orders ?? rawStats.completed ?? 0;
         const parsedProposals   = rawStats.pending_proposals  ?? 0;
@@ -160,18 +117,23 @@ const CustomerDashboard = () => {
         setCompletedCount(parsedCompleted);
         setPendingProposalsCount(parsedProposals);
         setUpcomingApptsCount(parsedUpcoming);
+        if (rawStats.next_upcoming_date) {
+          setNextUpcomingDate(rawStats.next_upcoming_date);
+        }
 
-        if (dData.recentBookings && dData.recentBookings.length > 0) {
+        if (Array.isArray(dData.recentBookings)) {
           setRecentBookings(dData.recentBookings);
         }
-        if (dData.appointments) {
+        if (Array.isArray(dData.appointments)) {
           setAppointmentsList(dData.appointments);
-          setUpcomingApptsCount(dData.appointments.length);
+          if (dData.appointments.length > 0 && !parsedUpcoming) {
+            setUpcomingApptsCount(dData.appointments.length);
+          }
         }
-        if (dData.messages && messagesList.length === 0) {
+        if (Array.isArray(dData.messages)) {
           setMessagesList(dData.messages);
         }
-        if (dData.recommendedProviders && recommendedList.length === 0) {
+        if (Array.isArray(dData.recommendedProviders)) {
           setRecommendedList(dData.recommendedProviders);
         }
       }
@@ -180,6 +142,22 @@ const CustomerDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getUpcomingHint = () => {
+    if (nextUpcomingDate) {
+      return `Next: ${nextUpcomingDate}`;
+    }
+    if (appointmentsList.length > 0) {
+      const first = appointmentsList[0];
+      const parsedD = first.booking_date ? new Date(first.booking_date) : null;
+      const dStr = parsedD && !isNaN(parsedD.getTime())
+        ? parsedD.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        : first.booking_date || "";
+      const tSlot = first.time_slot ? `, ${first.time_slot}` : "";
+      return dStr ? `Next: ${dStr}${tSlot}` : "Scheduled upcoming";
+    }
+    return "Scheduled upcoming";
   };
 
   const fetchOrderDetails = async () => {
@@ -327,7 +305,7 @@ const CustomerDashboard = () => {
         <StatCard
           label="Upcoming appointments"
           value={upcomingApptsCount || appointmentsList.length}
-          hint="Scheduled upcoming"
+          hint={getUpcomingHint()}
           icon={CalendarCheck}
           tone="accent"
         />

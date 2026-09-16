@@ -172,7 +172,7 @@ export const verifyProvider = async (payload: {
 
 export const getProviderAvailability = async () => {
   const res = await getProviderTimeSlotsApi();
-  return res.data?.slots || [];
+  return res.data?.data || res.data || {};
 };
 
 export const pauseProvider = async (id: number, reason?: string) => {

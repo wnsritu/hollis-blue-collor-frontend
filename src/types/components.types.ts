@@ -69,6 +69,7 @@ export interface EmptyStateProps {
 export interface CategoryFilterTabsProps {
   activeCategory: string;
   onChange: (category: string) => void;
+  categories?: string[];
 }
 
 export interface DashboardCardProps {

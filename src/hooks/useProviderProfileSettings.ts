@@ -13,6 +13,19 @@ import type { Category } from "@/types/api/catalog";
 import type { BankAccountType } from "@/types/api/provider";
 import type { ProviderProfileTab, FAQItem, BankForm } from "@/types/provider.types";
 import { isValidZip } from "@/validations/common/rules";
+import {
+  validateFullName,
+  validatePhone,
+  validateBusinessName,
+  validateYearsOfExperience,
+  validateZipCode,
+  validateBankAccountNumber,
+  validateBankRoutingNumber,
+  validateLicenseNumber,
+  validateInsurancePolicy,
+  extractApiFieldErrors,
+} from "@/utils/providerValidation";
+import { sanitizePhoneInput } from "@/utils/format";
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
@@ -73,11 +86,13 @@ export function useProviderProfileSettings() {
 
   // Contact
   const [ownerName, setOwnerName] = useState("");
+  const [savedOwnerName, setSavedOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
 
   // Business
   const [businessName, setBusinessName] = useState("");
+  const [savedBusinessName, setSavedBusinessName] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -115,6 +130,113 @@ export function useProviderProfileSettings() {
   const [faqModalOpen, setFaqModalOpen] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FAQItem | null>(null);
   const [faqForm, setFaqForm] = useState({ question: "", answer: "" });
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+
+  const handleOwnerNameChange = (val: string) => {
+    setOwnerName(val);
+    const err = validateFullName(val);
+    setFieldErrors((prev) => ({ ...prev, ownerName: err }));
+  };
+
+  const handleBusinessNameChange = (val: string) => {
+    setBusinessName(val);
+    const err = validateBusinessName(val);
+    setFieldErrors((prev) => ({ ...prev, businessName: err }));
+  };
+
+  const handleAboutChange = (val: string) => {
+    setAbout(val);
+    let err: string | undefined;
+    if (!val.trim()) {
+      err = "Service description is required.";
+    } else if (val.trim().length < 10) {
+      err = "Service description must be at least 10 characters.";
+    }
+    setFieldErrors((prev) => ({ ...prev, about: err }));
+  };
+
+  const handleMobileChange = (val: string) => {
+    const sanitized = sanitizePhoneInput(val);
+    setMobile(sanitized);
+    let err: string | undefined;
+    if (sanitized.trim()) {
+      err = validatePhone(sanitized);
+    }
+    setFieldErrors((prev) => ({ ...prev, mobile: err }));
+  };
+
+  const handleYearsChange = (val: string) => {
+    setYears(val);
+    const err = validateYearsOfExperience(val);
+    setFieldErrors((prev) => ({ ...prev, years: err }));
+  };
+
+  const handleZipChange = (val: string) => {
+    setZip(val);
+    const err = validateZipCode(val);
+    setFieldErrors((prev) => ({ ...prev, zip: err }));
+  };
+
+  const handleAddressChange = (val: string) => {
+    setAddress(val);
+    let err: string | undefined;
+    if (!val.trim()) err = "Service location address is required.";
+    setFieldErrors((prev) => ({ ...prev, address: err }));
+  };
+
+  const handleCityChange = (val: string) => {
+    setCity(val);
+    let err: string | undefined;
+    if (!val.trim()) err = "City is required.";
+    setFieldErrors((prev) => ({ ...prev, city: err }));
+  };
+
+  const handleStateChange = (val: string) => {
+    setState(val);
+    let err: string | undefined;
+    if (!val.trim()) err = "State is required.";
+    setFieldErrors((prev) => ({ ...prev, state: err }));
+  };
+
+  const handleCountryChange = (val: string) => {
+    setCountry(val);
+    let err: string | undefined;
+    if (!val.trim()) err = "Country is required.";
+    setFieldErrors((prev) => ({ ...prev, country: err }));
+  };
+
+  const handleLicenseNumberChange = (val: string) => {
+    setLicenseNumber(val);
+    const err = validateLicenseNumber(val);
+    setFieldErrors((prev) => ({ ...prev, licenseNumber: err, license: err }));
+  };
+
+  const handleInsurancePolicyChange = (val: string) => {
+    setInsurancePolicy(val);
+    const err = validateInsurancePolicy(val);
+    setFieldErrors((prev) => ({ ...prev, insurancePolicy: err, insurance: err }));
+  };
+
+  const handleBankFieldChange = (field: keyof BankForm, value: string) => {
+    let cleanVal = value;
+    if (field === "bank_account_number") {
+      cleanVal = value.replace(/\D/g, "");
+    }
+    setBank((prev) => ({ ...prev, [field]: cleanVal }));
+
+    let err: string | undefined;
+    if (field === "bank_name") {
+      if (!cleanVal.trim()) err = "Bank name is required.";
+    } else if (field === "bank_account_holder") {
+      if (!cleanVal.trim()) err = "Account holder name is required.";
+    } else if (field === "bank_account_number") {
+      err = validateBankAccountNumber(cleanVal);
+    } else if (field === "bank_routing_number") {
+      err = validateBankRoutingNumber(cleanVal);
+    }
+    setFieldErrors((prev) => ({ ...prev, [field]: err }));
+  };
 
   const setTab = (tab: ProviderProfileTab) => {
     setSearchParams(tab === "info" ? {} : { tab });
@@ -164,7 +286,9 @@ export function useProviderProfileSettings() {
       const pid = provider?.id ? Number(provider.id) : null;
       if (pid) setProviderId(pid);
 
-      setBusinessName(provider?.business_name || "");
+      const bName = provider?.business_name || "";
+      setBusinessName(bName);
+      setSavedBusinessName(bName);
       setAbout(provider?.service_description || "");
       setAddress(provider?.service_location_address || "");
       setCity(provider?.city || "");
@@ -212,7 +336,9 @@ export function useProviderProfileSettings() {
       if (provider?.longitude != null) setLng(Number(provider.longitude));
 
       const u = user || provider?.user;
-      setOwnerName(u?.full_name || "");
+      const oName = u?.full_name || "";
+      setOwnerName(oName);
+      setSavedOwnerName(oName);
       setEmail(u?.email || "");
       setMobile(u?.phone || "");
 
@@ -266,6 +392,68 @@ export function useProviderProfileSettings() {
     loadAll();
   }, [loadAll]);
 
+  const checkBusinessInfoErrors = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+
+    const nErr = validateFullName(ownerName);
+    if (nErr) errs.ownerName = nErr;
+
+    const bErr = validateBusinessName(businessName);
+    if (bErr) errs.businessName = bErr;
+
+    if (!about.trim()) {
+      errs.about = "Service description is required.";
+    } else if (about.trim().length < 10) {
+      errs.about = "Service description must be at least 10 characters.";
+    }
+
+    if (mobile.trim()) {
+      const pErr = validatePhone(mobile);
+      if (pErr) errs.mobile = pErr;
+    }
+
+    const yErr = validateYearsOfExperience(years);
+    if (yErr) errs.years = yErr;
+
+    if (!address.trim()) errs.address = "Service location address is required.";
+    if (!city.trim()) errs.city = "City is required.";
+    if (!state.trim()) errs.state = "State is required.";
+    if (!country.trim()) errs.country = "Country is required.";
+
+    if (zip.trim()) {
+      const zErr = validateZipCode(zip);
+      if (zErr) errs.zip = zErr;
+    }
+
+    const licErr = validateLicenseNumber(licenseNumber);
+    if (licErr) {
+      errs.licenseNumber = licErr;
+      errs.license = licErr;
+    }
+
+    const insErr = validateInsurancePolicy(insurancePolicy);
+    if (insErr) {
+      errs.insurancePolicy = insErr;
+      errs.insurance = insErr;
+    }
+
+    return errs;
+  };
+
+  const checkBankDetailsErrors = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!bank.bank_name.trim()) errs.bank_name = "Bank name is required.";
+    if (!bank.bank_account_holder.trim()) errs.bank_account_holder = "Account holder name is required.";
+
+    const accErr = validateBankAccountNumber(bank.bank_account_number);
+    if (accErr) errs.bank_account_number = accErr;
+
+    const routeErr = validateBankRoutingNumber(bank.bank_routing_number);
+    if (routeErr) errs.bank_routing_number = routeErr;
+
+    return errs;
+  };
+
   const buildProfilePayload = () => {
     const chosenServiceNames = availableServiceItems
       .filter((svc) => selectedServiceIds.includes(String(svc.id)) || selectedServiceIds.includes(svc.name))
@@ -295,25 +483,62 @@ export function useProviderProfileSettings() {
       services: chosenServiceNames,
       certifications: certList,
       faqs: faqs.map(({ question, answer }) => ({ question, answer })),
-      license_number: licenseNumber.trim() || null,
-      insurance_policy: insurancePolicy.trim() || null,
+      license_number: licenseNumber.trim(),
+      insurance_policy: insurancePolicy.trim(),
     };
   };
 
-  const saveProfile = async () => {
-    if (!businessName.trim()) {
-      toast.error("Business name is required.");
-      setTab("info");
-      return;
-    }
-    if (!about.trim() || about.trim().length < 10) {
-      toast.error("About / description must be at least 10 characters.");
-      setTab("info");
-      return;
-    }
-    if (zip.trim() && !isValidZip(zip)) {
-      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
-      setTab("info");
+  const saveProfile = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    const errs = checkBusinessInfoErrors();
+    const keys = Object.keys(errs);
+
+    if (keys.length > 0) {
+      setFieldErrors(errs);
+      toast.error("Please fix the validation errors before saving.");
+
+      if (activeTab !== "info") {
+        setSearchParams({});
+      }
+
+      const elemIdMap: Record<string, string> = {
+        ownerName: "ownerName",
+        businessName: "bn",
+        about: "ab",
+        mobile: "pmobile",
+        years: "years",
+        address: "address",
+        city: "city",
+        state: "state",
+        zip: "zip",
+        country: "country",
+        licenseNumber: "lic",
+        license: "lic",
+        insurancePolicy: "ins",
+        insurance: "ins",
+      };
+
+      setTimeout(() => {
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }, 100);
+
       return;
     }
 
@@ -327,32 +552,72 @@ export function useProviderProfileSettings() {
             full_name: ownerName.trim() || undefined,
             phone: mobile.trim() || undefined,
           });
-        } catch {
-          /* non-blocking */
+        } catch (uErr: any) {
+          const apiErrs = extractApiFieldErrors(uErr);
+          if (Object.keys(apiErrs).length > 0) {
+            setFieldErrors((prev) => ({ ...prev, ...apiErrs }));
+          }
         }
       }
 
+      setFieldErrors({});
+      setSavedOwnerName(ownerName.trim());
+      setSavedBusinessName(businessName.trim());
       toast.success("Profile saved successfully.");
       await loadAll();
-    } catch (err) {
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiErrs }));
+      }
       toast.error(getErrorMessage(err, "Failed to save profile."));
     } finally {
       setSaving(false);
     }
   };
 
-  const saveBank = async () => {
+  const saveBank = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
     if (!providerId) {
       toast.error("Provider profile not found.");
       return;
     }
-    if (
-      !bank.bank_name.trim() ||
-      !bank.bank_account_holder.trim() ||
-      !bank.bank_account_number.trim() ||
-      !bank.bank_routing_number.trim()
-    ) {
-      toast.error("Please fill all bank fields.");
+
+    const errs = checkBankDetailsErrors();
+    const keys = Object.keys(errs);
+
+    if (keys.length > 0) {
+      setFieldErrors(errs);
+      toast.error("Please fix the bank details validation errors.");
+
+      const elemIdMap: Record<string, string> = {
+        bank_name: "bankname",
+        bank_account_holder: "holder",
+        bank_account_number: "account",
+        bank_routing_number: "routing",
+      };
+
+      setTimeout(() => {
+        let scrolled = false;
+        for (const k of keys) {
+          const id = elemIdMap[k] || k;
+          const elem = document.getElementById(id);
+          if (elem) {
+            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+            try { elem.focus(); } catch {}
+            scrolled = true;
+            break;
+          }
+        }
+        if (!scrolled) {
+          const firstError = document.querySelector(".border-destructive, p.text-destructive");
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }, 100);
+
       return;
     }
 
@@ -365,9 +630,14 @@ export function useProviderProfileSettings() {
         bank_routing_number: bank.bank_routing_number.trim(),
         bank_account_type: bank.bank_account_type,
       });
-      toast.success("Bank details saved.");
+      setFieldErrors({});
+      toast.success("Bank details saved successfully.");
       await loadAll();
-    } catch (err) {
+    } catch (err: any) {
+      const apiErrs = extractApiFieldErrors(err);
+      if (Object.keys(apiErrs).length > 0) {
+        setFieldErrors(apiErrs);
+      }
       toast.error(getErrorMessage(err, "Failed to save bank details."));
     } finally {
       setSaving(false);
@@ -534,5 +804,22 @@ export function useProviderProfileSettings() {
     availableServiceItems,
     categoryName,
     saveProfile,
+    savedOwnerName,
+    savedBusinessName,
+    fieldErrors,
+    setFieldErrors,
+    handleOwnerNameChange,
+    handleBusinessNameChange,
+    handleAboutChange,
+    handleMobileChange,
+    handleYearsChange,
+    handleZipChange,
+    handleAddressChange,
+    handleCityChange,
+    handleStateChange,
+    handleCountryChange,
+    handleLicenseNumberChange,
+    handleInsurancePolicyChange,
+    handleBankFieldChange,
   };
 }

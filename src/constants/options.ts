@@ -21,5 +21,5 @@ export const BANK_TYPE_OPTIONS = [
   { value: "other", label: "Business Checking" },
 ] as const;
 
-export const APPOINTMENT_FILTERS = ["All", "Upcoming", "In Progress", "Completed"] as const;
+export const APPOINTMENT_FILTERS = ["All", "Upcoming", "In Progress", "Completed", "Cancelled"] as const;
 

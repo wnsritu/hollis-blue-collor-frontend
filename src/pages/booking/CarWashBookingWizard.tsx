@@ -139,7 +139,7 @@ const CarWashBookingWizard = () => {
             value="1"
             className="data-[state=active]:bg-[#00ba88] data-[state=active]:text-white rounded-lg font-medium transition-all flex items-center gap-2"
           >
-            <Shirt size={16} /> Laundry
+            <Sparkles size={16} /> Service Selection
           </TabsTrigger>
           <TabsTrigger
             value="2"
