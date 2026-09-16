@@ -129,7 +129,7 @@ export function useSearchProviders() {
       const list = Array.isArray(rawData) ? rawData : rawData.data || [];
 
       const mapped: GenericProvider[] = list.map((p: any) => {
-        const catName = p.category?.name || (Array.isArray(p.service_categories) && p.service_categories[0]) || "Home Services";
+        const catName = p.category?.name || (Array.isArray(p.service_categories) && p.service_categories[0]) || "Service Professional";
         const subCatName = p.sub_category?.name || "";
 
         let servicesList: string[] = [];

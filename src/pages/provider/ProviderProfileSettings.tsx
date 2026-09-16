@@ -10,8 +10,10 @@ import {
   Upload,
   User,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { sanitizePhoneInput } from "@/utils/format";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +49,8 @@ import { BANK_TYPE_OPTIONS } from "@/constants";
 import { useProviderProfileSettings } from "@/hooks/useProviderProfileSettings";
 import type { ProviderProfileTab } from "@/types/provider.types";
 import type { BankAccountType } from "@/types/api/provider";
+
+
 
 
 
@@ -128,9 +132,24 @@ const ProviderProfileSettings = () => {
     availableServiceItems,
     categoryName,
     saveProfile,
+    savedOwnerName,
+    savedBusinessName,
+    fieldErrors,
+    setFieldErrors,
+    handleOwnerNameChange,
+    handleBusinessNameChange,
+    handleAboutChange,
+    handleMobileChange,
+    handleYearsChange,
+    handleZipChange,
+    handleAddressChange,
+    handleCityChange,
+    handleStateChange,
+    handleCountryChange,
+    handleLicenseNumberChange,
+    handleInsurancePolicyChange,
+    handleBankFieldChange,
   } = useProviderProfileSettings();
-
-
 
   if (loading) {
     return (
@@ -148,20 +167,16 @@ const ProviderProfileSettings = () => {
             Business Profile
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your business information, operating address, FAQs and
-            deposit bank account.
+            Manage your business information, operating address, FAQs and deposit bank account.
           </p>
         </div>
-        <Button onClick={saveProfile} disabled={saving}>
+        <Button type="button" onClick={(e) => saveProfile(e)} disabled={saving}>
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
 
       <div className="mb-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setTab(v as ProfileTab)}
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setTab(v as ProviderProfileTab)}>
           <TabsList className="grid h-auto w-full max-w-xl grid-cols-3">
             <TabsTrigger value="info" className="gap-2 py-2">
               <Building2 size={16} /> Business Info
@@ -181,27 +196,52 @@ const ProviderProfileSettings = () => {
           {/* ── Business Info ── */}
           {activeTab === "info" && (
             <>
+              {/* {Object.values(fieldErrors).some(Boolean) && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 size-5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-base">Please fix the following validation errors:</p>
+                      <ul className="mt-1 list-disc pl-4 space-y-1 text-xs">
+                        {Object.entries(fieldErrors)
+                          .filter(([, msg]) => Boolean(msg))
+                          .map(([key, msg]) => (
+                            <li key={key}>{msg}</li>
+                          ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )} */}
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <User size={18} className="text-primary" /> Primary Account
-                    Contact
+                    <User size={18} className="text-primary" /> Primary Account Contact
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 p-6">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="grid gap-2">
-                      <Label htmlFor="ownerName">Full Name</Label>
+                      <Label htmlFor="ownerName">
+                        Full Name <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="ownerName"
                         value={ownerName}
-                        onChange={(e) => setOwnerName(e.target.value)}
+                        onChange={(e) => handleOwnerNameChange(e.target.value)}
+                        onBlur={() => handleOwnerNameChange(ownerName)}
                         placeholder="John Doe"
+                        className={cn(
+                          fieldErrors.ownerName && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.ownerName && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.ownerName}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="pemail">Email Address</Label>
-                      <Input id="pemail" type="email" value={email} readOnly />
+                      <Input id="pemail" type="email" value={email} readOnly className="bg-muted/50" />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="pmobile">Mobile Number</Label>
@@ -209,9 +249,16 @@ const ProviderProfileSettings = () => {
                         id="pmobile"
                         type="tel"
                         value={mobile}
-                        onChange={(e) => setMobile(sanitizePhoneInput(e.target.value))}
+                        onChange={(e) => handleMobileChange(e.target.value)}
+                        onBlur={() => handleMobileChange(mobile)}
                         placeholder="(512) 555-0148"
+                        className={cn(
+                          fieldErrors.mobile && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.mobile && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -220,19 +267,27 @@ const ProviderProfileSettings = () => {
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <Building2 size={18} className="text-primary" /> Business
-                    Details
+                    <Building2 size={18} className="text-primary" /> Business Details
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 p-6">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="grid gap-2">
-                      <Label htmlFor="bn">Business Name</Label>
+                      <Label htmlFor="bn">
+                        Business Name <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="bn"
                         value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
+                        onChange={(e) => handleBusinessNameChange(e.target.value)}
+                        onBlur={() => handleBusinessNameChange(businessName)}
+                        className={cn(
+                          fieldErrors.businessName && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.businessName && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.businessName}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label className="flex items-center gap-1.5">
@@ -264,21 +319,37 @@ const ProviderProfileSettings = () => {
                         min={0}
                         placeholder="e.g. 14"
                         value={years}
-                        onChange={(e) => setYears(e.target.value)}
+                        onChange={(e) => handleYearsChange(e.target.value)}
+                        onBlur={() => handleYearsChange(years)}
+                        className={cn(
+                          fieldErrors.years && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.years && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.years}</p>
+                      )}
                     </div>
                   </div>
 
 
                   <div className="grid gap-2">
-                    <Label htmlFor="ab">About Your Business</Label>
+                    <Label htmlFor="ab">
+                      About Your Business <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Textarea
                       id="ab"
                       rows={5}
                       placeholder="Describe your services, experience, and why customers should choose your business..."
                       value={about}
-                      onChange={(e) => setAbout(e.target.value)}
+                      onChange={(e) => handleAboutChange(e.target.value)}
+                      onBlur={() => handleAboutChange(about)}
+                      className={cn(
+                        fieldErrors.about && "border-destructive focus-visible:ring-destructive"
+                      )}
                     />
+                    {fieldErrors.about && (
+                      <p className="text-xs font-medium text-destructive">{fieldErrors.about}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -286,17 +357,18 @@ const ProviderProfileSettings = () => {
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <MapPin size={18} className="text-primary" /> Operating
-                    Address &amp; Location
+                    <MapPin size={18} className="text-primary" /> Operating Address &amp; Location
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 p-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="address">Street Address</Label>
+                      <Label htmlFor="address">
+                        Street Address <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <GooglePlaceAutocomplete
                         value={address}
-                        onChange={setAddress}
+                        onChange={(val) => handleAddressChange(val)}
                         placeholder="Enter street address..."
                         onSelect={(place) => {
                           const parsed = parseGooglePlace(place);
@@ -309,38 +381,75 @@ const ProviderProfileSettings = () => {
                           if (parsed.country) setCountry(parsed.country);
                         }}
                       />
+                      {fieldErrors.address && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.address}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="city">City</Label>
+                      <Label htmlFor="city">
+                        City <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="city"
                         value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        onBlur={() => handleCityChange(city)}
+                        className={cn(
+                          fieldErrors.city && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.city && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.city}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="state">State / Province</Label>
+                      <Label htmlFor="state">
+                        State / Province <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="state"
                         value={state}
-                        onChange={(e) => setState(e.target.value)}
+                        onChange={(e) => handleStateChange(e.target.value)}
+                        onBlur={() => handleStateChange(state)}
+                        className={cn(
+                          fieldErrors.state && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.state && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.state}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="zip">ZIP / Postal Code</Label>
                       <Input
                         id="zip"
                         value={zip}
-                        onChange={(e) => setZip(e.target.value)}
+                        onChange={(e) => handleZipChange(e.target.value)}
+                        onBlur={() => handleZipChange(zip)}
+                        className={cn(
+                          fieldErrors.zip && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.zip && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.zip}</p>
+                      )}
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="country">Country</Label>
+                      <Label htmlFor="country">
+                        Country <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="country"
                         value={country}
-                        onChange={(e) => setCountry(e.target.value)}
+                        onChange={(e) => handleCountryChange(e.target.value)}
+                        onBlur={() => handleCountryChange(country)}
+                        className={cn(
+                          fieldErrors.country && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.country && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.country}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -349,27 +458,50 @@ const ProviderProfileSettings = () => {
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <ShieldCheck size={18} className="text-primary" /> Verified
-                    Credentials &amp; Licensing
+                    <ShieldCheck size={18} className="text-primary" /> Verified Credentials &amp; Licensing
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 p-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="lic">License Number</Label>
+                      <Label htmlFor="lic">
+                        License Number <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="lic"
                         value={licenseNumber}
-                        onChange={(e) => setLicenseNumber(e.target.value)}
+                        onChange={(e) => handleLicenseNumberChange(e.target.value)}
+                        onBlur={() => handleLicenseNumberChange(licenseNumber)}
+                        className={cn(
+                          (fieldErrors.licenseNumber || fieldErrors.license) &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {(fieldErrors.licenseNumber || fieldErrors.license) && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.licenseNumber || fieldErrors.license}
+                        </p>
+                      )}
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="ins">Insurance Policy Number</Label>
+                      <Label htmlFor="ins">
+                        Insurance Policy Number <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
                       <Input
                         id="ins"
                         value={insurancePolicy}
-                        onChange={(e) => setInsurancePolicy(e.target.value)}
+                        onChange={(e) => handleInsurancePolicyChange(e.target.value)}
+                        onBlur={() => handleInsurancePolicyChange(insurancePolicy)}
+                        className={cn(
+                          (fieldErrors.insurancePolicy || fieldErrors.insurance) &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {(fieldErrors.insurancePolicy || fieldErrors.insurance) && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.insurancePolicy || fieldErrors.insurance}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid gap-2">
@@ -384,9 +516,7 @@ const ProviderProfileSettings = () => {
                     />
                   </div>
                   <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                    Document uploads are verified by Admin during onboarding
-                    review. Use verification docs upload during onboarding if
-                    needed.
+                    Document uploads are verified by Admin during onboarding review.
                   </p>
                 </CardContent>
               </Card>
@@ -429,8 +559,7 @@ const ProviderProfileSettings = () => {
                     No FAQs added yet
                   </h3>
                   <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-                    Click &apos;+ Add FAQ&apos; above to create answers to common
-                    customer questions.
+                    Click &apos;+ Add FAQ&apos; above to create answers to common customer questions.
                   </p>
                 </Card>
               ) : (
@@ -480,281 +609,271 @@ const ProviderProfileSettings = () => {
 
           {/* ── Bank ── */}
           {activeTab === "bank" && (
-            <Card>
-              <CardHeader className="border-b border-border pb-3">
-                <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <Landmark size={18} className="text-primary" /> Bank
-                  Information &amp; Payout Account
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 p-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="bankname">Bank Name</Label>
-                    <Input
-                      id="bankname"
-                      placeholder="e.g. Chase Bank"
-                      value={bank.bank_name}
-                      onChange={(e) =>
-                        setBank((b) => ({ ...b, bank_name: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="holder">Account Holder Name</Label>
-                    <Input
-                      id="holder"
-                      placeholder="e.g. ABC Plumbing LLC"
-                      value={bank.bank_account_holder}
-                      onChange={(e) =>
-                        setBank((b) => ({
-                          ...b,
-                          bank_account_holder: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="account">Account Number</Label>
-                    <Input
-                      id="account"
-                      placeholder="Enter account number (digits only)"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={bank.bank_account_number}
-                      onChange={(e) =>
-                        setBank((b) => ({
-                          ...b,
-                          bank_account_number: e.target.value.replace(/\D/g, ""),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="routing">Routing Number / IFSC</Label>
-                    <Input
-                      id="routing"
-                      placeholder="Enter routing number or IFSC"
-                      value={bank.bank_routing_number}
-                      onChange={(e) =>
-                        setBank((b) => ({
-                          ...b,
-                          bank_routing_number: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2 sm:col-span-2">
-                    <Label htmlFor="btype">Account Type</Label>
-                    <Select
-                      value={bank.bank_account_type}
-                      onValueChange={(v) =>
-                        setBank((b) => ({
-                          ...b,
-                          bank_account_type: v as BankAccountType,
-                        }))
-                      }
-                    >
-                      <SelectTrigger id="btype">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BANK_TYPE_OPTIONS.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <>
+              {/* {Object.values(fieldErrors).some(Boolean) && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 size-5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-base">Please fix the following bank account errors:</p>
+                      <ul className="mt-1 list-disc pl-4 space-y-1 text-xs">
+                        {Object.entries(fieldErrors)
+                          .filter(([, msg]) => Boolean(msg))
+                          .map(([key, msg]) => (
+                            <li key={key}>{msg}</li>
+                          ))}
+                      </ul>
+                    </div>
                   </div>
                 </div>
+              )} */}
+              <Card>
+                <CardHeader className="border-b border-border pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base font-bold">
+                    <Landmark size={18} className="text-primary" /> Bank Information &amp; Payout Account
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="bankname">
+                        Bank Name <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
+                      <Input
+                        id="bankname"
+                        placeholder="e.g. Chase Bank"
+                        value={bank.bank_name}
+                        onChange={(e) => handleBankFieldChange("bank_name", e.target.value)}
+                        onBlur={() => handleBankFieldChange("bank_name", bank.bank_name)}
+                        className={cn(
+                          fieldErrors.bank_name && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                      {fieldErrors.bank_name && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.bank_name}</p>
+                      )}
+                    </div>
 
-                <div className="pt-2">
-                  <Button onClick={saveBank} disabled={saving}>
-                    {saving ? "Saving…" : "Save Bank Details"}
-                  </Button>
-                </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="holder">
+                        Account Holder Name <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
+                      <Input
+                        id="holder"
+                        placeholder="e.g. ABC Plumbing LLC"
+                        value={bank.bank_account_holder}
+                        onChange={(e) => handleBankFieldChange("bank_account_holder", e.target.value)}
+                        onBlur={() => handleBankFieldChange("bank_account_holder", bank.bank_account_holder)}
+                        className={cn(
+                          fieldErrors.bank_account_holder && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                      {fieldErrors.bank_account_holder && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.bank_account_holder}</p>
+                      )}
+                    </div>
 
-                <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  Deposit account details remain strictly private to your
-                  provider account and are used for payout releases.
-                </p>
-              </CardContent>
-            </Card>
+                    <div className="grid gap-2">
+                      <Label htmlFor="account">
+                        Account Number <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
+                      <Input
+                        id="account"
+                        placeholder="Enter account number (digits only)"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={bank.bank_account_number}
+                        onChange={(e) => handleBankFieldChange("bank_account_number", e.target.value)}
+                        onBlur={() => handleBankFieldChange("bank_account_number", bank.bank_account_number)}
+                        className={cn(
+                          fieldErrors.bank_account_number && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                      {fieldErrors.bank_account_number && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.bank_account_number}</p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="routing">
+                        Routing Number / IFSC <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
+                      <Input
+                        id="routing"
+                        placeholder="Enter routing number or IFSC"
+                        value={bank.bank_routing_number}
+                        onChange={(e) => handleBankFieldChange("bank_routing_number", e.target.value)}
+                        onBlur={() => handleBankFieldChange("bank_routing_number", bank.bank_routing_number)}
+                        className={cn(
+                          fieldErrors.bank_routing_number && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                      {fieldErrors.bank_routing_number && (
+                        <p className="text-xs font-medium text-destructive">{fieldErrors.bank_routing_number}</p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2 sm:col-span-2">
+                      <Label>
+                        Account Type <span className="text-destructive font-bold ml-0.5">*</span>
+                      </Label>
+                      <Select
+                        value={bank.bank_account_type}
+                        onValueChange={(val) =>
+                          setBank((b) => ({
+                            ...b,
+                            bank_account_type: val as BankAccountType,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-full sm:w-64">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BANK_TYPE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button type="button" onClick={(e) => saveBank(e)} disabled={saving}>
+                      {saving ? "Saving…" : "Save Bank Details"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="space-y-6">
+        {/* ── Sidebar Summary Card ── */}
+        <div className="space-y-6">
           <Card>
-            <CardHeader className="border-b border-border pb-3">
-              <CardTitle className="flex items-center gap-2 text-base font-bold">
-                <Upload size={18} className="text-primary" /> Business Logo
-                Uploader
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 p-6 text-center">
-              <div className="relative mx-auto flex size-24 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/30">
-                {logoPreview ? (
-                  <img
-                    src={logoPreview}
-                    alt="Logo"
-                    className="h-full w-full object-contain p-1"
-                  />
-                ) : (
-                  <div className="flex size-full items-center justify-center bg-primary/10 text-lg font-bold text-primary">
-                    {initialsFrom(businessName)}
-                  </div>
-                )}
+            <CardHeader className="pb-2 text-center">
+              <div className="mx-auto mb-3 flex justify-center">
+                <div className="relative">
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt={businessName || "Provider Logo"}
+                      className="size-20 rounded-full border-2 border-primary/20 object-cover"
+                    />
+                  ) : (
+                    <div className="grid size-20 place-items-center rounded-full bg-primary/10 font-heading text-xl font-bold text-primary">
+                      {initialsFrom(businessName || ownerName)}
+                    </div>
+                  )}
+                  <label
+                    htmlFor="logo-upload-input"
+                    className="absolute bottom-0 right-0 grid size-7 cursor-pointer place-items-center rounded-full bg-primary text-white shadow-md transition-transform hover:scale-110"
+                    title="Upload Business Logo"
+                  >
+                    <Upload size={14} />
+                    <input
+                      id="logo-upload-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
-              <div>
-                <Label
-                  htmlFor="logo_upload"
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <Upload size={14} /> {logoPreview ? "Change Logo" : "Upload New Logo"}
-                </Label>
-                <input
-                  id="logo_upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoChange}
-                  className="hidden"
-                />
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  PNG, JPG or SVG logo image (Max 5MB)
-                </p>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="space-y-4 p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {initialsFrom(businessName)}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-bold text-foreground">
-                    {businessName || "Your Business"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {categoryName || "Category"}
-                  </p>
-                </div>
-              </div>
+              <CardTitle className="text-base">
+                {businessName.trim() || savedBusinessName.trim() || ownerName.trim() || savedOwnerName.trim() || "Your Business"}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">{categoryName || "Provider"}</p>
 
               {verified === "verified" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                  <CheckCircle2 size={14} /> Verified
+                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+                  <CheckCircle2 size={13} /> Verified Business
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-3 pt-2 text-xs">
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Rating</span>
+                <span className="font-bold text-foreground">
+                  {rating != null ? `${rating.toFixed(1)} ★` : "New Provider"}
                 </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Experience</span>
+                <span className="font-semibold text-foreground">
+                  {years ? `${years} years` : "Not specified"}
+                </span>
+              </div>
+
+              {planName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Subscription</span>
+                  <span className="font-semibold text-primary">{planName}</span>
+                </div>
               )}
 
-              <Separator />
-
-              <dl className="space-y-2.5 text-xs">
-                {rating != null && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Rating</dt>
-                    <dd className="font-bold text-foreground">
-                      {rating.toFixed(1)} ★
-                    </dd>
-                  </div>
-                )}
-                {years !== "" && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Years in Business</dt>
-                    <dd className="font-semibold text-foreground">
-                      {years} Years
-                    </dd>
-                  </div>
-                )}
-                {(city || state) && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Location</dt>
-                    <dd className="font-semibold text-foreground">
-                      {[city, state].filter(Boolean).join(", ")}
-                    </dd>
-                  </div>
-                )}
-                {planName && (
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Plan</dt>
-                    <dd className="font-semibold text-foreground">{planName}</dd>
-                  </div>
-                )}
-              </dl>
-
-              <Separator />
-
-              <Button
-                onClick={
-                  activeTab === "bank"
-                    ? saveBank
-                    : activeTab === "faqs"
-                      ? saveFaqsOnly
-                      : saveProfile
-                }
-                className="w-full"
-                disabled={saving}
-              >
-                {saving ? "Saving…" : "Save All Changes"}
-              </Button>
+              {address && (
+                <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
+                  <span className="shrink-0 text-muted-foreground">Address</span>
+                  <span className="text-right font-medium text-foreground">
+                    {[address, city, state, zip].filter(Boolean).join(", ")}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
-        </aside>
+        </div>
       </div>
 
+      {/* ── FAQ Modal ── */}
       <Dialog open={faqModalOpen} onOpenChange={setFaqModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <HelpCircle size={18} className="text-primary" />
+            <DialogTitle>
               {editingFaq ? "Edit FAQ" : "Add Frequently Asked Question"}
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              {editingFaq
-                ? "Update your existing FAQ entry for potential customers."
-                : "Add a new question and answer to display on your public business profile."}
+            <DialogDescription>
+              Provide answers to questions your customers ask often.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="faq_question" className="text-xs font-bold">
-                Question <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="faq-q">Question</Label>
               <Input
-                id="faq_question"
-                placeholder="e.g. Do you provide same-day service?"
+                id="faq-q"
+                placeholder="e.g. Do you offer emergency services?"
                 value={faqForm.question}
-                onChange={(e) =>
-                  setFaqForm({ ...faqForm, question: e.target.value })
-                }
+                onChange={(e) => setFaqForm((f) => ({ ...f, question: e.target.value }))}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="faq_answer" className="text-xs font-bold">
-                Answer <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="faq-a">Answer</Label>
               <Textarea
-                id="faq_answer"
+                id="faq-a"
                 rows={4}
-                placeholder="Enter the answer to this question..."
+                placeholder="e.g. Yes, we offer 24/7 emergency dispatch for urgent issues."
                 value={faqForm.answer}
-                onChange={(e) =>
-                  setFaqForm({ ...faqForm, answer: e.target.value })
-                }
+                onChange={(e) => setFaqForm((f) => ({ ...f, answer: e.target.value }))}
               />
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border pt-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setFaqModalOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveFaqLocal}>
-              {editingFaq ? "Save Changes" : "Add FAQ"}
+              {editingFaq ? "Update FAQ" : "Add FAQ"}
             </Button>
           </DialogFooter>
         </DialogContent>

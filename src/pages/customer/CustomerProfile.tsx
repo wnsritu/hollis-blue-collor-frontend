@@ -21,22 +21,19 @@ import {
 } from "@/components/ui/card";
 import { Avatar } from "@/components/shared/primitives";
 import { sanitizePhoneInput } from "@/utils/format";
+import { cn } from "@/lib/utils";
 import Spinner from "@/components/ui/spinner";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { parseGooglePlace } from "@/utils/googlePlaces";
 import { useCustomerProfile } from "@/hooks/useCustomerProfile";
 import type { CustomerProfileTab } from "@/types/customer.types";
 
-
 function initialsFrom(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-
   if (!parts.length) return "CU";
-
   if (parts.length === 1) {
     return parts[0].slice(0, 2).toUpperCase();
   }
-
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
@@ -80,12 +77,18 @@ const CustomerProfile = () => {
     setShowNewPassword,
     showConfirmPassword,
     setShowConfirmPassword,
+    fieldErrors,
+    handleFullNameChange,
+    handleMobileNumberChange,
+    handleZipCodeChange,
+    handleCurrentPasswordChange,
+    handleNewPasswordChange,
+    handleConfirmPasswordChange,
     handleImageChange,
     handleRemovePhoto,
     handleSaveProfile,
     handleUpdatePassword,
   } = useCustomerProfile();
-
 
   if (loading) {
     return (
@@ -102,50 +105,31 @@ const CustomerProfile = () => {
           <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
             My Profile
           </h1>
-
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your personal details, address, and password
-            security.
+            Manage your personal details, address, and password security.
           </p>
         </div>
 
         {activeTab === "profile" ? (
-          <Button
-            onClick={() => handleSaveProfile()}
-            disabled={saving}
-          >
+          <Button type="button" onClick={(e) => handleSaveProfile(e)} disabled={saving}>
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         ) : (
-          <Button
-            onClick={() => handleUpdatePassword()}
-            disabled={saving}
-          >
+          <Button type="button" onClick={(e) => handleUpdatePassword(e)} disabled={saving}>
             {saving ? "Updating…" : "Update Password"}
           </Button>
         )}
       </div>
 
       <div className="mb-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) =>
-            setTab(v as ProfileTab)
-          }
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setTab(v as CustomerProfileTab)}>
           <TabsList className="grid h-auto w-full max-w-md grid-cols-2">
-            <TabsTrigger
-              value="profile"
-              className="gap-2 py-2"
-            >
+            <TabsTrigger value="profile" className="gap-2 py-2">
               <User size={16} />
               Profile
             </TabsTrigger>
 
-            <TabsTrigger
-              value="security"
-              className="gap-2 py-2"
-            >
+            <TabsTrigger value="security" className="gap-2 py-2">
               <Lock size={16} />
               Password &amp; Security
             </TabsTrigger>
@@ -160,21 +144,14 @@ const CustomerProfile = () => {
               {/* Personal Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">
-                    Personal Information
-                  </CardTitle>
-
+                  <CardTitle className="text-lg">Personal Information</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Update your contact details used for service
-                    bookings and communications.
+                    Update your contact details used for service bookings and communications.
                   </p>
                 </CardHeader>
 
                 <CardContent>
-                  <form
-                    onSubmit={handleSaveProfile}
-                    className="space-y-5"
-                  >
+                  <form onSubmit={handleSaveProfile} className="space-y-5">
                     {/* Profile Photo */}
                     <div className="rounded-xl border border-border bg-surface p-4">
                       <div className="flex flex-col items-center gap-4 sm:flex-row">
@@ -186,10 +163,7 @@ const CustomerProfile = () => {
                               className="size-16 rounded-full object-cover"
                             />
                           ) : (
-                            <Avatar
-                              initials={initialsFrom(fullName)}
-                              size="lg"
-                            />
+                            <Avatar initials={initialsFrom(fullName)} size="lg" />
                           )}
                         </div>
 
@@ -197,7 +171,6 @@ const CustomerProfile = () => {
                           <p className="text-sm font-bold text-foreground">
                             Profile Photo
                           </p>
-
                           <p className="text-xs text-muted-foreground">
                             JPG, PNG or GIF. Max size 5MB.
                           </p>
@@ -217,9 +190,7 @@ const CustomerProfile = () => {
                               variant="outline"
                               size="sm"
                               className="h-8 gap-1.5 text-xs"
-                              onClick={() =>
-                                fileInputRef.current?.click()
-                              }
+                              onClick={() => fileInputRef.current?.click()}
                             >
                               <Camera size={13} />
                               Change Photo
@@ -244,53 +215,51 @@ const CustomerProfile = () => {
 
                     {/* Full Name */}
                     <div className="grid gap-2">
-                      <Label htmlFor="fullName">
-                        Full Name
-                      </Label>
-
+                      <Label htmlFor="fullName">Full Name</Label>
                       <Input
                         id="fullName"
                         value={fullName}
-                        onChange={(e) =>
-                          setFullName(e.target.value)
-                        }
+                        onChange={(e) => handleFullNameChange(e.target.value)}
+                        onBlur={() => handleFullNameChange(fullName)}
                         placeholder="e.g. John Smith"
+                        className={cn(
+                          fieldErrors.fullName &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.fullName && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.fullName}
+                        </p>
+                      )}
                     </div>
 
                     {/* Email */}
                     <div className="grid gap-2">
-                      <Label htmlFor="email">
-                        Email Address
-                      </Label>
-
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        readOnly
-                      />
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input id="email" type="email" value={email} readOnly className="bg-muted/50" />
                     </div>
 
                     {/* Mobile Number */}
                     <div className="grid gap-2">
-                      <Label htmlFor="mobileNumber">
-                        Mobile Number
-                      </Label>
-
+                      <Label htmlFor="mobileNumber">Mobile Number</Label>
                       <Input
                         id="mobileNumber"
                         type="tel"
                         value={mobileNumber}
-                        onChange={(e) =>
-                          setMobileNumber(
-                            sanitizePhoneInput(
-                              e.target.value
-                            )
-                          )
-                        }
+                        onChange={(e) => handleMobileNumberChange(e.target.value)}
+                        onBlur={() => handleMobileNumberChange(mobileNumber)}
                         placeholder="e.g. (555) 234-5678"
+                        className={cn(
+                          fieldErrors.mobileNumber &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.mobileNumber && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.mobileNumber}
+                        </p>
+                      )}
                     </div>
                   </form>
                 </CardContent>
@@ -300,10 +269,7 @@ const CustomerProfile = () => {
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <MapPin
-                      size={18}
-                      className="text-primary"
-                    />
+                    <MapPin size={18} className="text-primary" />
                     Address &amp; Location
                   </CardTitle>
                 </CardHeader>
@@ -312,103 +278,91 @@ const CustomerProfile = () => {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* Street Address */}
                     <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="address">
-                        Street Address
-                      </Label>
-
+                      <Label htmlFor="address">Street Address</Label>
                       <GooglePlaceAutocomplete
                         value={address}
                         onChange={setAddress}
                         placeholder="Enter street address..."
                         onSelect={(place) => {
-                          const parsed = parseGooglePlace(place);
-                          setAddress(parsed.address);
-                          setLatitude(parsed.lat);
-                          setLongitude(parsed.lng);
-                          if (parsed.city) setCity(parsed.city);
-                          if (parsed.state) setState(parsed.state);
-                          if (parsed.zip) setZipCode(parsed.zip);
-                          if (parsed.country) setCountry(parsed.country);
+                          const comps = place.fullPlace?.address_components || [];
+                          const getComp = (type: string) =>
+                            comps.find((c) => c.types.includes(type))?.long_name || "";
+
+                          const addressVal = place.address || address;
+                          const cityVal = getComp("locality") || getComp("sublocality") || city;
+                          const stateVal = getComp("administrative_area_level_1") || state;
+                          const zipVal = getComp("postal_code") || zipCode;
+                          const countryVal = getComp("country") || country;
+
+                          setAddress(addressVal);
+                          if (place.lat) setLatitude(place.lat);
+                          if (place.lng) setLongitude(place.lng);
+                          if (cityVal) setCity(cityVal);
+                          if (stateVal) setState(stateVal);
+                          if (zipVal) setZipCode(zipVal);
+                          if (countryVal) setCountry(countryVal);
                         }}
                       />
                     </div>
 
                     {/* City */}
                     <div className="grid gap-2">
-                      <Label htmlFor="city">
-                        City
-                      </Label>
-
+                      <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
                         value={city}
-                        onChange={(e) =>
-                          setCity(e.target.value)
-                        }
+                        onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. New York"
                       />
                     </div>
 
                     {/* State */}
                     <div className="grid gap-2">
-                      <Label htmlFor="state">
-                        State / Province
-                      </Label>
-
+                      <Label htmlFor="state">State / Province</Label>
                       <Input
                         id="state"
                         value={state}
-                        onChange={(e) =>
-                          setState(e.target.value)
-                        }
+                        onChange={(e) => setState(e.target.value)}
                         placeholder="e.g. NY"
                       />
                     </div>
 
                     {/* ZIP */}
                     <div className="grid gap-2">
-                      <Label htmlFor="zipCode">
-                        ZIP / Postal Code
-                      </Label>
-
+                      <Label htmlFor="zipCode">ZIP / Postal Code</Label>
                       <Input
                         id="zipCode"
                         value={zipCode}
-                        onChange={(e) =>
-                          setZipCode(e.target.value)
-                        }
+                        onChange={(e) => handleZipCodeChange(e.target.value)}
+                        onBlur={() => handleZipCodeChange(zipCode)}
                         placeholder="e.g. 10001"
+                        className={cn(
+                          fieldErrors.zipCode &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {fieldErrors.zipCode && (
+                        <p className="text-xs font-medium text-destructive">
+                          {fieldErrors.zipCode}
+                        </p>
+                      )}
                     </div>
 
                     {/* Country */}
                     <div className="grid gap-2">
-                      <Label htmlFor="country">
-                        Country
-                      </Label>
-
+                      <Label htmlFor="country">Country</Label>
                       <Input
                         id="country"
                         value={country}
-                        onChange={(e) =>
-                          setCountry(e.target.value)
-                        }
+                        onChange={(e) => setCountry(e.target.value)}
                         placeholder="e.g. USA"
                       />
                     </div>
                   </div>
 
                   <div className="pt-2">
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        handleSaveProfile()
-                      }
-                      disabled={saving}
-                    >
-                      {saving
-                        ? "Saving…"
-                        : "Save Changes"}
+                    <Button type="button" onClick={(e) => handleSaveProfile(e)} disabled={saving}>
+                      {saving ? "Saving…" : "Save Changes"}
                     </Button>
                   </div>
                 </CardContent>
@@ -420,155 +374,113 @@ const CustomerProfile = () => {
           {activeTab === "security" && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Password Reset &amp; Security
-                </CardTitle>
-
+                <CardTitle className="text-lg">Password Reset &amp; Security</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Update your account password to maintain
-                  strong account security.
+                  Update your account password to maintain strong account security.
                 </p>
               </CardHeader>
 
               <CardContent>
-                <form
-                  onSubmit={handleUpdatePassword}
-                  className="space-y-5"
-                >
+                <form onSubmit={handleUpdatePassword} className="space-y-5">
                   {/* Current Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="currentPassword">
-                      Current Password
-                    </Label>
-
+                    <Label htmlFor="currentPassword">Current Password</Label>
                     <div className="relative">
                       <Input
                         id="currentPassword"
-                        type={
-                          showCurrentPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showCurrentPassword ? "text" : "password"}
                         value={currentPassword}
-                        onChange={(e) =>
-                          setCurrentPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleCurrentPasswordChange(e.target.value)}
+                        onBlur={() => handleCurrentPasswordChange(currentPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.currentPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowCurrentPassword(
-                            !showCurrentPassword
-                          )
-                        }
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showCurrentPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.currentPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.currentPassword}
+                      </p>
+                    )}
                   </div>
 
                   {/* New Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="newPassword">
-                      New Password
-                    </Label>
-
+                    <Label htmlFor="newPassword">New Password</Label>
                     <div className="relative">
                       <Input
                         id="newPassword"
-                        type={
-                          showNewPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showNewPassword ? "text" : "password"}
                         value={newPassword}
-                        onChange={(e) =>
-                          setNewPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleNewPasswordChange(e.target.value)}
+                        onBlur={() => handleNewPasswordChange(newPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.newPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowNewPassword(
-                            !showNewPassword
-                          )
-                        }
+                        onClick={() => setShowNewPassword(!showNewPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showNewPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.newPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.newPassword}
+                      </p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
                   <div className="grid gap-2">
-                    <Label htmlFor="confirmPassword">
-                      Confirm New Password
-                    </Label>
-
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
-                        type={
-                          showConfirmPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showConfirmPassword ? "text" : "password"}
                         value={confirmPassword}
-                        onChange={(e) =>
-                          setConfirmPassword(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                        onBlur={() => handleConfirmPasswordChange(confirmPassword)}
                         placeholder="••••••••"
-                        className="pr-10"
+                        className={cn(
+                          "pr-10",
+                          fieldErrors.confirmPassword &&
+                          "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
-
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(
-                            !showConfirmPassword
-                          )
-                        }
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showConfirmPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {fieldErrors.confirmPassword && (
+                      <p className="text-xs font-medium text-destructive">
+                        {fieldErrors.confirmPassword}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-2">
-                    <Button
-                      type="submit"
-                      disabled={saving}
-                    >
-                      {saving
-                        ? "Updating…"
-                        : "Update Password"}
+                    <Button type="submit" disabled={saving}>
+                      {saving ? "Updating…" : "Update Password"}
                     </Button>
                   </div>
                 </form>
@@ -589,79 +501,45 @@ const CustomerProfile = () => {
                     className="size-20 rounded-full border-2 border-primary/20 object-cover"
                   />
                 ) : (
-                  <Avatar
-                    initials={initialsFrom(fullName)}
-                    size="lg"
-                  />
+                  <Avatar initials={initialsFrom(fullName)} size="lg" />
                 )}
               </div>
 
-              <CardTitle className="text-base">
-                {fullName || "Customer"}
-              </CardTitle>
-
-              <p className="text-xs text-muted-foreground">
-                {email}
-              </p>
+              <CardTitle className="text-base">{fullName || "Customer"}</CardTitle>
+              <p className="text-xs text-muted-foreground">{email}</p>
             </CardHeader>
 
             <CardContent className="space-y-4 pt-2 text-xs">
               <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
                 {/* Account Type */}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    Account Type
-                  </span>
-
-                  <span className="font-semibold text-foreground">
-                    Customer
-                  </span>
+                  <span className="text-muted-foreground">Account Type</span>
+                  <span className="font-semibold text-foreground">Customer</span>
                 </div>
 
                 {/* Status */}
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    Status
-                  </span>
-
+                  <span className="text-muted-foreground">Status</span>
                   <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
                     <ShieldCheck size={13} />
-
-                    {status === "inactive"
-                      ? "Inactive"
-                      : "Active"}
+                    {status === "inactive" ? "Inactive" : "Active"}
                   </span>
                 </div>
 
                 {/* Mobile */}
                 {mobileNumber && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      Mobile
-                    </span>
-
-                    <span className="font-semibold text-foreground">
-                      {mobileNumber}
-                    </span>
+                    <span className="text-muted-foreground">Mobile</span>
+                    <span className="font-semibold text-foreground">{mobileNumber}</span>
                   </div>
                 )}
 
                 {/* Address */}
                 {address && (
                   <div className="flex items-start justify-between gap-2 border-t border-border pt-2">
-                    <span className="shrink-0 text-muted-foreground">
-                      Address
-                    </span>
-
+                    <span className="shrink-0 text-muted-foreground">Address</span>
                     <span className="text-right font-medium text-foreground">
-                      {[
-                        address,
-                        city,
-                        state,
-                        zipCode,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
+                      {[address, city, state, zipCode].filter(Boolean).join(", ")}
                     </span>
                   </div>
                 )}

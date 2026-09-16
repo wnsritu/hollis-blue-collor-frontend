@@ -147,7 +147,7 @@ export function AdminCustomers() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by customer name, email or city…"
+            placeholder="Search by customer name, email"
             className="pl-9"
           />
         </div>
@@ -233,11 +233,10 @@ export function AdminCustomers() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          isActive
-                            ? "bg-success-soft text-success"
-                            : "bg-destructive/10 text-destructive"
-                        }`}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${isActive
+                          ? "bg-success-soft text-success"
+                          : "bg-destructive/10 text-destructive"
+                          }`}
                       >
                         {isActive ? (
                           <>
@@ -265,17 +264,16 @@ export function AdminCustomers() {
                           variant={isActive ? "outline" : "default"}
                           disabled={actionLoading === c.id}
                           onClick={() => void toggleCustomerStatus(c)}
-                          className={`h-8 text-xs ${
-                            isActive
-                              ? "border-destructive/30 text-destructive hover:bg-destructive/10"
-                              : ""
-                          }`}
+                          className={`h-8 text-xs ${isActive
+                            ? "border-destructive/30 text-destructive hover:bg-destructive/10"
+                            : ""
+                            }`}
                         >
                           {actionLoading === c.id
                             ? "Updating..."
                             : isActive
-                            ? "Suspend"
-                            : "Reinstate"}
+                              ? "Suspend"
+                              : "Reinstate"}
                         </Button>
                       </div>
                     </TableCell>
@@ -338,11 +336,10 @@ export function AdminCustomers() {
                       selectedCustomer.is_active === true;
                     return (
                       <span
-                        className={`inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          isActive
-                            ? "bg-success-soft text-success"
-                            : "bg-destructive/10 text-destructive"
-                        }`}
+                        className={`inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${isActive
+                          ? "bg-success-soft text-success"
+                          : "bg-destructive/10 text-destructive"
+                          }`}
                       >
                         {isActive ? "Active" : "Suspended"}
                       </span>

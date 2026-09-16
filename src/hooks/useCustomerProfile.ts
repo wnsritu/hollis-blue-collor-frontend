@@ -8,6 +8,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { CustomerProfileTab } from "@/types/customer.types";
+import { isValidZip } from "@/validations/common/rules";
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
@@ -52,6 +53,76 @@ export function useCustomerProfile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+
+  const handleFullNameChange = (val: string) => {
+    setFullName(val);
+    let err: string | undefined;
+    if (!val.trim()) {
+      err = "Full name is required.";
+    } else if (val.trim().length < 2) {
+      err = "Full name must be at least 2 characters.";
+    }
+    setFieldErrors((prev) => ({ ...prev, fullName: err }));
+  };
+
+  const handleMobileNumberChange = (val: string) => {
+    setMobileNumber(val);
+    let err: string | undefined;
+    if (val.trim()) {
+      const digits = val.replace(/\D/g, "");
+      if (digits.length < 10) {
+        err = "Phone number must be at least 10 digits.";
+      }
+    }
+    setFieldErrors((prev) => ({ ...prev, mobileNumber: err }));
+  };
+
+  const handleZipCodeChange = (val: string) => {
+    setZipCode(val);
+    let err: string | undefined;
+    if (val.trim() && val.trim().length < 3) {
+      err = "Please enter a valid postal code.";
+    }
+    setFieldErrors((prev) => ({ ...prev, zipCode: err }));
+  };
+
+  const handleCurrentPasswordChange = (val: string) => {
+    setCurrentPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "Please enter your current password.";
+    }
+    setFieldErrors((prev) => ({ ...prev, currentPassword: err }));
+  };
+
+  const handleNewPasswordChange = (val: string) => {
+    setNewPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "New password is required.";
+    } else if (val.length < 6) {
+      err = "New password must be at least 6 characters.";
+    }
+    setFieldErrors((prev) => ({ ...prev, newPassword: err }));
+
+    if (confirmPassword) {
+      const cErr = val !== confirmPassword ? "New passwords do not match." : undefined;
+      setFieldErrors((prev) => ({ ...prev, confirmPassword: cErr }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (val: string) => {
+    setConfirmPassword(val);
+    let err: string | undefined;
+    if (!val) {
+      err = "Please confirm your new password.";
+    } else if (newPassword !== val) {
+      err = "New passwords do not match.";
+    }
+    setFieldErrors((prev) => ({ ...prev, confirmPassword: err }));
+  };
 
   const setTab = (tab: CustomerProfileTab) => {
     setSearchParams(tab === "profile" ? {} : { tab });
@@ -242,6 +313,11 @@ export function useCustomerProfile() {
       return;
     }
 
+    if (zipCode.trim() && !isValidZip(zipCode)) {
+      toast.error("Please enter a valid ZIP / Postal code (digits only, no letters).");
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -374,6 +450,13 @@ export function useCustomerProfile() {
     setShowNewPassword,
     showConfirmPassword,
     setShowConfirmPassword,
+    fieldErrors,
+    handleFullNameChange,
+    handleMobileNumberChange,
+    handleZipCodeChange,
+    handleCurrentPasswordChange,
+    handleNewPasswordChange,
+    handleConfirmPasswordChange,
     handleImageChange,
     handleRemovePhoto,
     handleSaveProfile,

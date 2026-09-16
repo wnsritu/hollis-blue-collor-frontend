@@ -256,8 +256,9 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const bookingType = b.booking_type || (isCustom ? "request_quote" : "direct_service");
 
   // Reschedule info
+  const isTerminalState = isCancelled || isCompleted || isRejected;
   const reschedule = {
-    requested: Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
+    requested: !isTerminalState && Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,

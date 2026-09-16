@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Route } from "react-router-dom";
+import { Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import { routeMap } from "./routeMap";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -20,10 +20,18 @@ const AdminReviews = lazy(() => import("@/pages/admin/AdminReviews"));
 const AdminSponsored = lazy(() => import("@/pages/admin/AdminSponsored"));
 const AdminCoins = lazy(() => import("@/pages/admin/AdminCoins"));
 const AdminFeaturedPricing = lazy(() => import("@/pages/admin/AdminFeaturedPricing"));
+const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
+const AdminPayouts = lazy(() => import("@/pages/admin/AdminPayouts"));
+const AdminCommission = lazy(() => import("@/pages/admin/AdminCommission"));
+const AdminSubscriptions = lazy(() => import("@/pages/admin/AdminSubscriptions"));
+const AdminFeaturedPlans = lazy(() => import("@/pages/admin/AdminFeaturedPlans"));
+const AdminFeaturedListings = lazy(() => import("@/pages/admin/AdminFeaturedListings"));
+const AdminTransactions = lazy(() => import("@/pages/admin/AdminTransactions"));
 const AdminConversation = lazy(() => import("@/pages/admin/AdminConversation"));
 const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
 const SupportAgentsPage = lazy(() => import("@/pages/admin/SupportAgentsPage"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+
 
 // Support pages
 const SupportDashboard = lazy(() => import("@/pages/support/SupportAgent"));
@@ -36,7 +44,6 @@ const SupportSettings = lazy(() => import("@/pages/support/SupportSettings"));
 
 // Customer pages
 const CustomerDashboard = lazy(() => import("@/pages/customer/CustomerDashboard"));
-const OrderTracking = lazy(() => import("@/pages/customer/OrderTracking"));
 const CustomerOrderDetail = lazy(() => import("@/pages/customer/CustomerOrderDetail"));
 const ReportIssue = lazy(() => import("@/pages/customer/ReportIssue"));
 const CustomerProfile = lazy(() => import("@/pages/customer/CustomerProfile"));
@@ -85,6 +92,13 @@ export const PrivateRoutes = () => (
       <Route path="sponsored" element={<AdminSponsored />} />
       <Route path="coins" element={<AdminCoins />} />
       <Route path="featured" element={<AdminFeaturedPricing />} />
+      <Route path="reports" element={<AdminReports />} />
+      <Route path="payouts" element={<AdminPayouts />} />
+      <Route path="commission" element={<AdminCommission />} />
+      <Route path="subscriptions" element={<AdminSubscriptions />} />
+      <Route path="featured-plans" element={<AdminFeaturedPlans />} />
+      <Route path="featured-listings" element={<AdminFeaturedListings />} />
+      <Route path="transactions" element={<AdminTransactions />} />
       <Route path="messages/:id" element={<AdminConversation />} />
       <Route path="profile" element={<AdminProfile />} />
       <Route path="support-agents" element={<SupportAgentsPage />} />
@@ -118,7 +132,8 @@ export const PrivateRoutes = () => (
       }
     >
       <Route path={routeMap.CUSTOMER_DASHBOARD.path} element={<CustomerDashboard />} />
-      <Route path={routeMap.CUSTOMER_ORDERS.path} element={<OrderTracking />} />
+      <Route path="/orders" element={<Navigate to="/customer/bookings" replace />} />
+      <Route path="orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />

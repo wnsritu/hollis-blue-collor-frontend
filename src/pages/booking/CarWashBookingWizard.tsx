@@ -139,7 +139,7 @@ const CarWashBookingWizard = () => {
             value="1"
             className="data-[state=active]:bg-[#00ba88] data-[state=active]:text-white rounded-lg font-medium transition-all flex items-center gap-2"
           >
-            <Shirt size={16} /> Laundry
+            <Sparkles size={16} /> Service Selection
           </TabsTrigger>
           <TabsTrigger
             value="2"
@@ -537,7 +537,7 @@ const CarWashBookingWizard = () => {
               <div className="grid gap-3 sm:grid-cols-3">
                 <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
                 <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-                <Input placeholder="ZIP" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value })} />
+                <Input placeholder="ZIP" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value.replace(/[^\d-]/g, "") })} />
               </div>
               <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 <Info size={16} className="mt-0.5 shrink-0" />

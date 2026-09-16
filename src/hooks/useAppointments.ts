@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appointmentApi } from "@/services/booking";
@@ -27,6 +27,11 @@ export function useAppointments() {
   const userIsProvider = isProvider(user?.role_id);
 
   const handleMessagePartner = async (b: any) => {
+    const normalized = normalizeBooking(b);
+    if (normalized.isCancelled) {
+      toast.error("Chat is unavailable for cancelled bookings.");
+      return;
+    }
     try {
       const res = await chatApi.createChat({
         project_id: b.project_id || undefined,
@@ -40,24 +45,6 @@ export function useAppointments() {
       navigate("/messages", { state: { selectedChatId: b.id } });
     }
   };
-
-  const fetchAppointments = async () => {
-    setLoading(true);
-    try {
-      const res = await appointmentApi.listMine();
-      const list = (res as any)?.data || res || [];
-      setAppointments(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error("Failed to load appointments", err);
-      toast.error("Failed to load your appointments.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
 
   // Calendar state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -141,46 +128,77 @@ export function useAppointments() {
     }
   };
 
-  const filteredAppointments = appointments
-    .filter((apt) => {
-      const normalized = normalizeBooking(apt);
-      const status = normalized.rawStatus;
-      if (activeTab === "All") return true;
-      if (activeTab === "Upcoming") {
-        return ["requested", "confirmed", "rescheduled", "pending", "payment pending", "paid", "scheduled"].includes(status);
+  const fetchAppointments = async (overrideParams?: {
+    tab?: string;
+    query?: string;
+    day?: number | null;
+  }) => {
+    setLoading(true);
+    try {
+      const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
+      const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
+      const dayToUse = overrideParams?.day !== undefined ? overrideParams.day : selectedDay;
+
+      let statusTab: string | undefined = undefined;
+      if (tabToUse === "Upcoming") statusTab = "upcoming";
+      else if (tabToUse === "In Progress") statusTab = "in_progress";
+      else if (tabToUse === "Completed") statusTab = "completed";
+      else if (tabToUse === "Cancelled") statusTab = "cancelled";
+
+      const params: Record<string, unknown> = {};
+      if (statusTab) params.status_tab = statusTab;
+      if (queryToUse && queryToUse.trim()) params.search = queryToUse.trim();
+      if (dayToUse !== null && dayToUse !== undefined) params.day = dayToUse;
+
+      const res = await appointmentApi.listMine(params);
+      const list = (res as any)?.data || res || [];
+      setAppointments(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to load appointments", err);
+      toast.error("Failed to load your appointments.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchAppointments();
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [activeTab, searchQuery, selectedDay]);
+
+  // Status tab filtering matching backend business rules & UI requirements
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((apt) => {
+      const n = normalizeBooking(apt);
+      const tab = (activeTab || "All").toLowerCase();
+
+      if (tab === "all") return true;
+
+      const raw = (n.rawStatus || "").toLowerCase();
+      const apptSt = n.appointmentStatus || "";
+
+      const isCompleted = n.isCompleted || ["completed", "finished", "delivered", "reviewed", "work completed"].includes(raw);
+      const isCancelled = n.isCancelled || ["cancelled", "canceled", "rejected", "declined", "no-show", "noshow", "expired"].includes(raw);
+      const isInProgress = ["en route", "en_route", "arrived", "arrived at site", "in_progress", "in progress", "in_process", "in process"].includes(raw) ||
+        ["En Route", "Arrived", "In Progress"].includes(apptSt);
+
+      if (tab === "upcoming") {
+        return !isCompleted && !isCancelled && !isInProgress;
       }
-      if (activeTab === "In Progress") {
-        return ["accepted", "in_process", "in progress", "en route", "arrived"].includes(status);
+      if (tab === "in progress" || tab === "in_progress") {
+        return !isCompleted && !isCancelled && isInProgress;
       }
-      if (activeTab === "Completed") {
-        return ["completed", "delivered", "paid", "reviewed", "finished", "work completed"].includes(status);
+      if (tab === "completed") {
+        return isCompleted;
+      }
+      if (tab === "cancelled" || tab === "canceled") {
+        return isCancelled;
       }
       return true;
-    })
-    .filter((apt: any) => {
-      if (selectedDay === null) return true;
-      const n = normalizeBooking(apt);
-      if (!n.date) return false;
-      const d = new Date(n.date);
-      if (!isNaN(d.getTime())) {
-        return d.getDate() === selectedDay;
-      }
-      return false;
-    })
-    .filter((apt: any) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const n = normalizeBooking(apt);
-      const other = userIsCustomer ? n.providerName : n.customerName;
-      const idStr = `${n.displayId} ${n.id}`;
-      return (
-        n.serviceName.toLowerCase().includes(q) ||
-        other.toLowerCase().includes(q) ||
-        idStr.toLowerCase().includes(q) ||
-        n.serviceDescription.toLowerCase().includes(q) ||
-        n.address.toLowerCase().includes(q)
-      );
     });
+  }, [appointments, activeTab]);
 
   return {
     navigate,

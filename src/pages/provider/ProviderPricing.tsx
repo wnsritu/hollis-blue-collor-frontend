@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Home, Save, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { catalogApi } from "@/services/catalog";
 import { providerApi } from "@/services/provider";
@@ -93,11 +94,13 @@ export default function ProviderPricing() {
                   : offeredList.includes(svc.name) || offeredList.includes(svcKey);
 
               const priceVal =
-                savedConfig?.price !== undefined
+                savedConfig?.price !== undefined && savedConfig?.price !== null
                   ? Number(savedConfig.price)
-                  : (idx + 1) * 45 + 30;
+                  : (svc as any).amount != null || (svc as any).price != null
+                  ? Number((svc as any).amount || (svc as any).price)
+                  : 0;
 
-              const unitVal = savedConfig?.unit || (idx % 2 === 0 ? "flat rate" : "per job");
+              const unitVal = savedConfig?.unit || (svc as any).unit || "flat rate";
 
               const configObj: ProviderServiceConfig = {
                 price: priceVal,
@@ -195,12 +198,7 @@ export default function ProviderPricing() {
         service_pricing: servicePricingObj,
       });
 
-      toast.success(
-        <div>
-          <div className="font-medium">Services & Pricing saved successfully!</div>
-          <div className="text-xs opacity-90">Your updated prices and offering statuses are live for bookings.</div>
-        </div>
-      );
+      toast.success("Services & Pricing saved successfully!");
     } catch (err) {
       console.error("Failed to save pricing", err);
       toast.error("Failed to save Services & Pricing.");
@@ -348,9 +346,25 @@ export default function ProviderPricing() {
                                       className="pl-7 h-9 text-xs font-bold"
                                     />
                                   </div>
-                                  <span className="text-xs text-muted-foreground font-medium">
-                                    /{config.unit}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs text-muted-foreground font-medium">/</span>
+                                    <Select
+                                      value={config.unit || "flat rate"}
+                                      onValueChange={(val) =>
+                                        updateServiceConfig(svcKey, { unit: val })
+                                      }
+                                    >
+                                      <SelectTrigger className="h-9 w-28 text-xs font-semibold">
+                                        <SelectValue placeholder="Unit" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="flat rate">flat rate</SelectItem>
+                                        <SelectItem value="per job">per job</SelectItem>
+                                        <SelectItem value="per hour">per hour</SelectItem>
+                                        <SelectItem value="per sq ft">per sq ft</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 </div>
                               )}
                             </div>

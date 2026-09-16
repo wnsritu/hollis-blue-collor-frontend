@@ -25,7 +25,9 @@ const listeners = new Set<Listener>();
 
 export function onMilestoneLocked(cb: Listener) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 function isMilestoneLockedError(

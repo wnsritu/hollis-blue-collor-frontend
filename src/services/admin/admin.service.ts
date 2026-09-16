@@ -81,6 +81,9 @@ export const adminApi = {
   getProvider: (id: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.admin.providerDetails(id)),
 
+  updateProvider: (id: number | string, payload: Record<string, unknown>) =>
+    http.put<ApiSuccess>(ENDPOINTS.provider.update(id), payload),
+
   approveProvider: (id: number | string, payload?: Record<string, unknown>) =>
     http.put<ApiSuccess>(ENDPOINTS.admin.approveProvider(id), payload),
 

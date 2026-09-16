@@ -22,11 +22,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { parseGooglePlace } from "@/utils/googlePlaces";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
 import { useFormik } from "formik";
@@ -483,13 +485,21 @@ export default function BookService() {
                     <Label htmlFor="address" className="text-xs font-semibold">
                       Street Address <span className="text-destructive">*</span>
                     </Label>
-                    <Input
+                    <GooglePlaceAutocomplete
                       id="address"
                       name="address"
                       value={addressFormik.values.address}
-                      onChange={addressFormik.handleChange}
+                      placeholder="Search street address or landmark..."
+                      onChange={(val) => {
+                        addressFormik.setFieldValue("address", val);
+                      }}
                       onBlur={addressFormik.handleBlur}
-                      placeholder="123 Main Street"
+                      onSelect={(place) => {
+                        const parsed = parseGooglePlace(place);
+                        addressFormik.setFieldValue("address", parsed.address || place.address);
+                        if (parsed.city) addressFormik.setFieldValue("city", parsed.city);
+                        if (parsed.zip) addressFormik.setFieldValue("zip", parsed.zip);
+                      }}
                       className={
                         addressFormik.touched.address && addressFormik.errors.address
                           ? "border-destructive focus-visible:ring-destructive"
@@ -529,7 +539,7 @@ export default function BookService() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="zip" className="text-xs font-semibold">
-                        ZIP / Postal Code <span className="text-destructive">*</span>
+                        ZIP / Postal Code
                       </Label>
                       <Input
                         id="zip"
@@ -726,7 +736,7 @@ export default function BookService() {
 
                       <div className="grid gap-2">
                         <Label htmlFor="zip" className="text-xs font-semibold">
-                          Billing ZIP <span className="text-destructive">*</span>
+                          Billing ZIP
                         </Label>
                         <Input
                           id="zip"

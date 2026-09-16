@@ -244,7 +244,7 @@ const ProviderOrders = () => {
                       {order.customer?.first_name} {order.customer?.last_name}
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">
-                      {order.service_category || "Laundry"}
+                      {order.service_category || "Service Order"}
                     </td>
                     <td className="px-5 py-3">
                       {/* <span

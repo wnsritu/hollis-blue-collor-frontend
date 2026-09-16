@@ -115,6 +115,10 @@ export const ProjectDetail: React.FC = () => {
 
   const handleOpenChat = async () => {
     if (!project) return;
+    if (project.status === "cancelled") {
+      toast.error("Chat is unavailable for cancelled requests.");
+      return;
+    }
     try {
       const res = await chatApi.createChat({ project_id: project.id });
       const chat = (res as any)?.data || res;
@@ -215,9 +219,11 @@ export const ProjectDetail: React.FC = () => {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill status={currentTimelineStep} />
-            <Button onClick={handleOpenChat} variant="outline" className="gap-2">
-              <MessageSquare size={16} /> Message Pro
-            </Button>
+            {project.status !== "cancelled" && (
+              <Button onClick={handleOpenChat} variant="outline" className="gap-2">
+                <MessageSquare size={16} /> Message Pro
+              </Button>
+            )}
             {userIsCustomer && (
               <>
                 {project.status === "open" && (
@@ -232,14 +238,14 @@ export const ProjectDetail: React.FC = () => {
                     Find Matches
                   </Button>
                 )}
-                <Button
+                {/* <Button
                   size="sm"
                   variant="destructive"
                   onClick={() => { }}
                   disabled={project.status === "cancelled"}
                 >
                   Cancel Project
-                </Button>
+                </Button> */}
               </>
             )}
             {userIsProvider && project.status === "open" && (

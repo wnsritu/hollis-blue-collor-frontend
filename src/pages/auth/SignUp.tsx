@@ -98,7 +98,9 @@ export function SignUp() {
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="fullname">{t("fullName", "Full Name")}</Label>
+                    <Label htmlFor="fullname">
+                      {t("fullName", "Full Name")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="fullname"
                       value={form.name}
@@ -111,7 +113,9 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="bname">{t("businessName", "Business Name")}</Label>
+                    <Label htmlFor="bname">
+                      {t("businessName", "Business Name")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="bname"
                       value={form.businessName}
@@ -126,7 +130,9 @@ export function SignUp() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="remail">{t("email", "Email Address")}</Label>
+                    <Label htmlFor="remail">
+                      {t("email", "Email Address")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="remail"
                       type="email"
@@ -140,14 +146,17 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="rmobile">{t("phoneNumber", "Mobile Number")}</Label>
+                    <Label htmlFor="rmobile">
+                      {t("phoneNumber", "Mobile Number")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="rmobile"
                       type="tel"
+                      maxLength={10}
                       value={form.mobile}
                       onChange={(e) => updateMobile(e.target.value)}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
-                      placeholder="(512) 555-0148"
+                      placeholder="9876543210"
                     />
                     {fieldErrors.mobile && (
                       <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
@@ -158,7 +167,9 @@ export function SignUp() {
             ) : (
               <>
                 <div className="grid gap-2">
-                  <Label htmlFor="name">{t("fullName", "Full Name")}</Label>
+                  <Label htmlFor="name">
+                    {t("fullName", "Full Name")} <span className="text-destructive font-bold ml-0.5">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={form.name}
@@ -172,7 +183,9 @@ export function SignUp() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="remail">{t("email", "Email Address")}</Label>
+                    <Label htmlFor="remail">
+                      {t("email", "Email ID")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="remail"
                       type="email"
@@ -186,14 +199,17 @@ export function SignUp() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="rmobile">{t("phoneNumber", "Mobile Number")}</Label>
+                    <Label htmlFor="rmobile">
+                      {t("phoneNumber", "Mobile Number")} <span className="text-destructive font-bold ml-0.5">*</span>
+                    </Label>
                     <Input
                       id="rmobile"
                       type="tel"
+                      maxLength={10}
                       value={form.mobile}
                       onChange={(e) => updateMobile(e.target.value)}
                       className={fieldErrors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}
-                      placeholder="(512) 555-0148"
+                      placeholder="9876543210"
                     />
                     {fieldErrors.mobile && (
                       <p className="text-xs font-medium text-destructive">{fieldErrors.mobile}</p>
@@ -205,7 +221,9 @@ export function SignUp() {
 
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="rpass">{t("password", "Password")}</Label>
+                <Label htmlFor="rpass">
+                  {t("password", "Password")} <span className="text-destructive font-bold ml-0.5">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="rpass"
@@ -228,7 +246,9 @@ export function SignUp() {
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="rconfpass">{t("confirmPassword", "Confirm Password")}</Label>
+                <Label htmlFor="rconfpass">
+                  {t("confirmPassword", "Confirm Password")} <span className="text-destructive font-bold ml-0.5">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="rconfpass"

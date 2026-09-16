@@ -85,7 +85,7 @@ const ProviderAvailability = () => {
           setSlots(formattedSlots);
         }
 
-        const rawAvail = availabilityRes?.data?.availability || availabilityRes?.availability;
+        const rawAvail = availabilityRes?.data?.availability || availabilityRes?.availability || availabilityRes;
         if (rawAvail && typeof rawAvail === "object") {
           const formattedSchedule: Record<string, number[]> = {
             Monday: [],

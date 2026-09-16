@@ -42,14 +42,14 @@ export function useAdminProviders() {
 
   const [submittingAction, setSubmittingAction] = useState(false);
 
-  useEffect(() => {
-    fetchProviders(currentPage);
-  }, [currentPage]);
-
   const fetchProviders = async (page = 1) => {
     try {
       setLoading(true);
-      const res: any = await adminApi.listProviders({ page, limit: 10 });
+      const params: Record<string, unknown> = { page, limit: 10 };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (statusFilter && statusFilter !== "all") params.status = statusFilter;
+
+      const res: any = await adminApi.listProviders(params);
 
       const payload = res?.data?.data || res?.data || res;
       const list = Array.isArray(payload) ? payload : (payload?.items || payload?.providers || []);
@@ -66,6 +66,13 @@ export function useAdminProviders() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchProviders(currentPage);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [currentPage, searchQuery, statusFilter]);
 
   // Quick Approve Action
   const handleQuickApprove = async (providerId: string | number, name: string) => {
@@ -164,34 +171,7 @@ export function useAdminProviders() {
     }
   };
 
-  const filtered = providers.filter((p) => {
-    const dbStatus = String(p.status || "").toLowerCase();
-    const dbVerified = String(p.verified || "").toLowerCase();
-
-    const isVerified = dbVerified === "verified" || dbVerified === "approved";
-    const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
-    const isSuspended = dbStatus === "paused" || dbStatus === "suspended";
-    const isPending = !isVerified && !isRejected && !isSuspended;
-
-    // Filter matching
-    if (statusFilter === "Pending" && !isPending) return false;
-    if (statusFilter === "Active" && !isVerified) return false;
-    if (statusFilter === "Suspended" && !isSuspended) return false;
-    if (statusFilter === "Rejected" && !isRejected) return false;
-
-    // Search query matching
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const busName = String(p.business_name || p.name || "").toLowerCase();
-      const ownerName = String(`${p.user?.first_name || ""} ${p.user?.last_name || ""}`).toLowerCase();
-      const cat = getCategoryName(p.category || p.subcategory).toLowerCase();
-      const loc = `${p.city || ""} ${p.state || ""}`.toLowerCase();
-
-      return busName.includes(q) || ownerName.includes(q) || cat.includes(q) || loc.includes(q);
-    }
-
-    return true;
-  });
+  const filtered = providers;
 
   return {
     providers,
