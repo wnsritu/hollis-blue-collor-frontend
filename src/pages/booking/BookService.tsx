@@ -1,8 +1,18 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import {
   ArrowLeft,
   ArrowRight,
+  AlertCircle,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -25,19 +35,17 @@ import { Textarea } from "@/components/ui/textarea";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
-import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { parseGooglePlace } from "@/utils/googlePlaces";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
+import { stripePromise } from "@/hooks/useStripeCardPayment";
 import { useFormik } from "formik";
+import { isValidZip } from "@/validations/common";
 import {
   bookingAddressValidationSchema,
   type BookingAddressFormValues,
-  bookingPaymentValidationSchema,
-  type BookingPaymentFormValues,
-  DEFAULT_BOOKING_PAYMENT_VALUES,
 } from "@/validations/booking";
 
 export default function BookService() {
@@ -111,13 +119,6 @@ export default function BookService() {
     },
   });
 
-  const paymentFormik = useFormik<BookingPaymentFormValues>({
-    initialValues: DEFAULT_BOOKING_PAYMENT_VALUES,
-    validationSchema: bookingPaymentValidationSchema,
-    onSubmit: () => {
-      handleCreateBookingAndPay();
-    },
-  });
 
 
   if (loading) {
@@ -651,194 +652,61 @@ export default function BookService() {
               </Card>
 
               {/* Payment Method & Payment Summary Panels */}
-              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                {/* Payment Method Card */}
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="font-display text-lg font-bold text-foreground">Payment method</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Enter your credit card or payment details below to complete your order securely.
-                  </p>
-
-                  <div className="mt-5 grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="cardNumber" className="text-xs font-semibold">
-                        Card number <span className="text-destructive">*</span>
-                      </Label>
-                      <div className="relative">
-                        <CreditCard
-                          size={16}
-                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <Input
-                          id="cardNumber"
-                          name="cardNumber"
-                          placeholder="4242 4242 4242 4242"
-                          value={paymentFormik.values.cardNumber}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          inputMode="numeric"
-                          className={`pl-9 ${
-                            paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }`}
-                        />
-                      </div>
-                      {paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber && (
-                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.cardNumber}</p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="grid gap-2">
-                        <Label htmlFor="expiry" className="text-xs font-semibold">
-                          Expiry <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="expiry"
-                          name="expiry"
-                          placeholder="09 / 29"
-                          value={paymentFormik.values.expiry}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.expiry && paymentFormik.errors.expiry
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.expiry && paymentFormik.errors.expiry && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.expiry}</p>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="cvc" className="text-xs font-semibold">
-                          CVC <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="cvc"
-                          name="cvc"
-                          placeholder="123"
-                          value={paymentFormik.values.cvc}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.cvc && paymentFormik.errors.cvc
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.cvc && paymentFormik.errors.cvc && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.cvc}</p>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="zip" className="text-xs font-semibold">
-                          Billing ZIP
-                        </Label>
-                        <Input
-                          id="zip"
-                          name="zip"
-                          placeholder="78704"
-                          value={paymentFormik.values.zip}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.zip && paymentFormik.errors.zip
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.zip && paymentFormik.errors.zip && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.zip}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="nameOnCard" className="text-xs font-semibold">
-                        Name on card <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="nameOnCard"
-                        name="nameOnCard"
-                        placeholder="e.g. John Doe"
-                        value={paymentFormik.values.nameOnCard}
-                        onChange={paymentFormik.handleChange}
-                        onBlur={paymentFormik.handleBlur}
-                        className={
-                          paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : ""
-                        }
-                      />
-                      {paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard && (
-                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.nameOnCard}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-4">
-                    <ShieldCheck size={14} className="text-success" /> Secure 256-bit SSL encrypted transaction.
-                  </div>
-                </div>
-
-                {/* Payment Summary Card */}
-                <div className="h-max rounded-2xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="font-display text-lg font-bold text-foreground">Payment Summary</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Paying through Hollis platform to {businessName}
-                  </p>
-
-                  <dl className="mt-5 space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-foreground">Subtotal (Services)</dt>
-                      <dd className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Service Fee ({serviceFeeRate || 10}%)</dt>
-                      <dd className="text-muted-foreground font-medium">{formattedPrices?.service_fee || `$${serviceFee}`}</dd>
-                    </div>
-                    {taxAmount > 0 && (
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Taxes</dt>
-                        <dd className="text-muted-foreground font-medium">{formattedPrices?.tax_amount || `$${taxAmount}`}</dd>
-                      </div>
-                    )}
-                  </dl>
-
-                  <div className="my-4 border-t border-border/60" />
-
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">Total due</span>
-                    <span className="font-display text-2xl font-bold text-foreground">{formattedPrices?.total || `$${grandTotal}`}</span>
-                  </div>
-
-                  <Button
-                    size="lg"
-                    type="button"
-                    onClick={() => paymentFormik.handleSubmit()}
-                    disabled={submitting}
-                    className="mt-5 w-full gap-2 shadow-sm font-semibold"
-                  >
-                    {submitting ? (
-                      "Processing..."
-                    ) : (
-                      <>
-                        <Lock size={16} /> Pay & Confirm Booking
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex justify-start">
-                <Button variant="outline" onClick={() => setStep(1)}>
-                  <ArrowLeft size={16} className="mr-1.5" /> Back to Date & Address
-                </Button>
-              </div>
+              <Elements stripe={stripePromise}>
+                <BookingPaymentForm
+                  details={details}
+                  grandTotal={grandTotal}
+                  formattedPrices={formattedPrices}
+                  subtotal={subtotal}
+                  serviceFee={serviceFee}
+                  serviceFeeRate={serviceFeeRate}
+                  taxAmount={taxAmount}
+                  businessName={businessName}
+                  submitting={submitting}
+                  selectedItems={selectedItems}
+                  selectedDate={selectedDate}
+                  selectedDateObj={selectedDateObj}
+                  selectedTimeSlotLabel={selectedTimeSlotLabel}
+                  onBack={() => setStep(1)}
+                  onPaySuccess={() => {
+                    toast.success("Payment confirmed! Your booking is complete.");
+                    navigate("/appointments");
+                  }}
+                  createBooking={async () => {
+                    if (!isAuthenticated) {
+                      toast.error("Please log in to finalize your booking.");
+                      navigate("/login?redirect=" + encodeURIComponent(window.location.pathname));
+                      throw new Error("Not authenticated");
+                    }
+                    const { addProviderBookApi } = await import("@/services/provider");
+                    const res = await addProviderBookApi({
+                      provider_id: Number(providerId),
+                      service_type_id: provider?.service_type_id || provider?.sub_category_id || provider?.category_id || 1,
+                      service_category: provider?.category?.name || "Home Services",
+                      order_type: "item_based",
+                      booking_date: selectedDate,
+                      time_slot_id: selectedTimeSlotId,
+                      total_amount: grandTotal,
+                      pickup_address: `${details.address}, ${details.city}, ${details.zip}`,
+                      delivery_address: `${details.address}, ${details.city}, ${details.zip}`,
+                      notes: details.notes,
+                      items: selectedItems.map((item) => ({
+                        service_name: item.name,
+                        quantity: item.qty,
+                        price: item.price,
+                        unit: item.unit,
+                      })),
+                    });
+                    const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
+                    const bookingId =
+                      bookingData?.id ||
+                      bookingData?.data?.id ||
+                      bookingData?.booking?.id;
+                    if (!bookingId) throw new Error("Failed to create booking. Please try again.");
+                    return Number(bookingId);
+                  }}
+                />
+              </Elements>
             </div>
           )}
         </div>
@@ -938,18 +806,538 @@ export default function BookService() {
         }}
       />
 
-      {/* Stripe Payment Modal */}
-      {createdBooking && (
-        <StripeBookingModal
-          isOpen={stripeModalOpen}
-          onClose={() => setStripeModalOpen(false)}
-          bookingData={createdBooking}
-          onSuccess={() => {
-            toast.success("Payment confirmed! Your booking is complete.");
-            navigate("/appointments");
-          }}
-        />
-      )}
+      {/* Stripe modal removed — payment is now handled inline in Step 2 */}
     </div>
+  );
+}
+
+// ─── Stripe card element shared appearance ───────────────────────────────────
+const CARD_ELEMENT_STYLE = {
+  base: {
+    fontSize: "14px",
+    color: "#0f172a",
+    fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    "::placeholder": {
+      color: "#94a3b8",
+    },
+  },
+  invalid: {
+    color: "#ef4444",
+  },
+};
+
+// ─── BookingPaymentForm ───────────────────────────────────────────────────────
+/**
+ * Renders the full Step-2 payment section inside an <Elements> provider.
+ *
+ * Individual card elements (CardNumberElement, CardExpiryElement, CardCvcElement)
+ * are used instead of PaymentElement so they can be shown BEFORE a clientSecret
+ * exists — they look exactly like the original custom inputs.
+ *
+ * Payment flow on submit:
+ *   1. Validate nameOnCard
+ *   2. Call createBooking() → get booking_id from backend
+ *   3. Call createPaymentIntent(booking_id) → get clientSecret
+ *   4. stripe.confirmCardPayment(clientSecret, { card: cardNumberElement })
+ *   5. Best-effort backend notify → onPaySuccess()
+ */
+function BookingPaymentForm({
+  details,
+  grandTotal,
+  formattedPrices,
+  subtotal,
+  serviceFee,
+  serviceFeeRate,
+  taxAmount,
+  businessName,
+  submitting,
+  selectedItems,
+  selectedDate,
+  selectedDateObj,
+  selectedTimeSlotLabel,
+  onBack,
+  onPaySuccess,
+  createBooking,
+}: {
+  details: any;
+  grandTotal: number;
+  formattedPrices: any;
+  subtotal: number;
+  serviceFee: number;
+  serviceFeeRate: number;
+  taxAmount: number;
+  businessName: string;
+  submitting: boolean;
+  selectedItems: any[];
+  selectedDate: string;
+  selectedDateObj: any;
+  selectedTimeSlotLabel: string;
+  onBack: () => void;
+  onPaySuccess: () => void;
+  createBooking: () => Promise<number>;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [nameOnCard, setNameOnCard] = useState(details?.name || "");
+  const [zip, setZip] = useState(details?.zip || "");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
+
+  // Track Stripe elements validity & errors
+  const [cardNumberState, setCardNumberState] = useState<{
+    empty: boolean;
+    complete: boolean;
+    error?: string;
+  }>({ empty: true, complete: false });
+
+  const [cardExpiryState, setCardExpiryState] = useState<{
+    empty: boolean;
+    complete: boolean;
+    error?: string;
+  }>({ empty: true, complete: false });
+
+  const [cardCvcState, setCardCvcState] = useState<{
+    empty: boolean;
+    complete: boolean;
+    error?: string;
+  }>({ empty: true, complete: false });
+
+  const [fieldErrors, setFieldErrors] = useState<{
+    cardNumber?: string;
+    expiry?: string;
+    cvc?: string;
+    zip?: string;
+    nameOnCard?: string;
+  }>({});
+
+  const handlePay = async () => {
+    // Validate all 5 payment fields
+    const errors: {
+      cardNumber?: string;
+      expiry?: string;
+      cvc?: string;
+      zip?: string;
+      nameOnCard?: string;
+    } = {};
+
+    // 1. Card number validation
+    if (cardNumberState.empty) {
+      errors.cardNumber = "Card number is required.";
+    } else if (cardNumberState.error) {
+      errors.cardNumber = cardNumberState.error;
+    } else if (!cardNumberState.complete) {
+      errors.cardNumber = "Please enter a valid card number.";
+    }
+
+    // 2. Expiry validation
+    if (cardExpiryState.empty) {
+      errors.expiry = "Expiry is required.";
+    } else if (cardExpiryState.error) {
+      errors.expiry = cardExpiryState.error;
+    } else if (!cardExpiryState.complete) {
+      errors.expiry = "Enter a valid expiry date.";
+    }
+
+    // 3. CVC validation
+    if (cardCvcState.empty) {
+      errors.cvc = "CVC is required.";
+    } else if (cardCvcState.error) {
+      errors.cvc = cardCvcState.error;
+    } else if (!cardCvcState.complete) {
+      errors.cvc = "Enter valid 3 or 4-digit CVC.";
+    }
+
+    // 4. Billing ZIP validation
+    if (!zip || !zip.trim()) {
+      errors.zip = "Billing ZIP is required.";
+    } else if (!isValidZip(zip)) {
+      errors.zip = "Enter a valid ZIP code.";
+    }
+
+    // 5. Name on card validation
+    if (!nameOnCard.trim() || nameOnCard.trim().length < 2) {
+      errors.nameOnCard = "Name on card is required (min 2 characters).";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    if (!stripe || !elements) {
+      toast.error("Stripe not loaded. Please refresh.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setCardError("");
+
+    try {
+      // Step 1: Create booking on backend
+      toast.loading("Creating your booking...", { id: "booking" });
+      let bookingId: number;
+      try {
+        bookingId = await createBooking();
+        toast.dismiss("booking");
+      } catch (err: any) {
+        toast.dismiss("booking");
+        setCardError(err?.message || "Failed to create booking.");
+        toast.error(err?.message || "Failed to create booking.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Step 2: Create PaymentIntent on backend
+      toast.loading("Initializing secure payment...", { id: "intent" });
+      const { createPaymentIntent } = await import("@/services/payment");
+      const intentRes = await createPaymentIntent({ booking_id: bookingId });
+      toast.dismiss("intent");
+
+      const intentData = intentRes?.data?.data;
+
+      // Already paid guard (booking was already confirmed/paid)
+      if (intentData?.alreadyPaid) {
+        toast.success("Payment confirmed! Your booking is complete.");
+        setTimeout(() => onPaySuccess(), 1000);
+        return;
+      }
+
+      if (!intentRes?.data?.success || !intentData?.clientSecret) {
+        const msg = intentRes?.data?.message || "Failed to initialize payment.";
+        setCardError(msg);
+        toast.error(msg);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Step 3: Confirm payment with Stripe using the card element
+      const cardNumberElement = elements.getElement(CardNumberElement);
+      if (!cardNumberElement) {
+        setCardError("Card element not found. Please refresh.");
+        setIsProcessing(false);
+        return;
+      }
+
+      toast.loading("Processing payment...", { id: "pay" });
+      const billingDetails: any = { name: nameOnCard.trim() };
+      if (details?.address) {
+        billingDetails.address = {
+          line1: details.address || "",
+          city: details.city || "",
+          postal_code: zip || details.zip || "",
+          country: "IN",
+        };
+      }
+
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        intentData.clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: billingDetails,
+          },
+        }
+      );
+      toast.dismiss("pay");
+
+      if (error) {
+        setCardError(error.message || "Payment failed.");
+        toast.error(error.message || "Payment failed.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "processing") {
+        // Step 4: Best-effort backend notify (webhook is source of truth)
+        try {
+          const { confirmPayment } = await import("@/services/payment");
+          await confirmPayment({ payment_intent_id: paymentIntent.id });
+        } catch (e) {
+          console.warn("Backend confirm notice (non-fatal):", e);
+        }
+        toast.success("Payment successful!");
+        setTimeout(() => onPaySuccess(), 1200);
+      }
+    } catch (err: any) {
+      toast.dismiss("booking");
+      toast.dismiss("intent");
+      toast.dismiss("pay");
+      const msg = err?.response?.data?.message || err?.message || "An unexpected error occurred.";
+      setCardError(msg);
+      toast.error("Payment failed. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const isDisabled = !stripe || isProcessing || submitting;
+
+  return (
+    <>
+      {/* Payment Method & Payment Summary Panels */}
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        {/* ── Payment Method Card ── */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h2 className="font-display text-lg font-bold text-foreground">Payment method</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter your credit card or payment details below to complete your order securely.
+          </p>
+
+          <div className="mt-5 grid gap-4">
+            {/* Card Number */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">
+                Card number <span className="text-destructive">*</span>
+              </Label>
+              <div
+                className={`relative flex items-center h-9 rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-within:ring-1 ${
+                  fieldErrors.cardNumber
+                    ? "border-destructive focus-within:ring-destructive"
+                    : "border-input focus-within:ring-ring"
+                }`}
+              >
+                <CreditCard
+                  size={15}
+                  className={`mr-2 shrink-0 ${
+                    fieldErrors.cardNumber ? "text-destructive" : "text-muted-foreground"
+                  }`}
+                />
+                <div className="flex-1">
+                  <CardNumberElement
+                    options={{
+                      style: CARD_ELEMENT_STYLE,
+                      placeholder: "4242 4242 4242 4242",
+                      showIcon: false,
+                    }}
+                    onChange={(event) => {
+                      setCardNumberState({
+                        empty: event.empty,
+                        complete: event.complete,
+                        error: event.error?.message,
+                      });
+                      if (event.complete || (!event.empty && !event.error)) {
+                        setFieldErrors((prev) => ({ ...prev, cardNumber: undefined }));
+                      } else if (event.error) {
+                        setFieldErrors((prev) => ({ ...prev, cardNumber: event.error.message }));
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              {fieldErrors.cardNumber && (
+                <p className="text-xs text-destructive font-medium mt-1">{fieldErrors.cardNumber}</p>
+              )}
+            </div>
+
+            {/* Expiry | CVC | Billing ZIP */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">
+                  Expiry <span className="text-destructive">*</span>
+                </Label>
+                <div
+                  className={`flex items-center h-9 rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-within:ring-1 ${
+                    fieldErrors.expiry
+                      ? "border-destructive focus-within:ring-destructive"
+                      : "border-input focus-within:ring-ring"
+                  }`}
+                >
+                  <div className="w-full">
+                    <CardExpiryElement
+                      options={{
+                        style: CARD_ELEMENT_STYLE,
+                        placeholder: "09 / 29",
+                      }}
+                      onChange={(event) => {
+                        setCardExpiryState({
+                          empty: event.empty,
+                          complete: event.complete,
+                          error: event.error?.message,
+                        });
+                        if (event.complete || (!event.empty && !event.error)) {
+                          setFieldErrors((prev) => ({ ...prev, expiry: undefined }));
+                        } else if (event.error) {
+                          setFieldErrors((prev) => ({ ...prev, expiry: event.error.message }));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                {fieldErrors.expiry && (
+                  <p className="text-[11px] text-destructive font-medium leading-tight mt-1">
+                    {fieldErrors.expiry}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">
+                  CVC <span className="text-destructive">*</span>
+                </Label>
+                <div
+                  className={`flex items-center h-9 rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-within:ring-1 ${
+                    fieldErrors.cvc
+                      ? "border-destructive focus-within:ring-destructive"
+                      : "border-input focus-within:ring-ring"
+                  }`}
+                >
+                  <div className="w-full">
+                    <CardCvcElement
+                      options={{
+                        style: CARD_ELEMENT_STYLE,
+                        placeholder: "123",
+                      }}
+                      onChange={(event) => {
+                        setCardCvcState({
+                          empty: event.empty,
+                          complete: event.complete,
+                          error: event.error?.message,
+                        });
+                        if (event.complete || (!event.empty && !event.error)) {
+                          setFieldErrors((prev) => ({ ...prev, cvc: undefined }));
+                        } else if (event.error) {
+                          setFieldErrors((prev) => ({ ...prev, cvc: event.error.message }));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                {fieldErrors.cvc && (
+                  <p className="text-[11px] text-destructive font-medium leading-tight mt-1">
+                    {fieldErrors.cvc}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="billingZip" className="text-xs font-semibold">
+                  Billing ZIP <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="billingZip"
+                  placeholder="78704"
+                  value={zip}
+                  onChange={(e) => {
+                    setZip(e.target.value);
+                    if (fieldErrors.zip) {
+                      setFieldErrors((prev) => ({ ...prev, zip: undefined }));
+                    }
+                  }}
+                  inputMode="numeric"
+                  className={`h-9 ${
+                    fieldErrors.zip ? "border-destructive focus-visible:ring-destructive" : ""
+                  }`}
+                />
+                {fieldErrors.zip && (
+                  <p className="text-[11px] text-destructive font-medium leading-tight mt-1">
+                    {fieldErrors.zip}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Name on card */}
+            <div className="space-y-1">
+              <Label htmlFor="nameOnCard" className="text-xs font-semibold">
+                Name on card <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="nameOnCard"
+                placeholder="e.g. John Doe"
+                value={nameOnCard}
+                onChange={(e) => {
+                  setNameOnCard(e.target.value);
+                  if (fieldErrors.nameOnCard) {
+                    setFieldErrors((prev) => ({ ...prev, nameOnCard: undefined }));
+                  }
+                }}
+                className={`h-9 ${
+                  fieldErrors.nameOnCard ? "border-destructive focus-visible:ring-destructive" : ""
+                }`}
+              />
+              {fieldErrors.nameOnCard && (
+                <p className="text-xs text-destructive font-medium mt-1">{fieldErrors.nameOnCard}</p>
+              )}
+            </div>
+
+            {/* Card error */}
+            {cardError && (
+              <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{cardError}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-4">
+            <ShieldCheck size={14} className="text-success" /> Secure 256-bit SSL encrypted transaction.
+          </div>
+        </div>
+
+        {/* ── Payment Summary Card ── */}
+        <div className="h-max rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h2 className="font-display text-lg font-bold text-foreground">Payment Summary</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Paying through Hollis platform to {businessName}
+          </p>
+
+          <dl className="mt-5 space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-foreground">Subtotal (Services)</dt>
+              <dd className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Service Fee ({serviceFeeRate || 10}%)</dt>
+              <dd className="text-muted-foreground font-medium">{formattedPrices?.service_fee || `$${serviceFee}`}</dd>
+            </div>
+            {taxAmount > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Taxes</dt>
+                <dd className="text-muted-foreground font-medium">{formattedPrices?.tax_amount || `$${taxAmount}`}</dd>
+              </div>
+            )}
+          </dl>
+
+          <div className="my-4 border-t border-border/60" />
+
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-foreground">Total due</span>
+            <span className="font-display text-2xl font-bold text-foreground">{formattedPrices?.total || `$${grandTotal}`}</span>
+          </div>
+
+          {/* Pay & Confirm Booking button */}
+          <Button
+            size="lg"
+            type="button"
+            onClick={handlePay}
+            disabled={isDisabled}
+            className="mt-5 w-full gap-2 shadow-sm font-semibold"
+          >
+            {isProcessing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-1" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Lock size={16} /> Pay &amp; Confirm Booking
+              </>
+            )}
+          </Button>
+
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Payments are held securely by Hollis platform and paid out to provider after job completion.
+          </p>
+        </div>
+      </div>
+
+      {/* Back button */}
+      <div className="flex justify-start">
+        <Button variant="outline" onClick={onBack} className="gap-1.5">
+          <ArrowLeft size={16} /> Back to Date &amp; Address
+        </Button>
+      </div>
+    </>
   );
 }
