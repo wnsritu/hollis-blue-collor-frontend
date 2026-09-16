@@ -938,20 +938,18 @@ export default function BookService() {
         }}
       />
 
-      {/* Stripe Payment Modal - commented out for now; will be re-enabled in future when paid status is ready */}
-      {/*
+      {/* Stripe Payment Modal */}
       {createdBooking && (
         <StripeBookingModal
           isOpen={stripeModalOpen}
           onClose={() => setStripeModalOpen(false)}
           bookingData={createdBooking}
-          onSuccess={(paymentIntent) => {
+          onSuccess={() => {
             toast.success("Payment confirmed! Your booking is complete.");
             navigate("/appointments");
           }}
         />
       )}
-      */}
     </div>
   );
 }

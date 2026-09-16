@@ -255,9 +255,10 @@ import {
 } from "@/components/ui/dialog";
 import { createPaymentSubscription, confirmPaymentSubscription } from "@/services/payment";
 import toast from "react-hot-toast";
-import { getMyPlan } from "@/services/provider";
+import env from "@/config/env";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
+const publishableKey = env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 // Main Modal Component
 export default function StripeSubscriptionModal({
@@ -427,11 +428,11 @@ function PaymentForm({ plan, onSuccess, onClose }) {
     });
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!stripe || !elements) {
-      toast.error("Stripe not loaded. Please refresh the page.");
+      toast.error("Stripe components not loaded. Please refresh.");
       return;
     }
 
@@ -439,24 +440,33 @@ function PaymentForm({ plan, onSuccess, onClose }) {
     setErrorMessage("");
 
     try {
-      // ✅ Step 1: Confirm payment with Stripe
+      // Step 1: Trigger Stripe Elements native validation for inputs
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setErrorMessage(submitError.message || "Please check your card details.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const billingDetails: any = {};
+      const name = localStorage.getItem("userName");
+      const email = localStorage.getItem("userEmail");
+      if (name) billingDetails.name = name;
+      if (email) billingDetails.email = email;
+
+      const confirmParams: any = {
+        return_url: `${window.location.origin}/provider/dashboard`,
+      };
+      if (Object.keys(billingDetails).length > 0) {
+        confirmParams.payment_method_data = {
+          billing_details: billingDetails,
+        };
+      }
+
+      // Step 2: Confirm payment with Stripe
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: {
-          payment_method_data: {
-            billing_details: {
-              name: localStorage.getItem("userName") || "Provider",
-              email: localStorage.getItem("userEmail") || "provider@example.com",
-              address: {
-                line1: "123 Main Street",
-                city: "New York",
-                state: "NY",
-                postal_code: "10001",
-                country: "US",
-              },
-            },
-          },
-        },
+        confirmParams,
         redirect: "if_required",
       });
 

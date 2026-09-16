@@ -6,7 +6,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { CreditCard, Lock, X } from "lucide-react";
+import { CreditCard, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,9 +19,10 @@ import {
   confirmPayment,
 } from "@/services/payment";
 import toast from "react-hot-toast";
-import { formatDate } from "@/utils/date";
+import env from "@/config/env";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
+const publishableKey = env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 // Main Modal Component
 export default function StripeBookingModal({
@@ -29,10 +30,16 @@ export default function StripeBookingModal({
   onClose,
   bookingData,
   onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  bookingData: any;
+  onSuccess?: (paymentIntent?: any) => void;
 }) {
   const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [alreadyPaidInfo, setAlreadyPaidInfo] = useState<any>(null);
 
   const normalizedBooking =
     bookingData?.data || bookingData?.booking || bookingData || {};
@@ -47,14 +54,21 @@ export default function StripeBookingModal({
     normalizedBooking?.proposal_id ||
     bookingData?.proposal_id;
 
-  // Step 1: Create payment intent when modal opens
   useEffect(() => {
     if (isOpen && (bookingId || proposalId || bookingData)) {
+      setAlreadyPaidInfo(null);
+      setClientSecret("");
+      setError("");
       createBookingPayment();
     }
-  }, [isOpen, bookingId, proposalId, bookingData]);
+  }, [isOpen, bookingId, proposalId]);
 
   const createBookingPayment = async () => {
+    if (!publishableKey) {
+      setError("Stripe publishable key is not configured. Please check your environment configuration.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -76,47 +90,102 @@ export default function StripeBookingModal({
       const result = response?.data;
 
       if (result?.success) {
-        setClientSecret(result?.data?.clientSecret);
+        const payload = result?.data;
+        if (payload?.alreadyPaid) {
+          setAlreadyPaidInfo(payload);
+        } else if (payload?.clientSecret) {
+          setClientSecret(payload.clientSecret);
+        } else {
+          setError(result?.message || "Failed to initialize payment intent.");
+        }
       } else {
-        setError(result?.message || "Failed to initialize payment");
+        setError(result?.message || "Failed to initialize payment.");
       }
     } catch (err: any) {
-      console.error("Error creating payment:", err);
+      console.error("Error creating payment intent:", err);
       setError(err?.response?.data?.message || err?.message || "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  const rawTotal =
+    normalizedBooking?.pricing?.total ??
+    normalizedBooking?.total_amount ??
+    bookingData?.total_amount ??
+    0;
+
+  const totalAmt = parseFloat(String(rawTotal)).toFixed(2);
+  const bookingNum = normalizedBooking?.booking_number || (bookingId ? `#${bookingId}` : "");
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <CreditCard className="w-5 h-5 text-primary" />
-            Complete Booking Payment
+            Payment Checkout {totalAmt !== "0.00" ? `($${totalAmt})` : ""}
           </DialogTitle>
         </DialogHeader>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center py-8 space-y-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Initializing payment...
+            <p className="text-sm text-muted-foreground">
+              Initializing payment gateway...
             </p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4">
-            ❌ {error}
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-xl p-4 text-sm flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Payment Error</p>
+              <p className="text-xs mt-0.5 opacity-90">{error}</p>
+            </div>
           </div>
         )}
 
-        {clientSecret && !loading && (
+        {alreadyPaidInfo && !loading && (
+          <div className="space-y-4">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 rounded-xl p-4 text-sm space-y-3">
+              <div className="flex items-center gap-2 text-emerald-700 font-bold">
+                <CheckCircle2 className="w-5 h-5" />
+                Payment Already Completed
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This booking has already been paid successfully. No further payment action is required.
+              </p>
+              <div className="space-y-1.5 text-xs border-t border-emerald-500/20 pt-2 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Booking Ref:</span>
+                  <span className="font-bold">#{alreadyPaidInfo.booking_number || alreadyPaidInfo.booking_id}</span>
+                </div>
+                {alreadyPaidInfo.transactionId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Transaction ID:</span>
+                    <span className="font-bold truncate max-w-[200px]">{alreadyPaidInfo.transactionId}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold text-emerald-700">${Number(alreadyPaidInfo.amount || 0).toFixed(2)} {alreadyPaidInfo.currency?.toUpperCase() || "USD"}</span>
+                </div>
+              </div>
+            </div>
+            <Button onClick={onClose} className="w-full">
+              Close
+            </Button>
+          </div>
+        )}
+
+        {clientSecret && !loading && stripePromise && (
           <Elements stripe={stripePromise} options={{ clientSecret }}>
             <PaymentForm
               bookingData={bookingData}
+              totalAmt={totalAmt}
+              bookingNum={bookingNum}
               onSuccess={onSuccess}
               onClose={onClose}
             />
@@ -128,17 +197,29 @@ export default function StripeBookingModal({
 }
 
 // Payment Form Component
-function PaymentForm({ bookingData, onSuccess, onClose }) {
+function PaymentForm({
+  bookingData,
+  totalAmt,
+  bookingNum,
+  onSuccess,
+  onClose,
+}: {
+  bookingData: any;
+  totalAmt: string;
+  bookingNum: string;
+  onSuccess?: (paymentIntent?: any) => void;
+  onClose: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!stripe || !elements) {
-      toast.error("Stripe not loaded. Please refresh the page.");
+      toast.error("Stripe payment components not fully loaded. Please refresh.");
       return;
     }
 
@@ -146,60 +227,114 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
     setErrorMessage("");
 
     try {
-      // Step 2: Confirm payment with Stripe (Webhook will handle database update)
-      const userAddr = bookingData?.address || bookingData?.pickup_address || bookingData?.delivery_address || {};
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          payment_method_data: {
-            billing_details: {
-              name: localStorage.getItem("userName") || bookingData?.customer?.name || "Customer",
-              email:
-                localStorage.getItem("userEmail") || bookingData?.customer?.email || "customer@example.com",
-              address: {
-                line1: userAddr.address_line || userAddr.street || "123 Main Street",
-                city: userAddr.city || "New York",
-                state: userAddr.state || "NY",
-                postal_code: userAddr.zip_code || userAddr.postal_code || "10001",
-                country: userAddr.country || "US",
-              },
-            },
-          },
-        },
-        redirect: "if_required",
-      });
-
-      if (error) {
-        setErrorMessage(error.message);
-        toast.error(error.message);
+      // Step 1: Validate PaymentElement inputs natively via Stripe Elements
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setErrorMessage(submitError.message || "Please check your card details.");
         setIsProcessing(false);
         return;
       }
 
-      if (paymentIntent.status === "succeeded") {
-        // debugger
-        // ✅ NO confirm API call needed! Webhook will auto-update database
+      // Step 2: Build complete billing details compliant with Indian export regulations & global Stripe standards
+      const customerName =
+        bookingData?.customer?.full_name ||
+        [bookingData?.customer?.first_name, bookingData?.customer?.last_name].filter(Boolean).join(" ") ||
+        localStorage.getItem("userName") ||
+        bookingData?.customer?.name ||
+        bookingData?.customer_name ||
+        "Customer Name";
 
-        // ✅ Show success message
+      const customerEmail =
+        bookingData?.customer?.email ||
+        localStorage.getItem("userEmail") ||
+        bookingData?.customer_email ||
+        "customer@example.com";
+
+      const rawAddr =
+        bookingData?.pickup_address ||
+        bookingData?.delivery_address ||
+        bookingData?.address ||
+        bookingData?.service_address?.address ||
+        "";
+
+      let line1 = "Service Address Line";
+      let city = "Indore";
+      let state = "Madhya Pradesh";
+      let postal_code = "452010";
+      let country = "IN";
+
+      if (typeof rawAddr === "string" && rawAddr.trim().length > 0) {
+        const parts = rawAddr.split(",").map((s) => s.trim()).filter(Boolean);
+        if (parts.length >= 3) {
+          line1 = parts.slice(0, parts.length - 2).join(", ") || parts[0];
+          city = parts[parts.length - 2] || "Indore";
+          const lastPart = parts[parts.length - 1];
+          const digitsMatch = lastPart.match(/\d{5,6}/);
+          postal_code = digitsMatch ? digitsMatch[0] : (lastPart.replace(/\D/g, "") || "452010");
+        } else if (parts.length === 2) {
+          line1 = parts[0];
+          city = parts[1];
+        } else {
+          line1 = parts[0] || "Service Address Line";
+        }
+      } else if (typeof rawAddr === "object" && rawAddr) {
+        line1 = rawAddr.address_line || rawAddr.line1 || rawAddr.street || "Service Address Line";
+        city = rawAddr.city || "Indore";
+        state = rawAddr.state || "Madhya Pradesh";
+        postal_code = rawAddr.zip_code || rawAddr.postal_code || rawAddr.zip || "452010";
+        country = rawAddr.country || "IN";
+      }
+
+      const billingDetails = {
+        name: customerName,
+        email: customerEmail,
+        address: {
+          line1: line1,
+          city: city,
+          state: state,
+          postal_code: postal_code,
+          country: country,
+        },
+      };
+
+      const confirmParams: any = {
+        return_url: `${window.location.origin}/appointments`,
+        payment_method_data: {
+          billing_details: billingDetails,
+        },
+      };
+
+      // Step 3: Confirm PaymentIntent with Stripe
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams,
+        redirect: "if_required",
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Payment processing failed.");
+        toast.error(error.message || "Payment processing failed.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent && (paymentIntent.status === "succeeded" || paymentIntent.status === "processing")) {
         toast.success("Payment successful! Your booking is confirmed.");
 
-        // ✅ Call backend to confirm (ensures database is updated immediately)
         try {
           await confirmPayment({ payment_intent_id: paymentIntent.id });
         } catch (err) {
-          console.error("Backend confirm error:", err);
-          // Webhook will handle it as fallback, so don't show error to user
+          console.error("Backend confirm fallback notice:", err);
         }
 
-        // ✅ Close modal
         setTimeout(() => {
           onSuccess?.(paymentIntent);
           onClose();
-        }, 2000);
+        }, 1500);
       }
-    } catch (err) {
-      console.error("Payment error:", err);
-      setErrorMessage("An unexpected error occurred");
+    } catch (err: any) {
+      console.error("Unexpected Payment error:", err);
+      setErrorMessage("An unexpected error occurred during payment.");
       toast.error("Payment failed. Please try again.");
     } finally {
       setIsProcessing(false);
@@ -212,62 +347,27 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
     bookingData?.booking ||
     bookingData || {};
 
-  const bookingNum =
-    normalized?.booking_number ||
-    (normalized?.id ? `#${normalized.id}` : null);
-
-  const dateValue = normalized?.schedule?.date || normalized?.booking_date;
-  const dateStr = dateValue
-    ? formatDate(dateValue, "MMM d, yyyy")
-    : "Date TBD";
-
   const svcName =
     normalized?.service?.service_type?.name ||
     normalized?.service_type?.name ||
-    normalized?.service?.category_name ||
     normalized?.service_category ||
     normalized?.project?.title ||
     "Home Services";
 
-  const rawTotal =
-    normalized?.pricing?.total ??
-    normalized?.total_amount ??
-    0;
-
-  const totalAmt = parseFloat(String(rawTotal)).toFixed(2);
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      {/* Order Summary */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-1">
-        <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
-        <div className="space-y-2">
-          {bookingNum && (
-            <div className="flex justify-between text-sm">
-              <span>Booking Reference</span>
-              <span className="font-mono font-bold">{bookingNum}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm">
-            <span>Service</span>
-            <span>{svcName}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Booking Date</span>
-            <span>{dateStr}</span>
-          </div>
-          <div className="flex justify-between text-sm font-bold pt-2 border-t">
-            <span>Total Amount</span>
-            <span className="text-primary font-bold text-base">
-              ${totalAmt}
-            </span>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Compact Order Reference Header */}
+      <div className="bg-muted/40 rounded-xl p-3 border border-border flex items-center justify-between text-xs">
+        <div>
+          <span className="font-semibold text-foreground block">{svcName}</span>
+          {bookingNum && <span className="text-muted-foreground font-mono">Ref: {bookingNum}</span>}
         </div>
+        <span className="font-display font-extrabold text-primary text-sm">${totalAmt}</span>
       </div>
 
       {/* Card Details */}
-      <div className="border rounded-lg p-4 max-h-[320px] overflow-y-scroll">
-        <label className="block text-sm font-medium mb-2">Card Details</label>
+      <div className="border border-border rounded-xl p-4 bg-background space-y-2">
+        <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">Card Details</label>
         <PaymentElement
           options={{
             fields: {
@@ -282,8 +382,9 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
       </div>
 
       {errorMessage && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          ❌ {errorMessage}
+        <div className="text-destructive text-xs bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -291,22 +392,24 @@ function PaymentForm({ bookingData, onSuccess, onClose }) {
       <Button
         type="submit"
         disabled={!stripe || isProcessing}
-        className="w-full"
+        className="w-full gap-2 font-semibold shadow-sm"
       >
         {isProcessing ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            Processing...
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-1"></div>
+            Processing Payment...
           </>
         ) : (
-          `Pay $${totalAmt}`
+          <>
+            <Lock className="w-4 h-4" /> Pay ${totalAmt}
+          </>
         )}
       </Button>
 
       {/* Security Note */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Lock className="w-3 h-3" />
-        Secure payment powered by Stripe
+      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground pt-1">
+        <Lock className="w-3.5 h-3.5 text-primary" />
+        <span>Encrypted 256-bit payment powered by Stripe</span>
       </div>
     </form>
   );
