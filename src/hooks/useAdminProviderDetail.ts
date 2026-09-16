@@ -187,6 +187,16 @@ export function useAdminProviderDetail() {
   const phone = String(provider?.user?.phone || provider?.phone || "—");
   const rawCat = provider?.category;
   const categoryName = typeof rawCat === "object" ? (rawCat?.name || "General Service") : String(rawCat || "General Service");
+  const rawSubCat =
+    provider?.sub_category ||
+    provider?.subcategory ||
+    (Array.isArray(provider?.service_types) && provider.service_types.length > 0
+      ? provider.service_types[0]
+      : null);
+  const subCategoryName =
+    typeof rawSubCat === "object"
+      ? (rawSubCat?.name || "")
+      : (provider?.category?.service_types?.[0]?.name || String(rawSubCat || ""));
   const emailVerified = provider?.user?.email_verified !== false && provider?.emailVerified !== false;
   const dbStatus = String(provider?.status || "").toLowerCase();
   const dbVerified = String(provider?.verified || "").toLowerCase();
@@ -237,7 +247,19 @@ export function useAdminProviderDetail() {
   const experienceYears = Number(provider?.years_of_experience || 0);
   const displayYears = experienceYears > 70 ? "Not specified" : `${experienceYears} Years`;
 
-  const rawAvailabilities = Array.isArray(provider?.availabilities) ? provider.availabilities : [];
+  const rawAvailabilities =
+    Array.isArray(provider?.availabilities) && provider.availabilities.length > 0
+      ? provider.availabilities
+      : Array.isArray(provider?.provider_availabilities) && provider.provider_availabilities.length > 0
+      ? provider.provider_availabilities
+      : Array.isArray(provider?.time_slots) && provider.time_slots.length > 0
+      ? provider.time_slots
+      : Array.isArray(provider?.availability) && provider.availability.length > 0
+      ? provider.availability
+      : Array.isArray(provider?.slots) && provider.slots.length > 0
+      ? provider.slots
+      : [];
+
   const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const slotMap: Record<number, string> = {
     1: "Morning (8am-12pm)",
@@ -245,12 +267,23 @@ export function useAdminProviderDetail() {
     3: "Evening (4pm-8pm)",
     4: "Night (8pm-11pm)",
   };
+
   const availabilityByDay = dayOrder.map((day) => {
-    const dayItems = rawAvailabilities.filter((a: any) => a.day_of_week === day);
-    const slots = dayItems.map((a: any) => {
-      const slotId = Number(a.time_slot_id || a.slot_id);
-      return slotMap[slotId] || a.time_slot?.name || `Slot #${a.time_slot_id}`;
+    const dayItems = rawAvailabilities.filter((a: any) => {
+      const d = String(a.day_of_week || a.day || "").toLowerCase();
+      return d === day.toLowerCase() || d.startsWith(day.toLowerCase().slice(0, 3));
     });
+
+    const slots = dayItems.map((a: any) => {
+      if (a.slot) return String(a.slot);
+      if (a.time_slot_name) return String(a.time_slot_name);
+      if (a.time_slot?.name) return String(a.time_slot.name);
+      if (a.start_time && a.end_time) return `${a.start_time} - ${a.end_time}`;
+      if (a.start_time) return String(a.start_time);
+      const slotId = Number(a.time_slot_id || a.slot_id);
+      return slotMap[slotId] || (slotId ? `Slot #${slotId}` : "Available");
+    });
+
     return { day, slots };
   });
 
@@ -288,6 +321,7 @@ export function useAdminProviderDetail() {
     email,
     phone,
     categoryName,
+    subCategoryName,
     emailVerified,
     isVerified,
     isRejected,

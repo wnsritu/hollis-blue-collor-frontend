@@ -41,6 +41,7 @@ import { usd } from "@/components/shared/cards";
 import Spinner from "@/components/ui/spinner";
 import { useAdminProviderDetail, maskLast4 } from "@/hooks/useAdminProviderDetail";
 import { formatPhone } from "@/utils/format";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { CARD_SECTION_SHADOW } from "@/styles";
 
 export function AdminProviderDetail() {
@@ -60,6 +61,7 @@ export function AdminProviderDetail() {
     rejectionReason,
     setRejectionReason,
     rejectionError,
+    setRejectionError,
     suspendReason,
     setSuspendReason,
     selectedDocPreview,
@@ -77,6 +79,7 @@ export function AdminProviderDetail() {
     email,
     phone,
     categoryName,
+    subCategoryName,
     emailVerified,
     isVerified,
     isRejected,

@@ -610,7 +610,7 @@ const ProviderProfileSettings = () => {
           {/* ── Bank ── */}
           {activeTab === "bank" && (
             <>
-              {Object.values(fieldErrors).some(Boolean) && (
+              {/* {Object.values(fieldErrors).some(Boolean) && (
                 <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm font-medium text-destructive">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="mt-0.5 size-5 shrink-0" />
@@ -626,7 +626,7 @@ const ProviderProfileSettings = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
               <Card>
                 <CardHeader className="border-b border-border pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-bold">

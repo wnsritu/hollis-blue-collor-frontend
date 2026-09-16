@@ -137,8 +137,11 @@ export function validateBankRoutingNumber(routing: string): string | undefined {
     return "Routing number / IFSC is required.";
   }
   const clean = routing.trim();
-  if (clean.length < 4 || clean.length > 20) {
-    return "Routing number / IFSC must be 4 to 20 characters.";
+  if (clean.length < 4 || clean.length > 50) {
+    return "Routing number / IFSC must be between 4 and 50 characters.";
+  }
+  if (!/^[a-zA-Z0-9]+$/.test(clean)) {
+    return "Routing number / IFSC must contain letters and numbers only.";
   }
   return undefined;
 }
@@ -171,6 +174,38 @@ export function extractApiFieldErrors(err: any): Record<string, string> {
   const result: Record<string, string> = {};
   const responseData = err?.response?.data;
   const errorsList = responseData?.errors;
+  const topMessage = responseData?.message;
+
+  const keyMap: Record<string, string[]> = {
+    full_name: ["ownerName", "fullName", "name"],
+    phone: ["mobile", "mobileNumber", "phone"],
+    business_name: ["businessName"],
+    service_description: ["about"],
+    years_of_experience: ["years"],
+    zip_code: ["zip", "zipCode"],
+    bank_name: ["bank_name"],
+    bank_account_holder: ["bank_account_holder"],
+    bank_account_number: ["bank_account_number"],
+    bank_routing_number: ["bank_routing_number"],
+    bank_account_type: ["bank_account_type"],
+    license_number: ["licenseNumber", "license"],
+    insurance_policy: ["insurancePolicy", "insurance"],
+  };
+
+  const applyError = (field: string, msg: string) => {
+    let cleanMsg = msg;
+    if (msg.includes("fails to match the required pattern")) {
+      cleanMsg = `${field.replace(/_/g, " ")} format is invalid (letters and numbers only)`;
+    }
+    const mappedKeys = keyMap[field];
+    if (mappedKeys) {
+      for (const k of mappedKeys) {
+        if (!result[k]) result[k] = cleanMsg;
+      }
+    } else {
+      if (!result[field]) result[field] = cleanMsg;
+    }
+  };
 
   if (Array.isArray(errorsList)) {
     for (const item of errorsList) {
@@ -179,32 +214,14 @@ export function extractApiFieldErrors(err: any): Record<string, string> {
       const fieldName = rawPath.length > 0 ? String(rawPath[rawPath.length - 1]) : "";
       const msg = item.message || "Invalid field";
 
-      if (!fieldName) continue;
+      if (fieldName) applyError(fieldName, msg);
+    }
+  }
 
-      const keyMap: Record<string, string[]> = {
-        full_name: ["ownerName", "fullName", "name"],
-        phone: ["mobile", "mobileNumber", "phone"],
-        business_name: ["businessName"],
-        service_description: ["about"],
-        years_of_experience: ["years"],
-        zip_code: ["zip", "zipCode"],
-        bank_name: ["bank_name"],
-        bank_account_holder: ["bank_account_holder"],
-        bank_account_number: ["bank_account_number"],
-        bank_routing_number: ["bank_routing_number"],
-        bank_account_type: ["bank_account_type"],
-        license_number: ["licenseNumber", "license"],
-        insurance_policy: ["insurancePolicy", "insurance"],
-      };
-
-      const mappedKeys = keyMap[fieldName];
-      if (mappedKeys) {
-        for (const k of mappedKeys) {
-          if (!result[k]) result[k] = msg;
-        }
-      } else {
-        if (!result[fieldName]) result[fieldName] = msg;
-      }
+  if (typeof topMessage === "string") {
+    const match = topMessage.match(/^([a-zA-Z0-9_]+)\s+with\s+value/i) || topMessage.match(/^([a-zA-Z0-9_]+)\s+is\s+/i);
+    if (match && match[1]) {
+      applyError(match[1], topMessage);
     }
   }
 
