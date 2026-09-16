@@ -87,16 +87,29 @@ export const validateCustomQuote = (
 };
 
 export const calculateQuoteSplit = (
-  total: number,
-  commissionRate = 9
-): { total: number; commission: number; payable: number } => {
-  const safeTotal = Math.max(0, total);
-  const commission = Math.round(((safeTotal * commissionRate) / 100) * 100) / 100;
-  const payable = Math.max(0, safeTotal - commission);
+  subtotalOrTotal: number,
+  commissionRate = 10,
+  flatPlatformFee = 0
+): {
+  total: number;
+  commissionRate: number;
+  commission: number;
+  flatFee: number;
+  totalFees: number;
+  payable: number;
+} => {
+  const safeBase = Math.max(0, subtotalOrTotal);
+  const commission = Math.round(((safeBase * commissionRate) / 100) * 100) / 100;
+  const flatFee = Math.max(0, Number(flatPlatformFee) || 0);
+  const totalFees = Math.round((commission + flatFee) * 100) / 100;
+  const payable = Math.max(0, Math.round((safeBase - totalFees) * 100) / 100);
 
   return {
-    total: safeTotal,
+    total: safeBase,
+    commissionRate,
     commission,
+    flatFee,
+    totalFees,
     payable,
   };
 };
