@@ -1,37 +1,75 @@
-import { Badge } from "@/components/ui/badge";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Briefcase,
+  CalendarDays,
+  Clock,
+  FileText,
+  Search,
+  Tag,
+  Star,
+  Quote,
+  RotateCcw,
+  Loader2,
+  MapPin,
+  User,
+  Building2,
+  CreditCard,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getOrderDetails, getOrderList, getRatingByBookingId } from "@/services/order.service";
-import { AlertCircle, ChevronDown, ChevronUp, Package, Quote, RotateCcw, Search, Star, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import PaginationController from "@/components/ui/PaginationController";
-import { Card, CardContent } from "@/components/ui/card";
-import React from "react";
-import toast from "react-hot-toast";
-import { Input } from "@/components/ui/input";
-import { formatDate } from "@/utils/date";
 import {
-  BADGE_PENDING,
-  BADGE_CONFIRMED,
-  BADGE_COMPLETED,
-  BADGE_CANCELLED,
-  BADGE_UNDER_REVIEW,
-  BADGE_DEFAULT,
-} from "@/styles";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState, PageHeader, StatusPill, Stars } from "@/components/shared/primitives";
+import { usd } from "@/components/shared/cards";
+import PaginationController from "@/components/ui/PaginationController";
+import { getOrderDetails, getOrderList } from "@/services/order.service";
+import { formatDate } from "@/utils/date";
+import toast from "react-hot-toast";
 
-const AdminOrders = () => {
+const STATUS_OPTIONS = [
+  { value: "all", label: "All statuses" },
+  { value: "pending", label: "Pending Acceptance" },
+  { value: "accepted", label: "Confirmed" },
+  { value: "in_process", label: "In Progress" },
+  { value: "finished", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "rejected", label: "Rejected" },
+];
+
+export const AdminOrders: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalBookingsCount, setTotalBookingsCount] = useState(0);
+
   const timeline = [
     "pending",
     "accepted",
@@ -42,36 +80,14 @@ const AdminOrders = () => {
   const currentIdx = timeline.indexOf(selected?.status);
 
   const [orders, setOrders] = useState<any[]>([]);
-  const [providerRating, setProviderRating] = useState<any>(null);
-
   const [searchFilter, setSearchFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("");
-  const [sortField, setSortField] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<string>("desc");
-
-  const fetchDataRating = async (ratingBookingId: any) => {
-    try {
-      setLoading(true);
-      const response: any = await getRatingByBookingId(ratingBookingId);
-      if (response?.data?.success) {
-        setProviderRating(response?.data);
-      }
-    } catch (error) {
-      console.error("Error fetching rating:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Fetch orders with server-side filters
   const fetchOrderList = async (
     page = 1,
     status = statusFilter,
-    search = searchFilter,
-    date = dateFilter,
-    sortBy = sortField,
-    order = sortOrder
+    search = searchFilter
   ) => {
     try {
       setLoading(true);
@@ -79,8 +95,8 @@ const AdminOrders = () => {
       const reqData: any = {
         page: page,
         limit: 10,
-        sortBy: sortBy,
-        sortOrder: order,
+        sortBy: "id",
+        sortOrder: "desc",
       };
 
       if (status && status !== "all") {
@@ -89,25 +105,25 @@ const AdminOrders = () => {
       if (search.trim()) {
         reqData.search = search.trim();
       }
-      if (date) {
-        reqData.booking_date = date;
-      }
 
       const response = await getOrderList(reqData);
 
       if (response?.data?.success) {
         const ordersData = response.data.bookings || [];
         setOrders(ordersData);
-        setTotalPages(response.data.total_pages || 1);
-        setCurrentPage(response.data.current_page || page);
+        setTotalPages(response.data.total_pages || response.data.pagination?.totalPages || 1);
+        setCurrentPage(response.data.current_page || response.data.pagination?.page || page);
+        setTotalBookingsCount(response.data.total || response.data.count || ordersData.length);
       } else {
         setOrders([]);
         setTotalPages(1);
+        setTotalBookingsCount(0);
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
       setOrders([]);
       setTotalPages(1);
+      setTotalBookingsCount(0);
     } finally {
       setLoading(false);
     }
@@ -116,95 +132,46 @@ const AdminOrders = () => {
   useEffect(() => {
     if (!id) {
       const timer = setTimeout(() => {
-        fetchOrderList(1, statusFilter, searchFilter, dateFilter, sortField, sortOrder);
+        fetchOrderList(1, statusFilter, searchFilter);
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [id, statusFilter, searchFilter, dateFilter, sortField, sortOrder]);
+  }, [id, statusFilter, searchFilter]);
 
   useEffect(() => {
     if (id) {
-      fetchDataRating(id);
+      handleOpen(id);
     }
   }, [id]);
 
-  const handleSort = (field: string) => {
-    const newOrder = field === sortField && sortOrder === "asc" ? "desc" : "asc";
-    setSortField(field);
-    setSortOrder(newOrder);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchOrderList(page, statusFilter, searchFilter, dateFilter, sortField, sortOrder);
+    fetchOrderList(page, statusFilter, searchFilter);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleResetFilters = () => {
     setSearchFilter("");
     setStatusFilter("all");
-    setDateFilter("");
-    setSortField("id");
-    setSortOrder("desc");
   };
 
-  const isFiltered =
-    Boolean(searchFilter.trim()) ||
-    statusFilter !== "all" ||
-    Boolean(dateFilter);
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; className: string }> = {
-      pending: { label: "Pending", className: BADGE_PENDING },
-      accepted: { label: "Accepted", className: BADGE_CONFIRMED },
-      rejected: { label: "Rejected", className: BADGE_CANCELLED },
-      in_process: { label: "In Progress", className: BADGE_UNDER_REVIEW },
-      delivering: { label: "Delivering", className: BADGE_CONFIRMED },
-      finished: { label: "Finished", className: BADGE_COMPLETED },
-      delivered: { label: "Delivered", className: BADGE_COMPLETED },
-      completed: { label: "Completed", className: BADGE_COMPLETED },
-      cancelled: { label: "Cancelled", className: BADGE_CANCELLED },
-    };
-
-    const config = statusConfig[status?.toLowerCase()] || {
-      label: status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Pending",
-      className: BADGE_DEFAULT,
-    };
-    return (
-      <Badge className={config.className}>{config.label}</Badge>
-    );
-  };
+  const isFiltered = Boolean(searchFilter.trim()) || statusFilter !== "all";
 
   const handleOpen = async (bookingId: any) => {
     try {
       setLoading(true);
+      const orderRes = await getOrderDetails(bookingId);
+      const orderData =
+        orderRes?.data?.data?.booking ||
+        orderRes?.data?.booking ||
+        orderRes?.data?.data ||
+        orderRes?.data;
 
-      // 1️⃣ Fetch Order Details
-      try {
-        const orderRes = await getOrderDetails(bookingId);
-        const orderData = orderRes?.data?.data;
-        if (!orderData) throw new Error("No order data");
-        setSelected(orderData); // set popup data
-      } catch (orderError) {
-        console.error("Order fetch failed:", orderError);
-        toast.error("Failed to fetch order details");
-        return;
-      }
-
-      // 2️⃣ Fetch Rating (optional)
-      try {
-        const ratingRes = await getRatingByBookingId(bookingId);
-        if (ratingRes?.data?.success && ratingRes.data.data) {
-          setProviderRating(ratingRes.data);
-        } else {
-          setProviderRating(null);
-        }
-      } catch (ratingError) {
-        console.error("Rating fetch failed:", ratingError);
-        setProviderRating(null);
-      }
-    } catch (err) {
-      console.error("Unexpected error:", err);
+      if (!orderData) throw new Error("No order data");
+      setSelected(orderData);
+    } catch (orderError) {
+      console.error("Order fetch failed:", orderError);
+      toast.error("Failed to fetch order details");
     } finally {
       setLoading(false);
     }
@@ -212,416 +179,435 @@ const AdminOrders = () => {
 
   return (
     <>
-      <div className="mb-4">
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border-b border-border">
-            <h2 className="font-heading text-xl font-semibold text-foreground">
-              Orders
-            </h2>
-            {isFiltered && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 self-start sm:self-auto"
-              >
-                <RotateCcw size={12} />
-                Reset Filters
-              </Button>
-            )}
-          </div>
+      {/* Page Header matching reference UI */}
+      <PageHeader
+        title="Service Bookings"
+        subtitle={`${totalBookingsCount || orders.length} service bookings across the platform`}
+      />
 
-          {/* Filters Row */}
-          <div className="p-4 bg-muted/20 border-b border-border flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[260px]">
-              <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-                <Input
-                  placeholder="Search by customer, provider, order ID, or amount..."
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  className="pl-9 h-9 text-xs"
-                />
-              </div>
-            </div>
-            <div className="w-[170px]">
-              <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                Service Date
-              </label>
-              <Input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-            <div className="w-[160px]">
-              <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                Status
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground focus:ring-1 focus:ring-ring"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-                <option value="in_process">In Progress</option>
-                <option value="finished">Finished</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            {isFiltered && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-9 text-xs gap-1.5"
-              >
-                <RotateCcw size={13} /> Reset
-              </Button>
-            )}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th
-                    onClick={() => handleSort("id")}
-                    className="px-4 py-3 text-left font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Order ID</span>
-                      {sortField === "id" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("customer")}
-                    className="px-4 py-3 text-left font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Customer</span>
-                      {sortField === "customer" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("provider")}
-                    className="px-4 py-3 text-left font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Provider</span>
-                      {sortField === "provider" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("booking_date")}
-                    className="px-4 py-3 text-left font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Service Date</span>
-                      {sortField === "booking_date" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("status")}
-                    className="px-4 py-3 text-left font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Status</span>
-                      {sortField === "status" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("total_amount")}
-                    className="px-4 py-3 text-right font-semibold text-muted-foreground cursor-pointer select-none hover:text-primary transition-colors"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Amount</span>
-                      {sortField === "total_amount" ? (
-                        sortOrder === "asc" ? <ChevronUp size={14} className="text-primary" /> : <ChevronDown size={14} className="text-primary" />
-                      ) : (
-                        <ChevronUp size={12} className="opacity-30" />
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-center text-muted-foreground font-semibold">
-                    View
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                        <span>Loading orders...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : orders.length > 0 ? (
-                  orders.map((order: any) => (
-                    <tr
-                      key={order.id}
-                      className="border-b border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-foreground">
-                        {order.order_id ||
-                          `ORD-${order.id.toString().padStart(3, "0")}`}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {order.customer?.first_name} {order.customer?.last_name}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {order.provider?.business_name ||
-                          order.provider_name ||
-                          "-"}
-                      </td>
-
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {order.booking_date
-                          ? formatDate(order.booking_date, "dd-MM-yyyy")
-                          : "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {getStatusBadge(order.status)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-foreground">
-                        ${order.total_amount || "0"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpen(order.id)}
-                        >
-                          View
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <AlertCircle size={24} className="text-muted-foreground/60" />
-                        <p className="font-medium text-foreground">No orders found</p>
-                        <p className="text-xs text-muted-foreground max-w-sm">
-                          {isFiltered
-                            ? "No orders match the selected filters."
-                            : "There are currently no orders in the system."}
-                        </p>
-                        {isFiltered && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleResetFilters}
-                            className="mt-2 text-xs"
-                          >
-                            Clear Filters
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {/* Dialog Details */}
-            <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Order {selected?.id}</DialogTitle>
-                </DialogHeader>
-
-                {selected && (
-                  <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {/* Customer */}
-                      <div>
-                        <p className="text-xs text-muted-foreground">Customer</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {selected.customer?.first_name}{" "}
-                          {selected.customer?.last_name}
-                        </p>
-                      </div>
-
-                      {/* Provider */}
-                      <div>
-                        <p className="text-xs text-muted-foreground">Provider</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {selected.provider?.business_name}
-                        </p>
-                      </div>
-
-                      {/* Amount */}
-                      <div>
-                        <p className="text-xs text-muted-foreground">Amount</p>
-                        <p className="text-sm font-medium text-foreground">
-                          ${Number(selected.total_amount).toFixed(2)}
-                        </p>
-                      </div>
-
-                      {/* Payment */}
-                      <div>
-                        <p className="text-xs text-muted-foreground">Payment</p>
-                        <Badge
-                          variant="outline"
-                          className={
-                            selected.payment_status === "paid"
-                              ? "bg-secondary/10 text-secondary border-secondary/20"
-                              : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                          }
-                        >
-                          {selected.payment_status}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Timeline */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Order Timeline
-                      </p>
-
-                      {selected?.status === "cancelled" ||
-                      selected?.status === "rejected" ? (
-                        <div className="flex flex-col items-center justify-center py-6 gap-2">
-                          <p className="text-sm font-semibold text-red-600">
-                            Booking{" "}
-                            {selected?.status === "cancelled"
-                              ? "Cancelled"
-                              : "Rejected"}
-                          </p>
-                          <p className="text-xs text-muted-foreground text-center">
-                            This order is no longer active.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex items-center w-full">
-                          {timeline.map((step, i) => {
-                            const done = i <= currentIdx;
-
-                            return (
-                              <React.Fragment key={step}>
-                                <div className="flex flex-col items-center">
-                                  <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center
-                                    ${
-                                      done
-                                        ? "bg-primary text-white"
-                                        : "bg-gray-200 text-gray-500"
-                                    }`}
-                                  >
-                                    ✓
-                                  </div>
-
-                                  <span className="text-xs mt-1 capitalize">
-                                    {step.replace("_", " ")}
-                                  </span>
-                                </div>
-
-                                {i < timeline.length - 1 && (
-                                  <div
-                                    className={`flex-1 h-1 mx-1 ${
-                                      i < currentIdx ? "bg-primary" : "bg-gray-200"
-                                    }`}
-                                  />
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Booking Rating */}
-                {providerRating?.data?.rating > 0 && (
-                  <section className="mt-1">
-                    <p className="text-xs text-muted-foreground mb-3 flex items-center justify-center gap-1">
-                      <Star size={16} />
-                      Rating
-                    </p>
-
-                    <Card className="border border-primary/40 bg-white rounded-xl shadow-sm hover:shadow-md transition">
-                      <CardContent className="p-5">
-                        <div className="relative group">
-                          <Quote
-                            size={24}
-                            className="absolute left-5 top-0 text-primary/20 opacity-0 group-hover:opacity-100 transition"
-                          />
-
-                          <p className="text-sm leading-relaxed text-muted-foreground pl-6">
-                            {providerRating?.data?.comment || "No comment provided"}
-                          </p>
-                        </div>
-
-                        <div className="mt-5 flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                            {providerRating?.data?.customer?.first_name?.charAt(0)}
-                            {providerRating?.data?.customer?.last_name?.charAt(0)}
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {providerRating?.data?.customer?.first_name}{" "}
-                              {providerRating?.data?.customer?.last_name}
-                            </p>
-
-                            <div className="flex gap-0.5 mt-0.5">
-                              {Array.from({
-                                length: providerRating?.data?.rating || 0,
-                              }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  size={12}
-                                  className="fill-blue-500 text-blue-500"
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </section>
-                )}
-              </DialogContent>
-            </Dialog>
-          </div>
+      {/* Filter Row matching reference UI */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1 min-w-[260px]">
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Search service name, customer or provider…"
+            className="pl-9 h-10 text-xs sm:text-sm"
+          />
         </div>
+
+        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+          <SelectTrigger className="w-56 h-10">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {isFiltered && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetFilters}
+            className="h-10 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw size={14} /> Reset Filters
+          </Button>
+        )}
       </div>
 
-      {/* Pagination: only shown when totalPages > 1 and orders exist */}
+      {/* Table Container Card matching reference UI */}
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground text-sm">
+            <Loader2 size={32} className="animate-spin text-primary" />
+            <span>Loading service bookings...</span>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              icon={Briefcase}
+              title="No service bookings found"
+              description={
+                isFiltered
+                  ? "No bookings match your current search or status filter."
+                  : "There are currently no service bookings on the platform."
+              }
+              action={
+                isFiltered ? (
+                  <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                    Reset Filters
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Service &amp; Booking ID</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Date &amp; Time</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((order: any) => {
+                const isFixed =
+                  !order.project_id &&
+                  order.order_type !== "custom_request" &&
+                  order.booking_type !== "request_quote";
+
+                const serviceName =
+                  order.service_type?.name ||
+                  order.service?.service_type?.name ||
+                  order.service_category ||
+                  order.service?.category_name ||
+                  order.project?.title ||
+                  "Service Details";
+
+                const bookingDisplayId =
+                  order.booking_number ||
+                  (order.id ? `BKG-${String(order.id).padStart(5, "0")}` : "BKG-0");
+
+                const customerName =
+                  order.customer?.full_name ||
+                  [order.customer?.first_name, order.customer?.last_name].filter(Boolean).join(" ") ||
+                  order.customer_name ||
+                  "Customer";
+
+                const providerName =
+                  order.provider?.business_name ||
+                  order.provider?.user?.full_name ||
+                  order.provider_name ||
+                  "—";
+
+                const formattedDateStr = order.booking_date
+                  ? formatDate(order.booking_date)
+                  : "Flexible";
+
+                const timeSlot = order.time_slot || order.schedule?.time_slot;
+                const formattedTimeStr =
+                  timeSlot?.name ||
+                  timeSlot?.slot_name ||
+                  (timeSlot?.start_time ? `${timeSlot.start_time}` : order.time || "Scheduled");
+
+                return (
+                  <TableRow
+                    key={order.id}
+                    onClick={() => handleOpen(order.id)}
+                    className="cursor-pointer hover:bg-muted/40 transition-colors"
+                  >
+                    <TableCell>
+                      <p className="font-bold text-foreground max-w-xs truncate">{serviceName}</p>
+                      <p className="text-xs text-muted-foreground font-mono">#{bookingDisplayId}</p>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
+                          isFixed
+                            ? "bg-primary-soft text-primary"
+                            : "bg-accent-soft text-accent-soft-foreground font-bold"
+                        }`}
+                      >
+                        {isFixed ? <Tag size={12} /> : <FileText size={12} />}
+                        {isFixed ? "Fixed Service" : "Request a Quote"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium text-xs whitespace-nowrap">
+                      {customerName}
+                    </TableCell>
+                    <TableCell className="font-medium text-xs whitespace-nowrap">
+                      {providerName}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <CalendarDays size={13} /> {formattedDateStr}
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5 text-[11px]">
+                        <Clock size={12} /> {formattedTimeStr}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-sm whitespace-nowrap">
+                      {usd(order.total_amount || 0)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <StatusPill status={order.status || "pending"} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      {/* Booking Details Modal */}
+      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b border-border">
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-lg font-bold font-display flex items-center gap-2">
+                Booking #{selected?.booking_number || selected?.id}
+              </DialogTitle>
+              {selected?.status && <StatusPill status={selected.status} />}
+            </div>
+          </DialogHeader>
+
+          {selected && (
+            <div className="space-y-4 pt-2">
+              {/* Service & Schedule Overview */}
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between font-semibold text-foreground text-sm">
+                  <span>
+                    {selected.service?.service_type?.name ||
+                      selected.service_category ||
+                      selected.service?.category_name ||
+                      "Service Details"}
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {selected.service?.category_name || "Home Services"}
+                  </span>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 pt-1 border-t border-border/60 text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <CalendarDays size={14} className="text-primary" />
+                    <span>
+                      {selected.schedule?.date
+                        ? formatDate(selected.schedule.date)
+                        : selected.booking_date
+                        ? formatDate(selected.booking_date)
+                        : "Date Pending"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-primary" />
+                    <span>
+                      {selected.schedule?.time_slot?.name ||
+                        selected.time_slot?.name ||
+                        "Scheduled Slot"}
+                      {selected.schedule?.time_slot?.start_time
+                        ? ` (${selected.schedule.time_slot.start_time} - ${selected.schedule.time_slot.end_time || ""})`
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+
+                {selected.service_address?.address && (
+                  <div className="flex items-start gap-1.5 pt-1 border-t border-border/60 text-muted-foreground">
+                    <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
+                    <span>{selected.service_address.address}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Customer & Provider Information */}
+              <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                {/* Customer Box */}
+                <div className="rounded-xl border border-border p-3.5 bg-card space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground mb-1">
+                    <User size={14} className="text-primary" /> Customer
+                  </div>
+                  <p className="font-semibold text-foreground">
+                    {selected.customer?.full_name ||
+                      [selected.customer?.first_name, selected.customer?.last_name]
+                        .filter(Boolean)
+                        .join(" ") ||
+                      "Customer"}
+                  </p>
+                  {selected.customer?.email && (
+                    <p className="text-muted-foreground truncate">{selected.customer.email}</p>
+                  )}
+                  {selected.customer?.phone && (
+                    <p className="text-muted-foreground">{selected.customer.phone}</p>
+                  )}
+                </div>
+
+                {/* Provider Box */}
+                <div className="rounded-xl border border-border p-3.5 bg-card space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground mb-1">
+                    <Building2 size={14} className="text-primary" /> Provider
+                  </div>
+                  <p className="font-semibold text-foreground">
+                    {selected.provider?.business_name || "Professional"}
+                  </p>
+                  {selected.provider?.service_location_address && (
+                    <p className="text-muted-foreground text-[11px] line-clamp-2">
+                      {selected.provider.service_location_address}
+                    </p>
+                  )}
+                  {selected.provider?.rating && (
+                    <div className="flex items-center gap-1 pt-0.5">
+                      <Stars rating={Number(selected.provider.rating)} size={12} />
+                      <span className="font-bold text-[11px] text-foreground">
+                        {Number(selected.provider.rating).toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pricing Breakdown Card */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-border font-bold text-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard size={15} className="text-primary" /> Pricing &amp; Payment Summary
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded"
+                        ? "bg-success-soft text-success border-success/20 font-bold"
+                        : "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
+                    }
+                  >
+                    {selected.payment_status === "paid" || selected.payment_status === "success" ? "Paid" : "Pending Payment"}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5 pt-1 text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Subtotal (Services)</span>
+                    <span className="font-semibold text-foreground">
+                      {usd(selected.pricing?.subtotal || selected.total_amount || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Service &amp; Platform Fee</span>
+                    <span className="font-semibold text-foreground">
+                      +{usd(selected.pricing?.service_fee || 0)}
+                    </span>
+                  </div>
+                  <Separator className="my-1.5" />
+                  <div className="flex items-center justify-between text-sm font-bold text-foreground pt-0.5">
+                    <span>Total Customer Amount</span>
+                    <span className="text-primary font-extrabold text-base">
+                      {usd(selected.pricing?.total || selected.total_amount || 0)}
+                    </span>
+                  </div>
+                </div>
+
+                {selected.payment?.payment_date && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                    <span>Payment Date:</span>
+                    <span className="font-semibold text-foreground">
+                      {formatDate(selected.payment.payment_date, "MMM d, yyyy h:mm a")}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Order Timeline */}
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-3 font-bold">
+                  Order Lifecycle Progress
+                </p>
+
+                {selected?.status === "cancelled" || selected?.status === "rejected" ? (
+                  <div className="flex flex-col items-center justify-center py-4 gap-1.5 rounded-xl bg-destructive-soft/10 text-destructive text-xs">
+                    <p className="font-semibold">
+                      Booking {selected?.status === "cancelled" ? "Cancelled" : "Rejected"}
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">
+                      This order is no longer active.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center w-full px-2">
+                    {timeline.map((step, i) => {
+                      const done = i <= currentIdx;
+
+                      return (
+                        <React.Fragment key={step}>
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all
+                              ${
+                                done
+                                  ? "bg-primary text-primary-foreground shadow-sm"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              ✓
+                            </div>
+
+                            <span className="text-[11px] mt-1 capitalize font-medium">
+                              {step.replace("_", " ")}
+                            </span>
+                          </div>
+
+                          {i < timeline.length - 1 && (
+                            <div
+                              className={`flex-1 h-1 mx-1 rounded-full ${
+                                i < currentIdx ? "bg-primary" : "bg-muted"
+                              }`}
+                            />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Customer Rating & Review Card */}
+              {selected.review && selected.review.rating > 0 && (
+                <section className="pt-3 border-t border-border">
+                  <p className="text-xs font-bold text-foreground mb-2 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-success" /> Customer Submitted Review
+                  </p>
+
+                  <Card className="border border-border bg-card rounded-xl shadow-sm">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Stars rating={Number(selected.review.rating)} size={14} />
+                          <span className="font-bold text-xs text-foreground ml-1">
+                            {selected.review.rating} / 5 Stars
+                          </span>
+                        </div>
+                        {selected.review.created_at && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatDate(selected.review.created_at)}
+                          </span>
+                        )}
+                      </div>
+
+                      {selected.review.comment && (
+                        <div className="relative group">
+                          <Quote
+                            size={16}
+                            className="absolute left-0 top-0 text-primary/20"
+                          />
+                          <p className="text-xs leading-relaxed text-muted-foreground pl-5 italic bg-muted/30 p-2.5 rounded-lg">
+                            "{selected.review.comment}"
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </section>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Server-side Pagination */}
       {totalPages > 1 && orders?.length > 0 && (
         <div className="mt-4">
           <PaginationController
