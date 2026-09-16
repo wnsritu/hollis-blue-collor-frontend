@@ -13,8 +13,12 @@ export const getChatsApi = () => {
   return apiClient.get("/chats");
 };
 
-export const getMessagesApi = (booking_id: string | number) => {
-  return apiClient.get(`/chats/${booking_id}`);
+export const getUserChatsApi = () => {
+  return apiClient.get("/chats/user");
+};
+
+export const getMessagesApi = (chatId: string | number) => {
+  return apiClient.get(`/chats/messages/${chatId}`);
 };
 
 export const sendMessageApi = (
@@ -47,6 +51,16 @@ export const createChatApi = (
   });
 };
 
+export const getUserChats = async () => {
+  try {
+    const response = await getUserChatsApi();
+    return response?.data?.data || response?.data || [];
+  } catch (error: any) {
+    console.error("Get user chats error:", error);
+    return [];
+  }
+};
+
 export const getProviderChats = async () => {
   try {
     const response = await getChatsApi();
@@ -57,14 +71,14 @@ export const getProviderChats = async () => {
   }
 };
 
-export const getChatMessages = async (booking_id: string | number) => {
+export const getChatMessages = async (chatId: string | number) => {
   try {
-    const response = await getMessagesApi(booking_id);
+    const response = await getMessagesApi(chatId);
     const messages = response?.data?.data || response?.data || [];
     return messages;
   } catch (error: any) {
     console.error("Get messages error:", error);
-    throw error.response?.data || { message: "Failed to fetch messages" };
+    return [];
   }
 };
 
