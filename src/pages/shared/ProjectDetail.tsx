@@ -20,6 +20,7 @@ import {
   Star,
   ShieldCheck,
   CreditCard,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import { Timeline } from "@/components/shared/Timeline";
 import { SubmitProposalModal } from "@/components/projects/SubmitProposalModal";
 import { DocumentPreviewModal } from "@/components/shared/DocumentPreviewModal";
 import { projectApi, proposalApi } from "@/services/project";
+import { bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
@@ -85,11 +87,13 @@ export const ProjectDetail: React.FC = () => {
   const projectId = Number(id);
 
   const fetchProjectData = async () => {
-    if (!projectId) return;
+    if (!projectId || isNaN(projectId)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const projRes = await projectApi.getById(projectId);
-      console.log(projRes, "projResprojResprojRes")
       const projData = (projRes as any)?.data || projRes;
       setProject(projData);
 
@@ -112,6 +116,69 @@ export const ProjectDetail: React.FC = () => {
   useEffect(() => {
     fetchProjectData();
   }, [projectId]);
+
+  interface ProposalBreakdownMap {
+    [proposalId: number]: {
+      subtotal: number;
+      service_fee_rate: number;
+      service_fee: number;
+      platform_fee: number;
+      tax_amount: number;
+      total: number;
+    };
+  }
+
+  const [proposalBreakdowns, setProposalBreakdowns] = useState<ProposalBreakdownMap>({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchBreakdowns = async () => {
+      if (!proposals || proposals.length === 0) return;
+      const newMap: ProposalBreakdownMap = {};
+
+      for (const prop of proposals) {
+        const amountNum = Number(prop.amount) || 0;
+        if (amountNum <= 0) continue;
+        try {
+          const res: any = await bookingApi.calculatePrice({
+            subtotal: amountNum,
+            total_amount: amountNum,
+            discount: 0,
+          });
+          const data = res?.data?.data || res?.data?.breakdown || res?.data;
+          if (data) {
+            const subtotal = Number(data.subtotal) || amountNum;
+            const serviceFeeRate = Number(data.service_fee_rate) || 15;
+            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(subtotal * 0.15 * 100) / 100;
+            const platformFee = Number(data.platform_fee) || Number(data.platform_fee_amount) || 0;
+            const total = Number(data.total) || Math.round((subtotal + serviceFee + platformFee) * 100) / 100;
+
+            newMap[prop.id] = {
+              subtotal,
+              service_fee_rate: serviceFeeRate,
+              service_fee: serviceFee,
+              platform_fee: platformFee,
+              tax_amount: Number(data.tax_amount) || 0,
+              total,
+            };
+          }
+        } catch (err) {
+          console.error("Failed to calculate price breakdown for proposal", prop.id, err);
+        }
+      }
+
+      if (isMounted && Object.keys(newMap).length > 0) {
+        setProposalBreakdowns(newMap);
+      }
+    };
+
+    fetchBreakdowns();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [proposals]);
 
   const handleOpenChat = async () => {
     if (!project) return;
@@ -189,6 +256,20 @@ export const ProjectDetail: React.FC = () => {
     project.provider?.name ||
     project.category?.name ||
     "Custom Service Request";
+
+  const acceptedProp = proposals.find(
+    (p) => p.status === "accepted" || Number(p.id) === Number(project?.accepted_proposal_id)
+  );
+  const activeBookingId = project?.booking_id || (acceptedProp as any)?.booking_id;
+  const activeBreakdown = acceptedProp ? proposalBreakdowns[acceptedProp.id] : null;
+
+  const handlePayNow = () => {
+    if (activeBookingId) {
+      navigate(`/customer/bookings/${activeBookingId}`);
+    } else {
+      toast.error("Booking reference not found. Please try refreshing.");
+    }
+  };
 
   const effectiveStatus =
     (project as any).booking?.appointment_status ||
@@ -380,10 +461,11 @@ export const ProjectDetail: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {proposals.map((prop) => {
-                  const isAccepted = prop.status === "accepted";
+                  const isAccepted = prop.status === "accepted" || Number(prop.id) === Number(project.accepted_proposal_id);
                   const isRejected = prop.status === "rejected";
                   const providerName =
                     (prop.provider as any)?.business_name || (prop.provider as any)?.user?.full_name || "Provider";
+                  const bd = proposalBreakdowns[prop.id];
 
                   return (
                     <div
@@ -414,7 +496,7 @@ export const ProjectDetail: React.FC = () => {
                         </div>
 
                         <div className="text-right">
-                          <span className="text-xs text-muted-foreground block">Quote Amount</span>
+                          <span className="text-xs text-muted-foreground block">Base Quote Amount</span>
                           <span className="font-display text-xl font-bold text-primary">
                             {usd(prop.amount)}
                           </span>
@@ -450,6 +532,33 @@ export const ProjectDetail: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Customer Price Breakdown */}
+                      {bd && (
+                        <div className="mt-3 pt-3 border-t border-border space-y-1.5 text-xs bg-muted/20 p-3 rounded-xl">
+                          <div className="flex items-center gap-1.5 font-semibold text-foreground mb-1">
+                            <Calculator size={13} className="text-primary" /> Customer Price Breakdown
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Base Service Quote</span>
+                            <span className="font-medium text-foreground">{usd(bd.subtotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Platform Service Fee ({bd.service_fee_rate}%)</span>
+                            <span className="font-medium text-foreground">+{usd(bd.service_fee)}</span>
+                          </div>
+                          {bd.platform_fee > 0 && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Platform Flat Fee</span>
+                              <span className="font-medium text-foreground">+{usd(bd.platform_fee)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-bold text-foreground text-sm pt-1.5 border-t border-border/60">
+                            <span>Total Customer Payment</span>
+                            <span className="font-display text-primary">{usd(bd.total)}</span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Details & Actions */}
                       <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
@@ -461,7 +570,7 @@ export const ProjectDetail: React.FC = () => {
                           )}
                         </div>
 
-                        {userIsCustomer && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
+                        {userIsCustomer && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
@@ -475,7 +584,7 @@ export const ProjectDetail: React.FC = () => {
                               size="sm"
                               onClick={() => handleAcceptProposal(prop.id)}
                               disabled={acceptingId === prop.id}
-                              className="h-8 text-xs gap-1 bg-success hover:bg-success/90"
+                              className="h-8 text-xs gap-1 bg-success text-success-foreground hover:bg-success/90"
                             >
                               {acceptingId === prop.id ? (
                                 <Loader2 size={13} className="animate-spin" />
@@ -509,31 +618,54 @@ export const ProjectDetail: React.FC = () => {
           </section>
 
           {/* Payment Breakdown Card (matching Image 2) */}
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
             <h2 className="font-display text-lg font-bold">Payment Breakdown</h2>
-            <dl className="mt-4 space-y-3 text-sm">
+            <dl className="space-y-2.5 text-xs">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Subtotal (Services)</dt>
-                <dd className="font-medium">
-                  {project.budget_min ? usd(project.budget_min) : "Flexible"}
+                <dd className="font-medium text-foreground">
+                  {activeBreakdown?.subtotal
+                    ? usd(activeBreakdown.subtotal)
+                    : project.budget_min
+                      ? usd(project.budget_min)
+                      : "Flexible"}
                 </dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Service Fee</dt>
-                <dd className="font-medium">Included</dd>
-              </div>
+              {activeBreakdown && (
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <dt>Platform Service Fee ({activeBreakdown.service_fee_rate}%)</dt>
+                    <dd className="font-medium text-foreground">+{usd(activeBreakdown.service_fee)}</dd>
+                  </div>
+                  {activeBreakdown.platform_fee > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <dt>Platform Flat Fee</dt>
+                      <dd className="font-medium text-foreground">+{usd(activeBreakdown.platform_fee)}</dd>
+                    </div>
+                  )}
+                </>
+              )}
             </dl>
-            <Separator className="my-4" />
+            <Separator className="my-3" />
             <div className="flex items-center justify-between">
-              <span className="font-semibold">Estimated Total</span>
-              <span className="font-display text-xl font-bold">
-                {project.budget_max
-                  ? usd(project.budget_max)
-                  : project.budget_min
-                    ? usd(project.budget_min)
+              <span className="font-semibold text-sm">Total Customer Payment</span>
+              <span className="font-display text-xl font-bold text-primary">
+                {activeBreakdown?.total
+                  ? usd(activeBreakdown.total)
+                  : project.budget_max
+                    ? usd(project.budget_max)
                     : "Custom Quote"}
               </span>
             </div>
+
+            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && (
+              <Button
+                className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                onClick={handlePayNow}
+              >
+                <CreditCard size={16} /> Pay Now ({usd(activeBreakdown?.total || Number(acceptedProp?.amount || 0))})
+              </Button>
+            )}
           </section>
 
           {Boolean(project.booking_id) && !userIsProvider && (

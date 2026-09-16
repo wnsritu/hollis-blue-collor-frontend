@@ -58,6 +58,19 @@ export const subscriptionApi = {
     http.get<ApiSuccess>(ENDPOINTS.subscription.allProviders),
 };
 
+export interface CommissionSettingsData {
+  id?: number;
+  admin_commission: number;
+  platform_fee: number;
+  tax_percentage?: number;
+  currency: string;
+}
+
+export const payoutApi = {
+  getCommissionRates: () =>
+    http.get<ApiSuccess<CommissionSettingsData>>(ENDPOINTS.payout.commissionRates),
+};
+
 export default {
   createPaymentIntent,
   confirmPayment,
@@ -65,4 +78,5 @@ export default {
   createPaymentSubscription,
   confirmPaymentSubscription,
   subscriptionApi,
+  payoutApi,
 };
