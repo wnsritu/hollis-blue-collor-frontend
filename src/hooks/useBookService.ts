@@ -446,10 +446,10 @@ export function useBookService() {
       const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
 
       if (bookingData && (bookingData.id || bookingData.data?.id || bookingData.booking?.id)) {
-        toast.success("Booking created! Please complete payment to confirm.");
-
+        toast.success("Booking created! Initializing secure payment...");
+        // Set createdBooking — this triggers StripeInlineCardSection to fetch PaymentIntent
         setCreatedBooking(bookingData);
-        setStripeModalOpen(true);
+        // stripeModalOpen is no longer used; inline payment section handles everything
       } else {
         toast.error("Failed to create booking. Please try again.");
       }
@@ -460,6 +460,7 @@ export function useBookService() {
       setSubmitting(false);
     }
   };
+
 
   return {
     providerId,
