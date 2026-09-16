@@ -18,6 +18,7 @@ import {
   Wallet,
   BarChart3,
   Receipt,
+  MessageSquare,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
@@ -45,6 +46,7 @@ const adminNav: NavItem[] = [
   { label: "Payout Queue", to: "/admin/payouts", icon: Wallet },
   { label: "Transactions", to: "/admin/transactions", icon: Receipt },
   { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
+  { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
   { label: "Reviews Directory", to: "/admin/reviews", icon: Star },
   { label: "Reports", to: "/admin/reports", icon: BarChart3 },
   { label: "Coins Management", to: "/admin/coins", icon: Coins },

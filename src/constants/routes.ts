@@ -69,6 +69,7 @@ export const ROUTES = {
   ADMIN_FEATURED_PLANS: "/admin/featured-plans",
   ADMIN_FEATURED_LISTINGS: "/admin/featured-listings",
   ADMIN_TRANSACTIONS: "/admin/transactions",
+  ADMIN_MESSAGES: "/admin/messages",
   ADMIN_MESSAGES_DETAIL: "/admin/messages/:id",
   ADMIN_PROFILE: "/admin/profile",
   ADMIN_SUPPORT_AGENTS: "/admin/support-agents",

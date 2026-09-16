@@ -121,6 +121,17 @@ export const adminApi = {
 
   updatePlatformSettings: (payload: Record<string, unknown>) =>
     http.put<ApiSuccess>(ENDPOINTS.admin.platformSettings, payload),
+
+  getChatReports: (params?: ApiListParams & { status?: string }) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.chatReports, params),
+
+  getChatReportById: (id: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.chatReportById(id)),
+
+  updateChatReportStatus: (
+    id: number | string,
+    payload: { status?: string; action?: string }
+  ) => http.put<ApiSuccess>(ENDPOINTS.admin.updateChatReportStatus(id), payload),
 };
 
 export const availabilityApi = {
