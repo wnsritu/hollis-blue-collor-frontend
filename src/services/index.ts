@@ -41,3 +41,5 @@ export * as supportService from "./support";
 export * as customerService from "./customer";
 export * as projectService from "./project";
 export * as dashboardService from "./dashboard/dashboard.service";
+export * from "./featured/featured.service";
+export * as featuredService from "./featured/featured.service";

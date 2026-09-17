@@ -313,7 +313,8 @@ export const providerNav: NavItem[] = [
   },
   { to: "/messages", label: "Messages", icon: MessageSquare, matchPaths: ["/messages"] },
   { to: "/provider/earnings", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
-  { to: "/provider/featured", label: "Subscription", icon: CreditCard, exact: true },
+  { to: "/provider/subscription", label: "Subscription", icon: CreditCard },
+  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles },
   {
     to: "/provider/profile",
     label: "Business Profile",

@@ -280,6 +280,21 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/sponsored/${id}`,
   },
 
+  featuredPlan: {
+    adminList: "/admin/featured-plans",
+    adminCreate: "/admin/featured-plans",
+    adminUpdate: (id: number | string) => `/admin/featured-plans/${id}`,
+    adminDelete: (id: number | string) => `/admin/featured-plans/${id}`,
+    activeList: "/featured-plans",
+  },
+
+  featuredListing: {
+    adminList: "/admin/featured-listings",
+    myList: "/featured-listings/my",
+    purchase: "/featured-listings/purchase",
+    confirm: "/featured-listings/confirm",
+  },
+
   // ─── Dashboard APIs ────────────────────────────────────
   userDashboard: {
     root: "/user/dashboard",

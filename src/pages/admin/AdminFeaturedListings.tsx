@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Sparkles, Receipt } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Sparkles, Receipt, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,105 +18,69 @@ import {
 } from "@/components/ui/table";
 import { PageHeader, StatCard, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
-
-export interface FeaturedListingItem {
-  id: string;
-  target: string;
-  type: "Job" | "Provider";
-  owner: string;
-  plan: string;
-  spend: number;
-  starts: string;
-  expires: string;
-  status: "Active" | "Expired" | "Pending";
-}
-
-const mockFeaturedListings: FeaturedListingItem[] = [
-  {
-    id: "fl_1",
-    target: "ABC Plumbing Co. Profile",
-    type: "Provider",
-    owner: "ABC Plumbing Co.",
-    plan: "14-Day Power Promotion",
-    spend: 35,
-    starts: "Aug 15, 2026",
-    expires: "Aug 29, 2026",
-    status: "Active",
-  },
-  {
-    id: "fl_2",
-    target: "Commercial HVAC Overhaul Job",
-    type: "Job",
-    owner: "Marcus Bell",
-    plan: "7-Day Top Search Boost",
-    spend: 19,
-    starts: "Aug 20, 2026",
-    expires: "Aug 27, 2026",
-    status: "Active",
-  },
-  {
-    id: "fl_3",
-    target: "Summit Electric Company Page",
-    type: "Provider",
-    owner: "Summit Electric",
-    plan: "30-Day Market Leader",
-    spend: 65,
-    starts: "Aug 01, 2026",
-    expires: "Aug 31, 2026",
-    status: "Active",
-  },
-  {
-    id: "fl_4",
-    target: "BrightHome Cleaning Listing",
-    type: "Provider",
-    owner: "BrightHome Cleaning",
-    plan: "7-Day Top Search Boost",
-    spend: 19,
-    starts: "Jul 10, 2026",
-    expires: "Jul 17, 2026",
-    status: "Expired",
-  },
-];
+import { getAdminFeaturedListings } from "@/services/featured/featured.service";
+import type { FeaturedListingItem } from "@/types/featured";
 
 export function AdminFeaturedListings() {
+  const [listings, setListings] = useState<FeaturedListingItem[]>([]);
+  const [activeCount, setActiveCount] = useState(0);
+  const [totalSpend, setTotalSpend] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [type, setType] = useState("all");
 
-  const list = mockFeaturedListings.filter(
+  const loadListings = async () => {
+    try {
+      setLoading(true);
+      const res = await getAdminFeaturedListings();
+      if (res?.data) {
+        setListings(res.data.listings || []);
+        setActiveCount(res.data.active_count || 0);
+        setTotalSpend(res.data.total_spend || 0);
+      }
+    } catch (err) {
+      console.error("Failed to load featured listings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadListings();
+  }, []);
+
+  const list = listings.filter(
     (l) =>
-      `${l.target} ${l.owner}`.toLowerCase().includes(q.toLowerCase()) &&
+      `${l.target || ""} ${l.owner || ""}`.toLowerCase().includes(q.toLowerCase()) &&
       (type === "all" || l.type === type)
   );
-
-  const activeCount = mockFeaturedListings.filter((l) => l.status === "Active").length;
-  const spendTotal = mockFeaturedListings.reduce((s, l) => s + l.spend, 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Featured Listings"
-        subtitle="Paid placements currently active or completed on the marketplace"
+        title="Featured listings"
+        subtitle="Paid placements currently running on the marketplace"
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Active Placements"
+          label="Active placements"
           value={activeCount}
-          hint="Currently boosted in search"
+          hint="Currently boosted"
           icon={Sparkles}
           tone="accent"
         />
         <StatCard
-          label="Total Boost Spend"
-          value={usd(spendTotal)}
-          hint="Lifetime revenue from boost"
+          label="Total boost spend"
+          value={usd(totalSpend)}
+          hint="All time"
           icon={Receipt}
           tone="success"
         />
         <StatCard
-          label="Total Listings"
-          value={mockFeaturedListings.length}
-          hint="Active and expired packages"
+          label="Listings"
+          value={listings.length}
+          hint="Active and expired"
           icon={Sparkles}
         />
       </div>
@@ -125,7 +89,7 @@ export function AdminFeaturedListings() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search listings or owners…"
+          placeholder="Search listings…"
           className="max-w-sm"
         />
         <Select value={type} onValueChange={setType}>
@@ -133,45 +97,61 @@ export function AdminFeaturedListings() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="Job">Job</SelectItem>
-            <SelectItem value="Provider">Provider</SelectItem>
+            {["all", "Provider", "Job"].map((t) => (
+              <SelectItem key={t} value={t}>
+                {t === "all" ? "All types" : t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Listing Target</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Boost Plan</TableHead>
-              <TableHead className="text-right">Spend</TableHead>
-              <TableHead>Starts</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {list.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell className="font-semibold text-foreground">{l.target}</TableCell>
-                <TableCell className="font-medium text-xs text-muted-foreground">{l.type}</TableCell>
-                <TableCell className="font-medium">{l.owner}</TableCell>
-                <TableCell className="text-xs">{l.plan}</TableCell>
-                <TableCell className="text-right font-bold text-primary">{usd(l.spend)}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{l.starts}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{l.expires}</TableCell>
-                <TableCell>
-                  <StatusPill status={l.status} />
-                </TableCell>
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Listing</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead className="text-right">Spend</TableHead>
+                <TableHead>Starts</TableHead>
+                <TableHead>Expires</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {list.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                    No featured listings found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                list.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell className="font-medium text-foreground">{l.target}</TableCell>
+                    <TableCell>{l.type || "Provider"}</TableCell>
+                    <TableCell>{l.owner}</TableCell>
+                    <TableCell>{l.plan}</TableCell>
+                    <TableCell className="text-right font-medium">{usd(l.spend)}</TableCell>
+                    <TableCell>{l.starts}</TableCell>
+                    <TableCell>{l.expires}</TableCell>
+                    <TableCell>
+                      <StatusPill status={l.status as any} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

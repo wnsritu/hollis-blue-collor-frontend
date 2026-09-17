@@ -54,18 +54,26 @@ export interface CustomBookingPaymentFormProps {
     total?: string;
   };
   subtotal: number;
-  serviceFee: number;
+  serviceFee?: number;
   serviceFeeRate?: number;
   taxAmount?: number;
   businessName?: string;
   submitting?: boolean;
   onBack?: () => void;
   onPaySuccess: () => void;
-  /** Pass either createBooking (for creating new booking in steps) OR bookingId (for existing booking) */
+  /** Pass either createBooking (for creating new booking in steps) OR bookingId (for existing booking) OR createIntent */
   createBooking?: () => Promise<number>;
   bookingId?: number;
+  createIntent?: () => Promise<{ clientSecret: string; paymentIntentId?: string }>;
+  onConfirmPayment?: (paymentIntentId: string) => Promise<any>;
   buttonText?: string;
   platformName?: string;
+  paymentMethodTitle?: string;
+  paymentMethodSubtitle?: string;
+  summaryTitle?: string;
+  summarySubtitle?: string;
+  summaryItems?: Array<{ label: string; value: string | React.ReactNode; isMuted?: boolean }>;
+  secureFooterNote?: string;
 }
 
 export default function CustomBookingPaymentForm({
@@ -73,7 +81,7 @@ export default function CustomBookingPaymentForm({
   grandTotal,
   formattedPrices,
   subtotal,
-  serviceFee,
+  serviceFee = 0,
   serviceFeeRate = 10,
   taxAmount = 0,
   businessName = "Service Provider",
@@ -82,8 +90,16 @@ export default function CustomBookingPaymentForm({
   onPaySuccess,
   createBooking,
   bookingId,
+  createIntent,
+  onConfirmPayment,
   buttonText,
   platformName = "Hollis",
+  paymentMethodTitle = "Payment method",
+  paymentMethodSubtitle,
+  summaryTitle,
+  summarySubtitle,
+  summaryItems,
+  secureFooterNote,
 }: CustomBookingPaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -183,50 +199,72 @@ export default function CustomBookingPaymentForm({
     setCardError("");
 
     try {
-      let resolvedBookingId = bookingId;
+      let clientSecret = "";
+      let paymentIntentId = "";
 
-      // If createBooking is passed (new booking flow), execute it first
-      if (createBooking) {
-        toast.loading("Creating your booking...", { id: "booking" });
+      if (createIntent) {
+        toast.loading("Initializing secure payment...", { id: "intent" });
         try {
-          resolvedBookingId = await createBooking();
-          toast.dismiss("booking");
+          const intentData = await createIntent();
+          toast.dismiss("intent");
+          clientSecret = intentData.clientSecret;
+          paymentIntentId = intentData.paymentIntentId || "";
         } catch (err: any) {
-          toast.dismiss("booking");
-          setCardError(err?.message || "Failed to create booking.");
-          toast.error(err?.message || "Failed to create booking.");
+          toast.dismiss("intent");
+          setCardError(err?.message || "Failed to initialize payment.");
+          toast.error(err?.message || "Failed to initialize payment.");
           setIsProcessing(false);
           return;
         }
-      }
+      } else {
+        let resolvedBookingId = bookingId;
 
-      if (!resolvedBookingId) {
-        setCardError("Booking ID is required to process payment.");
-        toast.error("Invalid booking information.");
-        setIsProcessing(false);
-        return;
-      }
+        // If createBooking is passed (new booking flow), execute it first
+        if (createBooking) {
+          toast.loading("Creating your booking...", { id: "booking" });
+          try {
+            resolvedBookingId = await createBooking();
+            toast.dismiss("booking");
+          } catch (err: any) {
+            toast.dismiss("booking");
+            setCardError(err?.message || "Failed to create booking.");
+            toast.error(err?.message || "Failed to create booking.");
+            setIsProcessing(false);
+            return;
+          }
+        }
 
-      // Initialize PaymentIntent on backend
-      toast.loading("Initializing secure payment...", { id: "intent" });
-      const intentRes = await createPaymentIntent({ booking_id: resolvedBookingId });
-      toast.dismiss("intent");
+        if (!resolvedBookingId) {
+          setCardError("Booking ID is required to process payment.");
+          toast.error("Invalid booking information.");
+          setIsProcessing(false);
+          return;
+        }
 
-      const intentData = intentRes?.data?.data;
+        // Initialize PaymentIntent on backend
+        toast.loading("Initializing secure payment...", { id: "intent" });
+        const intentRes = await createPaymentIntent({ booking_id: resolvedBookingId });
+        toast.dismiss("intent");
 
-      // Guard: Booking was already paid / auto-completed
-      if (intentData?.alreadyPaid) {
-        toast.success("Payment confirmed! Your booking is complete.");
-        setTimeout(() => onPaySuccess(), 1000);
-        return;
-      }
+        const intentData = intentRes?.data?.data;
 
-      if (!intentRes?.data?.success || !intentData?.clientSecret) {
-        const msg = intentRes?.data?.message || "Failed to initialize payment.";
-        setCardError(msg);
-        toast.error(msg);
-        setIsProcessing(false);
-        return;
+        // Guard: Booking was already paid / auto-completed
+        if (intentData?.alreadyPaid) {
+          toast.success("Payment confirmed! Your booking is complete.");
+          setTimeout(() => onPaySuccess(), 1000);
+          return;
+        }
+
+        if (!intentRes?.data?.success || !intentData?.clientSecret) {
+          const msg = intentRes?.data?.message || "Failed to initialize payment.";
+          setCardError(msg);
+          toast.error(msg);
+          setIsProcessing(false);
+          return;
+        }
+
+        clientSecret = intentData.clientSecret;
+        paymentIntentId = intentData.paymentIntentId || "";
       }
 
       // Confirm payment with Stripe using the custom card elements
@@ -249,7 +287,7 @@ export default function CustomBookingPaymentForm({
       }
 
       const { error, paymentIntent } = await stripe.confirmCardPayment(
-        intentData.clientSecret,
+        clientSecret,
         {
           payment_method: {
             card: cardNumberElement,
@@ -270,11 +308,19 @@ export default function CustomBookingPaymentForm({
         paymentIntent?.status === "succeeded" ||
         paymentIntent?.status === "processing"
       ) {
-        // Best-effort backend notify
-        try {
-          await confirmPayment({ payment_intent_id: paymentIntent.id });
-        } catch (e) {
-          console.warn("Backend confirm notice (non-fatal):", e);
+        if (onConfirmPayment) {
+          try {
+            await onConfirmPayment(paymentIntent.id);
+          } catch (e) {
+            console.warn("Custom confirm notice (non-fatal):", e);
+          }
+        } else {
+          // Best-effort backend notify
+          try {
+            await confirmPayment({ payment_intent_id: paymentIntent.id });
+          } catch (e) {
+            console.warn("Backend confirm notice (non-fatal):", e);
+          }
         }
         toast.success("Payment successful!");
         setTimeout(() => onPaySuccess(), 1200);
@@ -319,10 +365,11 @@ export default function CustomBookingPaymentForm({
         {/* ── Payment Method Card ── */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="font-display text-lg font-bold text-foreground">
-            Payment method
+            {paymentMethodTitle}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Enter your credit card or payment details below to complete your order securely.
+            {paymentMethodSubtitle ||
+              "Enter your credit card or payment details below to complete your order securely."}
           </p>
 
           <div className="mt-5 grid gap-4">
@@ -550,34 +597,71 @@ export default function CustomBookingPaymentForm({
         {/* ── Payment Summary Card ── */}
         <div className="h-max rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="font-display text-lg font-bold text-foreground">
-            Payment Summary
+            {summaryTitle || "Payment Summary"}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Paying through {platformName} platform to {businessName}
-          </p>
+          {summarySubtitle !== undefined ? (
+            summarySubtitle ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {summarySubtitle}
+              </p>
+            ) : null
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Paying through {platformName} platform to {businessName}
+            </p>
+          )}
 
           <dl className="mt-5 space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-foreground">Subtotal (Services)</dt>
-              <dd className="font-semibold text-foreground">
-                {displaySubtotal}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">
-                Service Fee ({serviceFeeRate}%)
-              </dt>
-              <dd className="text-muted-foreground font-medium">
-                {displayServiceFee}
-              </dd>
-            </div>
-            {taxAmount > 0 && (
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground">Taxes</dt>
-                <dd className="text-muted-foreground font-medium">
-                  {displayTax}
-                </dd>
-              </div>
+            {summaryItems && summaryItems.length > 0 ? (
+              summaryItems.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-3">
+                  <dt
+                    className={
+                      item.isMuted
+                        ? "text-muted-foreground"
+                        : "text-foreground font-medium"
+                    }
+                  >
+                    {item.label}
+                  </dt>
+                  <dd
+                    className={
+                      item.isMuted
+                        ? "text-muted-foreground font-medium"
+                        : "font-semibold text-foreground"
+                    }
+                  >
+                    {item.value}
+                  </dd>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-foreground">Subtotal (Services)</dt>
+                  <dd className="font-semibold text-foreground">
+                    {displaySubtotal}
+                  </dd>
+                </div>
+                {serviceFee > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      Service Fee ({serviceFeeRate}%)
+                    </dt>
+                    <dd className="text-muted-foreground font-medium">
+                      {displayServiceFee}
+                    </dd>
+                  </div>
+                )}
+                {taxAmount > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">Taxes</dt>
+                    <dd className="text-muted-foreground font-medium">
+                      {displayTax}
+                    </dd>
+                  </div>
+                )}
+              </>
             )}
           </dl>
 
@@ -610,9 +694,12 @@ export default function CustomBookingPaymentForm({
             )}
           </Button>
 
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Payments are held securely by {platformName} platform and paid out to provider after job completion.
-          </p>
+          {secureFooterNote !== "" && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              {secureFooterNote ||
+                `Payments are held securely by ${platformName} platform and paid out to provider after job completion.`}
+            </p>
+          )}
         </div>
       </div>
 
