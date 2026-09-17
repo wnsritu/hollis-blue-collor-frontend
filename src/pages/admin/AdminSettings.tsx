@@ -26,8 +26,8 @@ const AdminSettings = () => {
   const [passErrors, setPassErrors] = useState<Record<string, string>>({});
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [platform, setPlatform] = useState({
-    name: "Unik Clean",
-    email: "unik2help@gmail.com",
+    name: "Hollis",
+    email: "support@hollis.com",
   });
 
   const [commission, setCommission] = useState("15");
