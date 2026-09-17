@@ -661,6 +661,22 @@ export const CustomerOrderDetail: React.FC = () => {
                 </span>
               </div>
 
+              {isPaid && booking.payment?.payment_method_type && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                  <span>Payment Method:</span>
+                  <span className="font-semibold text-foreground capitalize">
+                    {booking.payment.payment_method_type}
+                  </span>
+                </div>
+              )}
+
+              {isPaid && booking.payment?.amount && Number(booking.payment.amount) !== totalAmountNum && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                  <span>Total Charged Amount:</span>
+                  <span className="font-bold text-foreground">{usd(Number(booking.payment.amount))}</span>
+                </div>
+              )}
+
               {formattedPaymentDate && (
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
                   <span>Payment Date:</span>

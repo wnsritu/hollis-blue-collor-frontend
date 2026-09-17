@@ -24,12 +24,12 @@ export const createCheckoutSessionApi = (data: {
 
 // 💳 Create subscription payment intent
 export const createPaymentSubscription = (data: any) => {
-  return apiClient.post("/subscriptions/create-payment", data);
+  return apiClient.post("/subscriptions/create-intent", data);
 };
 
 // 💳 Confirm subscription payment
 export const confirmPaymentSubscription = (data: any) => {
-  return apiClient.post("/subscriptions/confirm-payment", data);
+  return apiClient.post("/subscriptions/confirm", data);
 };
 
 export const subscriptionApi = {
@@ -44,6 +44,12 @@ export const subscriptionApi = {
 
   confirm: (payload: Record<string, unknown>) =>
     http.post<ApiSuccess>(ENDPOINTS.subscription.confirm, payload),
+
+  getActivePublicPlans: () =>
+    http.get<ApiSuccess<SubscriptionPlan[]>>(ENDPOINTS.subscription.activePublicPlans),
+
+  getProviderSubscription: () =>
+    http.get<ApiSuccess>(ENDPOINTS.subscription.providerCurrentSubscription),
 
   getCurrent: () => http.get<ApiSuccess>(ENDPOINTS.subscription.current),
 

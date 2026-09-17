@@ -124,11 +124,11 @@ export const selectPlan = (data: any) => {
 };
 
 export const getWalletCoins = () => {
-  return apiClient.get("/coins/my-wallet");
+  return apiClient.get("/coins/balance");
 };
 
 export const getMyPlan = () => {
-  return apiClient.get("/subscriptions/my-subscription");
+  return apiClient.get("/provider/subscription");
 };
 
 // ── High-Level Service Methods ──

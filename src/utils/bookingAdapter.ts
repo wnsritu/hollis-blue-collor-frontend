@@ -217,26 +217,30 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const formattedTime = formatDisplayTime(rawStartTime);
 
   // Pricing
+  const itemsSum = servicesList.reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0);
+
   const totalAmount = Number(
     b.pricing?.total ??
-    b.payment?.amount ??
     b.total_amount ??
+    b.payment?.amount ??
     b.price ??
     0
   );
 
-  const subtotal = Number(
-    b.pricing?.subtotal ??
-    b.payment?.gross_amount ??
-    b.proposal?.amount ??
-    b.subtotal ??
-    totalAmount
-  );
+  const subtotal = itemsSum > 0
+    ? itemsSum
+    : Number(
+        b.pricing?.subtotal ??
+        b.payment?.gross_amount ??
+        b.proposal?.amount ??
+        b.subtotal ??
+        totalAmount
+      );
 
   const serviceFee = Number(
-    b.pricing?.service_fee ??
-    b.service_fee ??
-    Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
+    b.pricing?.service_fee && b.pricing?.service_fee > 0
+      ? b.pricing.service_fee
+      : Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
   );
 
   const currency = b.pricing?.currency || b.payment?.currency || "USD";
