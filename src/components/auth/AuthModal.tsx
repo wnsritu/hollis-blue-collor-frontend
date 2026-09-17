@@ -705,7 +705,7 @@ const handleVerifyOtp = async (otp: string) => {
                 {tab === "login" ? t("login") : t("createAccount")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Unik Clean — Handled with care
+                Hollis — Handled with care
               </p>
             </div>
 
@@ -1088,11 +1088,11 @@ const handleVerifyOtp = async (otp: string) => {
                       <div className="px-6 py-4 space-y-4 text-sm text-gray-700">
                         {/* TERMS OF SERVICE */}
                         <h3 className="font-semibold text-lg">TERMS OF SERVICE</h3>
-                        <p>Unik Clean<br />Effective Date: March 31, 2026</p>
+                        <p>Hollis<br />Effective Date: March 31, 2026</p>
                         <ol className="list-decimal list-inside space-y-1">
-                          <li><strong>Overview:</strong> Unik Clean is a marketplace platform connecting customers with independent service providers. Unik Clean does not directly provide services.</li>
+                          <li><strong>Overview:</strong> Hollis is a marketplace platform connecting customers with independent service providers. Hollis does not directly provide services.</li>
                           <li><strong>User Accounts:</strong> Users must provide accurate information and maintain account security. Providers must complete verification before activation.</li>
-                          <li><strong>Services:</strong> Providers independently offer laundry and home services. Unik Clean is not responsible for how services are performed.</li>
+                          <li><strong>Services:</strong> Providers independently offer home and local services. Hollis is not responsible for how services are performed.</li>
                           <li><strong>Booking & Payments:</strong> Customer requests → Provider accepts → Customer pays via Stripe. Funds are released upon confirmation or automatically after 4 hours.</li>
                           <li><strong>Pricing:</strong> Includes provider pricing, service fees, pickup/delivery fees, and platform fees.</li>
                           <li><strong>Cancellations:</strong> Late cancellation: 50% customer refund, 10% provider, 40% platform.</li>
@@ -1102,10 +1102,10 @@ const handleVerifyOtp = async (otp: string) => {
                           <li><strong>Provider Responsibility:</strong> Providers handle services and item care independently.</li>
                           <li><strong>Ratings & Reviews:</strong> Users may leave public ratings and reviews.</li>
                           <li><strong>Payments & Payouts:</strong> Processed via Stripe.</li>
-                          <li><strong>Platform Role & Disclaimer of Liability:</strong> Unik Clean is not liable for loss, theft, damage, injury, or death related to services.</li>
+                          <li><strong>Platform Role & Disclaimer of Liability:</strong> Hollis is not liable for loss, theft, damage, injury, or death related to services.</li>
                           <li><strong>Assumption of Risk:</strong> Users accept risks associated with services and interactions.</li>
                           <li><strong>Limitation of Liability:</strong> Liability is limited to the transaction amount.</li>
-                          <li><strong>Indemnification:</strong> Users agree to protect Unik Clean from claims arising from use.</li>
+                          <li><strong>Indemnification:</strong> Users agree to protect Hollis from claims arising from use.</li>
                           <li><strong>Customer Responsibility:</strong> Customers must provide accurate information and safe environments.</li>
                         </ol>
 

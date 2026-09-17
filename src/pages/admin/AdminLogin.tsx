@@ -149,7 +149,7 @@ const LoginModal = ({
           </CardTitle>
 
           <p className="text-sm text-muted-foreground">
-            Unik Clean — {isAdmin ? "Admin Dashboard" : "Agent Dashboard"}
+            Hollis — {isAdmin ? "Admin Dashboard" : "Agent Dashboard"}
           </p>
         </CardHeader>
 
@@ -193,7 +193,7 @@ const LoginModal = ({
               <Input
                 value={email}
                 placeholder={
-                  isAdmin ? "admin@unikclean.com" : "agent@unikclean.com"
+                  isAdmin ? "admin@hollis.com" : "agent@hollis.com"
                 }
                 onChange={(e) => {
                   setEmail(e.target.value);
