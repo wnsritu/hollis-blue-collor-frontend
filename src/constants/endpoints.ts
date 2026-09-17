@@ -177,6 +177,8 @@ export const ENDPOINTS = {
 
   subscription: {
     plans: "/subscriptions/plans",
+    activePublicPlans: "/subscription-plans",
+    providerCurrentSubscription: "/provider/subscription",
     createCheckout: "/subscriptions/create-checkout-session",
     createIntent: "/subscriptions/create-intent",
     confirm: "/subscriptions/confirm",
@@ -185,6 +187,15 @@ export const ENDPOINTS = {
     history: "/subscriptions/history",
     status: "/subscriptions/status",
     allProviders: "/subscriptions/all-providers",
+  },
+
+  adminSubscription: {
+    listPlans: "/admin/subscription-plans",
+    getPlan: (id: number | string) => `/admin/subscription-plans/${id}`,
+    createPlan: "/admin/subscription-plans",
+    updatePlan: (id: number | string) => `/admin/subscription-plans/${id}`,
+    updatePlanStatus: (id: number | string) => `/admin/subscription-plans/${id}/status`,
+    overview: "/admin/subscriptions/overview",
   },
 
   // ─── Support / legacy ──────────────────────────────────

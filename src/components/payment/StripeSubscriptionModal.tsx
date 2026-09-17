@@ -1,306 +1,103 @@
-// import React, { useState, useEffect } from "react";
-// import { loadStripe } from "@stripe/stripe-js";
-// import {
-//   Elements,
-//   PaymentElement,
-//   useStripe,
-//   useElements,
-// } from "@stripe/react-stripe-js";
-// import { X, CreditCard, Lock } from "lucide-react";
-// import { Button } from "@/components/ui/button";
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogHeader,
-//   DialogTitle,
-// } from "@/components/ui/dialog";
-// import { createPaymentSubscription } from "@/services/payment";
-// import toast from "react-hot-toast";
-
-// const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
-
-// // Main Modal Component
-// export default function StripeSubscriptionModal({
-//   isOpen,
-//   onClose,
-//   plan,
-//   onSuccess,
-// }) {
-//   const [clientSecret, setClientSecret] = useState("");
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState("");
-
-//   // Step 1: Create payment intent when modal opens
-//   useEffect(() => {
-//     if (isOpen && plan) {
-//       createSubscriptionPayment();
-//     }
-//   }, [isOpen, plan]);
-
-//   const createSubscriptionPayment = async () => {
-//     setLoading(true);
-//     setError("");
-
-//     try {
-//       const req = {
-//         plan_id: plan?.id,
-//         use_coins: plan?.discount > 0, // ✅ Flag to use coins
-//         coins_used: plan?.coins_used || 0,
-//         discount_amount: plan?.discount || 0,
-//         final_amount: plan?.price || plan?.original_price,
-//       };
-      
-//       const response = await createPaymentSubscription(req);
-//       const result = response?.data;
-
-//       if (result?.success) {
-//         setClientSecret(result?.data?.clientSecret);
-//       } else {
-//         setError(result?.message || "Failed to initialize payment");
-//       }
-//     } catch (err) {
-//       console.error("Error creating payment:", err);
-//       setError("Network error. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <Dialog open={isOpen} onOpenChange={onClose}>
-//       <DialogContent className="sm:max-w-md">
-//         <DialogHeader>
-//           <DialogTitle className="flex items-center gap-2">
-//             <CreditCard className="w-5 h-5 text-primary" />
-//             Complete Payment
-//           </DialogTitle>
-//         </DialogHeader>
-
-//         {loading && (
-//           <div className="flex flex-col items-center justify-center py-8">
-//             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-//             <p className="mt-4 text-sm text-muted-foreground">
-//               Initializing payment...
-//             </p>
-//           </div>
-//         )}
-
-//         {error && (
-//           <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4">
-//             ❌ {error}
-//           </div>
-//         )}
-
-//         {clientSecret && !loading && (
-//           <Elements stripe={stripePromise} options={{ clientSecret }}>
-//             <PaymentForm
-//               plan={plan}
-//               onSuccess={onSuccess}
-//               onClose={onClose}
-//             />
-//           </Elements>
-//         )}
-//       </DialogContent>
-//     </Dialog>
-//   );
-// }
-
-// // Payment Form Component
-// function PaymentForm({ plan, onSuccess, onClose }) {
-//   const stripe = useStripe();
-//   const elements = useElements();
-//   const [isProcessing, setIsProcessing] = useState(false);
-//   const [errorMessage, setErrorMessage] = useState("");
-
-//   const handleSubmit = async (event) => {
-//     event.preventDefault();
-
-//     if (!stripe || !elements) {
-//       toast.error("Stripe not loaded. Please refresh the page.");
-//       return;
-//     }
-
-//     setIsProcessing(true);
-//     setErrorMessage("");
-
-//     try {
-//       // ✅ Step 2: Confirm payment with Stripe (Webhook will handle database update)
-//       const { error, paymentIntent } = await stripe.confirmPayment({
-//         elements,
-//         confirmParams: {
-//           payment_method_data: {
-//             billing_details: {
-//               name: localStorage.getItem("userName") || "Provider",
-//               email: localStorage.getItem("userEmail") || "provider@example.com",
-//             },
-//           },
-//         },
-//         redirect: "if_required",
-//       });
-
-//       if (error) {
-//         setErrorMessage(error.message);
-//         toast.error(error.message);
-//         setIsProcessing(false);
-//         return;
-//       }
-
-//       if (paymentIntent.status === "succeeded") {
-//         // ✅ NO confirm API call needed! Webhook will auto-update database
-        
-//         // ✅ Show success message
-//         toast.success("Payment successful! Your subscription is being activated...");
-        
-//         // ✅ Wait 2 seconds for webhook to process
-//         setTimeout(() => {
-//           onSuccess?.(paymentIntent);
-//           onClose();
-//         }, 2000);
-//       }
-//     } catch (err) {
-//       console.error("Payment error:", err);
-//       setErrorMessage("An unexpected error occurred");
-//       toast.error("Payment failed. Please try again.");
-//     } finally {
-//       setIsProcessing(false);
-//     }
-//   };
-
-//   const finalPrice = parseFloat(plan?.price || 0);
-//   const discount = parseFloat(plan?.discount || 0);
-//   const originalPrice = parseFloat(plan?.original_price || finalPrice);
-
-//   return (
-//     <form onSubmit={handleSubmit} className="space-y-4">
-//       <div className="bg-gray-50 rounded-lg p-4 mb-4">
-//         <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
-        
-//         {/* Show discount if applied */}
-//         {discount > 0 && (
-//           <>
-//             <div className="flex justify-between text-sm text-gray-500 line-through">
-//               <span>Original Price</span>
-//               <span>${originalPrice.toFixed(2)}</span>
-//             </div>
-//             <div className="flex justify-between text-sm text-green-600">
-//               <span>Discount (Coins Used)</span>
-//               <span>-${discount.toFixed(2)}</span>
-//             </div>
-//           </>
-//         )}
-        
-//         <div className="flex justify-between text-sm font-bold mt-2 pt-2 border-t">
-//           <span>{plan.name} - {plan.duration_days} Days</span>
-//           <span className="text-primary">${finalPrice.toFixed(2)}</span>
-//         </div>
-//       </div>
-
-//       <div className="border rounded-lg p-4 max-h-[320px] overflow-y-scroll">
-//         <label className="block text-sm font-medium mb-2">Card Details</label>
-//         <PaymentElement />
-//       </div>
-
-//       {errorMessage && (
-//         <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-//           ❌ {errorMessage}
-//         </div>
-//       )}
-
-//       <Button
-//         type="submit"
-//         disabled={!stripe || isProcessing}
-//         className="w-full"
-//       >
-//         {isProcessing ? (
-//           <>
-//             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-//             Processing...
-//           </>
-//         ) : (
-//           `Pay $${finalPrice.toFixed(2)}`
-//         )}
-//       </Button>
-
-//       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-//         <Lock className="w-3 h-3" />
-//         Secure payment powered by Stripe
-//       </div>
-//     </form>
-//   );
-// }
-
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useRef } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
   PaymentElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { CreditCard, Lock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Lock, ShieldCheck, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usd } from "@/components/shared/cards";
 import { createPaymentSubscription, confirmPaymentSubscription } from "@/services/payment";
+import { getMyPlan } from "@/services/provider";
 import toast from "react-hot-toast";
 import env from "@/config/env";
 
 const publishableKey = env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
-// Main Modal Component
+export const CARD_ELEMENT_STYLE = {
+  base: {
+    fontSize: "14px",
+    color: "#0f172a",
+    fontFamily:
+      'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    "::placeholder": {
+      color: "#94a3b8",
+    },
+  },
+  invalid: {
+    color: "#ef4444",
+  },
+};
+
+export interface StripeSubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  plan: any;
+  coins?: number;
+  onSuccess?: (subscriptionData?: any) => void;
+}
+
 export default function StripeSubscriptionModal({
   isOpen,
   onClose,
   plan,
+  coins = 0,
   onSuccess,
-}) {
+}: StripeSubscriptionModalProps) {
   const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen && plan) {
-      createSubscriptionPayment();
+      initPaymentIntent();
+    } else {
+      setClientSecret("");
+      setError("");
     }
   }, [isOpen, plan]);
 
-  const createSubscriptionPayment = async () => {
+  const initPaymentIntent = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const req = {
+      const payload = {
         plan_id: plan?.id,
-        use_coins: plan?.discount > 0,
+        use_coins: coins > 0 && plan?.discount > 0,
         coins_used: plan?.coins_used || 0,
         discount_amount: plan?.discount || 0,
         final_amount: plan?.price || plan?.original_price,
       };
-      
-      const response = await createPaymentSubscription(req);
+
+      const response = await createPaymentSubscription(payload);
       const result = response?.data;
 
-      if (result?.success) {
-        setClientSecret(result?.data?.clientSecret);
+      if (result?.success && result?.data?.clientSecret) {
+        setClientSecret(result.data.clientSecret);
       } else {
-        setError(result?.message || "Failed to initialize payment");
+        setError(result?.message || "Failed to initialize payment session.");
       }
-    } catch (err) {
-      console.error("Error creating payment:", err);
-      setError("Network error. Please try again.");
+    } catch (err: any) {
+      console.error("Error creating subscription payment intent:", err);
+      setError(
+        err?.response?.data?.message || "Network error. Failed to initialize payment."
+      );
     } finally {
       setLoading(false);
     }
@@ -308,32 +105,44 @@ export default function StripeSubscriptionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-primary" />
-            Complete Payment
+      <DialogContent className="max-w-2xl overflow-hidden p-6">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="font-display text-xl font-bold text-foreground">
+            Confirm plan change
           </DialogTitle>
         </DialogHeader>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Initializing payment...
+          <div className="flex flex-col items-center justify-center py-16 space-y-3">
+            <Loader2 size={36} className="animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Initializing secure checkout...
             </p>
           </div>
         )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4">
-            ❌ {error}
+        {error && !loading && (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 space-y-2 my-4">
+            <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
+              <AlertCircle size={16} />
+              <span>Payment Initialization Error</span>
+            </div>
+            <p className="text-xs text-destructive/90">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={initPaymentIntent}
+              className="mt-2 text-xs"
+            >
+              Retry Payment
+            </Button>
           </div>
         )}
 
         {clientSecret && !loading && (
           <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <PaymentForm
+            <SubscriptionPaymentForm
+              clientSecret={clientSecret}
               plan={plan}
               onSuccess={onSuccess}
               onClose={onClose}
@@ -345,294 +154,276 @@ export default function StripeSubscriptionModal({
   );
 }
 
-// ✅ Payment Form Component with Proper Verification
-function PaymentForm({ plan, onSuccess, onClose }) {
+function SubscriptionPaymentForm({
+  clientSecret,
+  plan,
+  onSuccess,
+  onClose,
+}: {
+  clientSecret: string;
+  plan: any;
+  onSuccess?: (data?: any) => void;
+  onClose: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
+
+  const [nameOnCard, setNameOnCard] = useState(
+    localStorage.getItem("userName") || ""
+  );
+  const [zip, setZip] = useState("78704");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [verificationStatus, setVerificationStatus] = useState(null);
-  const [verificationMessage, setVerificationMessage] = useState("");
-  const pollingIntervalRef = useRef(null);
-  const maxPollingAttempts = 10; // 10 * 2 seconds = 20 seconds
+  const [cardError, setCardError] = useState("");
+  const [useSplitElements, setUseSplitElements] = useState(true);
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // ✅ Core function to check if subscription is active
-  const checkSubscriptionActivation = async () => {
-    try {
-      const res = await getMyPlan();
-      const data = res?.data;
-      
-      // ✅ Check if subscription exists and is active
-      const subscription = data?.subscription || null;
-      const isActive = subscription?.status === "active";
-      const endDate = subscription?.end_date;
-      const isNotExpired = endDate ? new Date(endDate) > new Date() : false;
-      
-      return {
-        isActivated: isActive && isNotExpired,
-        subscription: subscription,
-      };
-    } catch (err) {
-      console.error("Error checking subscription:", err);
-      return { isActivated: false, subscription: null };
-    }
-  };
-
-  // ✅ Polling function to wait for webhook to complete
-  const waitForActivation = async (paymentIntentId) => {
-    setVerificationStatus("pending");
-    setVerificationMessage("Processing your payment...");
-    
-    let attempts = 0;
-    
-    return new Promise((resolve, reject) => {
-      pollingIntervalRef.current = setInterval(async () => {
-        attempts++;
-        setVerificationMessage(`Verifying subscription activation... (${attempts}/${maxPollingAttempts})`);
-        
-        try {
-          const { isActivated, subscription } = await checkSubscriptionActivation();
-          
-          if (isActivated) {
-            // ✅ Success! Webhook has updated the database
-            clearInterval(pollingIntervalRef.current);
-            setVerificationStatus("success");
-            setVerificationMessage("Subscription activated successfully!");
-            resolve(subscription);
-          } else if (attempts >= maxPollingAttempts) {
-            // ⏰ Timeout - webhook might be delayed
-            clearInterval(pollingIntervalRef.current);
-            setVerificationStatus("timeout");
-            setVerificationMessage("Payment successful! Your subscription will activate shortly.");
-            reject(new Error("Activation timeout"));
-          }
-        } catch (error) {
-          console.error("Polling error:", error);
-          if (attempts >= maxPollingAttempts) {
-            clearInterval(pollingIntervalRef.current);
-            setVerificationStatus("error");
-            setVerificationMessage("Unable to verify activation. Please contact support.");
-            reject(error);
-          }
-        }
-      }, 2000); // Check every 2 seconds
-    });
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (!stripe || !elements) {
-      toast.error("Stripe components not loaded. Please refresh.");
+      toast.error("Stripe is not fully loaded. Please refresh.");
+      return;
+    }
+
+    if (!nameOnCard.trim()) {
+      setCardError("Name on card is required.");
       return;
     }
 
     setIsProcessing(true);
-    setErrorMessage("");
+    setCardError("");
 
     try {
-      // Step 1: Trigger Stripe Elements native validation for inputs
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        setErrorMessage(submitError.message || "Please check your card details.");
-        setIsProcessing(false);
-        return;
-      }
+      let confirmResult: any;
 
-      const billingDetails: any = {};
-      const name = localStorage.getItem("userName");
-      const email = localStorage.getItem("userEmail");
-      if (name) billingDetails.name = name;
-      if (email) billingDetails.email = email;
-
-      const confirmParams: any = {
-        return_url: `${window.location.origin}/provider/dashboard`,
+      const billingDetails = {
+        name: nameOnCard.trim() || "Provider Account",
+        address: {
+          line1: "123 Business Way",
+          city: "Austin",
+          state: "TX",
+          postal_code: zip.trim() || "78704",
+          country: "US",
+        },
       };
-      if (Object.keys(billingDetails).length > 0) {
-        confirmParams.payment_method_data = {
-          billing_details: billingDetails,
-        };
+
+      if (useSplitElements) {
+        const cardNumber = elements.getElement(CardNumberElement);
+        if (!cardNumber) {
+          throw new Error("Card input element not ready.");
+        }
+
+        confirmResult = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardNumber,
+            billing_details: billingDetails,
+          },
+        });
+      } else {
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+          setCardError(submitError.message || "Please check card details.");
+          setIsProcessing(false);
+          return;
+        }
+
+        confirmResult = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: `${window.location.origin}/provider/subscription`,
+            payment_method_data: {
+              billing_details: billingDetails,
+            },
+          },
+          redirect: "if_required",
+        });
       }
 
-      // Step 2: Confirm payment with Stripe
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams,
-        redirect: "if_required",
-      });
-
-      if (error) {
-        setErrorMessage(error.message);
-        toast.error(error.message);
+      if (confirmResult.error) {
+        setCardError(confirmResult.error.message || "Payment failed.");
+        toast.error(confirmResult.error.message || "Payment failed.");
         setIsProcessing(false);
         return;
       }
 
-      if (paymentIntent.status === "succeeded") {
-        // ✅ Step 2: Show processing message
-        toast.loading("Payment successful! Activating your subscription...", {
-          duration: 10000,
+      const paymentIntent = confirmResult.paymentIntent;
+
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        toast.loading("Payment confirmed! Activating subscription...", {
+          id: "sub-activate",
         });
 
-        // ✅ Directly confirm the payment with backend (fallback for local development webhooks)
+        // Call confirm endpoint on backend
         try {
-          await confirmPaymentSubscription({ payment_intent_id: paymentIntent.id });
+          await confirmPaymentSubscription({
+            payment_intent_id: paymentIntent.id,
+          });
         } catch (confirmErr) {
-          console.error("Direct payment confirmation API call failed:", confirmErr);
+          console.error("Direct confirm API error:", confirmErr);
         }
 
-        // ✅ Step 3: Poll backend to confirm webhook/API processed
+        // Fetch updated subscription data
+        let updatedSub = null;
         try {
-          const subscription = await waitForActivation(paymentIntent.id);
-          
-          // ✅ Step 4: Success! Webhook has updated the database
-          toast.dismiss();
-          toast.success("Subscription activated successfully!");
-          
-          // ✅ Step 5: Close modal and refresh parent component
-          setTimeout(() => {
-            onSuccess?.(subscription);
-            onClose();
-          }, 1500);
-          
-        } catch (pollingError) {
-          // ⚠️ Webhook didn't update within timeout, but payment was successful
-          toast.dismiss();
-          
-          if (verificationStatus === "timeout") {
-            toast.success("Payment successful! Your subscription will activate shortly.");
-          } else {
-            toast.error("Payment successful but activation confirmation failed. Please contact support.");
-          }
-          
-          // Still close modal
-          setTimeout(() => {
-            onSuccess?.(null);
-            onClose();
-          }, 2000);
-        }
+          const res = await getMyPlan().catch(() => null);
+          updatedSub = res?.data?.subscription || null;
+        } catch { }
+
+        toast.dismiss("sub-activate");
+        toast.success(`You're on the ${plan.name} plan!`, {
+          // description: "Your new benefits are active immediately.",
+        });
+
+        setTimeout(() => {
+          onSuccess?.(updatedSub);
+          onClose();
+        }, 1000);
       }
-    } catch (err) {
-      console.error("Payment error:", err);
-      setErrorMessage("An unexpected error occurred");
+    } catch (err: any) {
+      console.error("Payment submission error:", err);
+      setCardError(
+        err?.message || "An unexpected payment error occurred. Please try again."
+      );
       toast.error("Payment failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const finalPrice = parseFloat(plan?.price || 0);
-  const discount = parseFloat(plan?.discount || 0);
-  const originalPrice = parseFloat(plan?.original_price || finalPrice);
+  const planPrice = Number(plan?.price || 0);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      {/* Order Summary */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-1">
-        <h4 className="font-semibold text-sm mb-2">Order Summary</h4>
-        
-        {discount > 0 && (
-          <>
-            <div className="flex justify-between text-sm text-gray-500 line-through">
-              <span>Original Price</span>
-              <span>${originalPrice.toFixed(2)}</span>
+    <form onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-6 items-start">
+        {/* Left Column: Payment method */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-display text-base font-bold text-foreground">
+              Payment method
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Enter your credit card or payment details below to complete your order securely.
+            </p>
+          </div>
+
+          {useSplitElements ? (
+            <div className="space-y-3">
+              {/* Card Number */}
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold text-foreground">Card number</Label>
+                <div className="rounded-xl border border-input bg-background px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20">
+                  <CardNumberElement
+                    options={{
+                      style: CARD_ELEMENT_STYLE,
+                      showIcon: true,
+                      placeholder: "4242 4242 4242 4242",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Expiry, CVC, Billing ZIP */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Expiry</Label>
+                  <div className="rounded-xl border border-input bg-background px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20">
+                    <CardExpiryElement options={{ style: CARD_ELEMENT_STYLE }} />
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold text-foreground">CVC</Label>
+                  <div className="rounded-xl border border-input bg-background px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20">
+                    <CardCvcElement options={{ style: CARD_ELEMENT_STYLE }} />
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Billing ZIP</Label>
+                  <Input
+                    placeholder="78704"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    className="h-[38px] text-xs font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Name on Card */}
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold text-foreground">Name on card</Label>
+                <Input
+                  placeholder="Sarah Whitfield"
+                  value={nameOnCard}
+                  onChange={(e) => setNameOnCard(e.target.value)}
+                  className="h-10 text-xs font-medium"
+                />
+              </div>
             </div>
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Discount (Coins Used)</span>
-              <span>-${discount.toFixed(2)}</span>
+          ) : (
+            <div className="rounded-xl border border-input p-3">
+              <PaymentElement />
             </div>
-          </>
-        )}
-        
-        <div className="flex justify-between text-sm font-bold mt-2 pt-2 border-t">
-          <span>{plan.name} - {plan.duration_days} Days</span>
-          <span className="text-primary">${finalPrice.toFixed(2)}</span>
-        </div>
-      </div>
+          )}
 
-      {/* Card Details */}
-      <div className="border rounded-lg p-4 max-h-[320px] overflow-y-scroll">
-      {/* <div className="border rounded-lg p-4"> */}
-        <label className="block text-sm font-medium mb-2">Card Details</label>
-        <PaymentElement
-          options={{
-            fields: {
-              billingDetails: {
-                name: "auto",
-                email: "auto",
-                address: "auto",
-              },
-            },
-          }}
-        />
-      </div>
+          {cardError ? (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-2.5 text-xs text-destructive font-medium flex items-center gap-1.5">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{cardError}</span>
+            </div>
+          ) : null}
 
-      {/* ✅ Verification Status UI */}
-      {verificationStatus === "pending" && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-blue-700">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">{verificationMessage}</span>
+          {/* SSL Badge Footer */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pt-1">
+            <ShieldCheck size={14} className="text-emerald-500" />
+            <span>Secure 256-bit SSL encrypted transaction.</span>
           </div>
         </div>
-      )}
 
-      {verificationStatus === "success" && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-green-700">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">{verificationMessage}</span>
+        {/* Right Column: Order Summary Box */}
+        <div className="rounded-2xl border border-border/80 bg-muted/20 p-5 flex flex-col justify-between h-full min-h-[280px]">
+          <div>
+            <h4 className="font-display font-bold text-base text-foreground">
+              {plan.name} plan — monthly
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Billed monthly, cancel anytime.
+            </p>
+
+            <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{plan.name} subscription</span>
+              <span className="font-semibold text-foreground">{usd(planPrice)}</span>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="flex items-baseline justify-between">
+              <span className="font-bold text-sm text-foreground">Total due</span>
+              <span className="font-extrabold text-2xl text-foreground font-display">
+                {usd(planPrice)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4">
+            <Button
+              type="submit"
+              disabled={!stripe || isProcessing}
+              className="w-full h-11 font-bold text-xs gap-1.5 shadow-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-primary dark:text-primary-foreground"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Lock size={12} />
+                  Pay {usd(planPrice)} and switch
+                </>
+              )}
+            </Button>
           </div>
         </div>
-      )}
-
-      {(verificationStatus === "timeout" || verificationStatus === "error") && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-yellow-700">
-            <XCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">{verificationMessage}</span>
-          </div>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          ❌ {errorMessage}
-        </div>
-      )}
-
-      <Button
-        type="submit"
-        disabled={!stripe || isProcessing || verificationStatus === "pending"}
-        className="w-full"
-      >
-        {isProcessing ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Processing...
-          </>
-        ) : verificationStatus === "pending" ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Verifying...
-          </>
-        ) : (
-          `Pay $${finalPrice.toFixed(2)}`
-        )}
-      </Button>
-
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Lock className="w-3 h-3" />
-        Secure payment powered by Stripe
       </div>
     </form>
   );

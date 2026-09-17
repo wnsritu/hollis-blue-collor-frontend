@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -42,7 +42,7 @@ export interface UsageData {
   featured_credits_remaining: number;
 }
 
-export default function ProviderFeatured() {
+export default function ProviderSubscriptionPage() {
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
@@ -169,7 +169,7 @@ export default function ProviderFeatured() {
               Current plan
             </p>
             <h2 className="mt-1 font-display text-2xl font-bold text-foreground">
-              {currentPlan?.name ?? "No active plan"}
+              {currentPlan?.name ?? "No plan"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {usd(Number(currentPlan?.price ?? 0))}/month · member since {startDateFormatted} · renews {nextBillingFormatted}

@@ -24,6 +24,31 @@ export const updatePlans = (data: any) => {
   return apiClient.put("/admin/plans/update", data);
 };
 
+// ─── M4 Admin Subscription Plan Management ────────────────
+export const adminListSubscriptionPlans = (params?: Record<string, any>) => {
+  return apiClient.get(ENDPOINTS.adminSubscription.listPlans, { params });
+};
+
+export const adminGetSubscriptionPlan = (id: number | string) => {
+  return apiClient.get(ENDPOINTS.adminSubscription.getPlan(id));
+};
+
+export const adminCreateSubscriptionPlan = (payload: any) => {
+  return apiClient.post(ENDPOINTS.adminSubscription.createPlan, payload);
+};
+
+export const adminUpdateSubscriptionPlan = (id: number | string, payload: any) => {
+  return apiClient.patch(ENDPOINTS.adminSubscription.updatePlan(id), payload);
+};
+
+export const adminUpdateSubscriptionPlanStatus = (id: number | string, is_active: boolean) => {
+  return apiClient.patch(ENDPOINTS.adminSubscription.updatePlanStatus(id), { is_active });
+};
+
+export const adminGetSubscriptionOverview = () => {
+  return apiClient.get(ENDPOINTS.adminSubscription.overview);
+};
+
 export const approvePlanByAdmin = () => {
   return apiClient.get("/approve-plan/:id");
 };
