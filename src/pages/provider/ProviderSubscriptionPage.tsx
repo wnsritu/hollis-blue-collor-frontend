@@ -39,6 +39,7 @@ export interface SubscriptionData {
 export interface UsageData {
   proposals_used: number;
   proposal_limit: number | null;
+  proposals_remaining?: number | null;
   featured_credits_remaining: number;
 }
 
@@ -186,6 +187,7 @@ export default function ProviderSubscriptionPage() {
             <p className="text-xs text-muted-foreground">Proposals used</p>
             <p className="text-sm font-semibold text-foreground">
               {usage.proposals_used} of {usage.proposal_limit === null ? "unlimited" : usage.proposal_limit}
+              {usage.proposals_remaining !== null && usage.proposals_remaining !== undefined ? ` (${usage.proposals_remaining} left)` : ""}
             </p>
           </div>
 
