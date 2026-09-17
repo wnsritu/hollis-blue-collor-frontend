@@ -157,11 +157,18 @@ export function AdminSubscriptions() {
         .map((f) => f.trim())
         .filter(Boolean);
 
+      const proposalLimitVal = form.isUnlimited
+        ? null
+        : form.proposal_limit && !isNaN(Number(form.proposal_limit))
+        ? Number(form.proposal_limit)
+        : null;
+
       await adminCreateSubscriptionPlan({
         name: form.name.trim(),
         price: priceNum,
         currency: "usd",
         billing_interval: "month",
+        proposal_limit: proposalLimitVal,
         description: form.description.trim() || null,
         features: featureList,
         is_active: true,
@@ -169,7 +176,7 @@ export function AdminSubscriptions() {
       });
 
       setOpen(false);
-      setForm({ name: "", price: "49", description: "", features: "" });
+      setForm({ name: "", price: "49", description: "", proposal_limit: "10", isUnlimited: false, features: "" });
       toast.success("Plan created");
       loadData();
     } catch (err: any) {
@@ -320,6 +327,32 @@ export function AdminSubscriptions() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pl">Proposal limit (per month)</Label>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    id="unlimited-prop"
+                    checked={form.isUnlimited}
+                    onChange={(e) => setForm({ ...form, isUnlimited: e.target.checked })}
+                    className="rounded border-input text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="unlimited-prop" className="text-xs font-normal cursor-pointer">
+                    Unlimited
+                  </Label>
+                </div>
+              </div>
+              {!form.isUnlimited && (
+                <Input
+                  id="pl"
+                  type="number"
+                  placeholder="10"
+                  value={form.proposal_limit}
+                  onChange={(e) => setForm({ ...form, proposal_limit: e.target.value })}
+                />
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="pf">Features (one per line)</Label>
