@@ -16,52 +16,96 @@ const publishableKey =
   env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
+export interface StripePaymentModalData {
+  modalTitle?: string;
+  businessName?: string;
+  subtotal: number;
+  grandTotal: number;
+  serviceFee?: number;
+  serviceFeeRate?: number;
+  taxAmount?: number;
+  buttonText?: string;
+  platformName?: string;
+  paymentMethodTitle?: string;
+  paymentMethodSubtitle?: string;
+  summaryTitle?: string;
+  summarySubtitle?: string;
+  summaryItems?: Array<{ label: string; value: string | React.ReactNode; isMuted?: boolean }>;
+  details?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    zip?: string;
+  };
+  createIntent?: () => Promise<{ clientSecret: string; paymentIntentId?: string }>;
+  onConfirmPayment?: (paymentIntentId: string) => Promise<any>;
+  secureFooterNote?: string;
+}
+
+export interface StripeBookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  bookingData?: any;
+  paymentData?: StripePaymentModalData;
+  onSuccess?: (paymentIntent?: any) => void;
+}
+
 export default function StripeBookingModal({
   isOpen,
   onClose,
   bookingData,
+  paymentData,
   onSuccess,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  bookingData: any;
-  onSuccess?: (paymentIntent?: any) => void;
-}) {
-  const norm = normalizeBooking(bookingData);
+}: StripeBookingModalProps) {
+  const norm = bookingData ? normalizeBooking(bookingData) : null;
   const rawBooking =
     bookingData?.data || bookingData?.booking || bookingData || {};
 
-  const bookingId = Number(
-    norm.id || rawBooking?.id || rawBooking?.booking_id || 0
-  );
+  const bookingId = paymentData
+    ? undefined
+    : Number(norm?.id || rawBooking?.id || rawBooking?.booking_id || 0);
+
   const businessName =
-    norm.providerName ||
+    paymentData?.businessName ||
+    norm?.providerName ||
     rawBooking?.provider?.business_name ||
     rawBooking?.provider?.name ||
     "Service Provider";
 
-  const subtotal = Number(norm.subtotal || rawBooking?.subtotal || 0);
-  const serviceFee = Number(norm.serviceFee || rawBooking?.service_fee || 0);
-  const taxAmount = Number(rawBooking?.tax_amount || 0);
+  const subtotal = Number(
+    paymentData?.subtotal ?? (norm?.subtotal || rawBooking?.subtotal || 0)
+  );
+  const serviceFee = Number(
+    paymentData?.serviceFee ?? (norm?.serviceFee || rawBooking?.service_fee || 0)
+  );
+  const taxAmount = Number(
+    paymentData?.taxAmount ?? (rawBooking?.tax_amount || 0)
+  );
   const grandTotal = Number(
-    norm.totalAmount ||
-      rawBooking?.total_amount ||
-      subtotal + serviceFee + taxAmount
+    paymentData?.grandTotal ??
+      (norm?.totalAmount ||
+        rawBooking?.total_amount ||
+        subtotal + serviceFee + taxAmount)
   );
 
   // Address & customer info for billing
   const customerName =
-    norm.customerName ||
+    paymentData?.details?.name ||
+    norm?.customerName ||
     rawBooking?.customer?.name ||
     localStorage.getItem("userName") ||
     "";
   const address =
-    norm.address ||
+    paymentData?.details?.address ||
+    norm?.address ||
     rawBooking?.service_address?.address ||
     rawBooking?.pickup_address ||
     rawBooking?.address ||
     "";
   let zip =
+    paymentData?.details?.zip ||
     rawBooking?.service_address?.zip ||
     rawBooking?.zip ||
     rawBooking?.postal_code ||
@@ -75,13 +119,16 @@ export default function StripeBookingModal({
   }
 
   const serviceFeeRate =
-    subtotal > 0 ? Math.round((serviceFee / subtotal) * 100) : 10;
+    paymentData?.serviceFeeRate ??
+    (subtotal > 0 ? Math.round((serviceFee / subtotal) * 100) : 10);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl p-6 sm:p-8 max-h-[92vh] overflow-y-auto">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Payment Checkout</DialogTitle>
+        <DialogHeader className={paymentData?.modalTitle ? "pb-2" : "sr-only"}>
+          <DialogTitle className="font-display text-xl font-bold text-foreground">
+            {paymentData?.modalTitle || "Payment Checkout"}
+          </DialogTitle>
         </DialogHeader>
 
         {!stripePromise && (
@@ -107,8 +154,16 @@ export default function StripeBookingModal({
               serviceFeeRate={serviceFeeRate}
               taxAmount={taxAmount}
               grandTotal={grandTotal}
-              buttonText="Pay & Confirm Booking"
-              platformName="Service Connect"
+              buttonText={paymentData?.buttonText || "Pay & Confirm Booking"}
+              platformName={paymentData?.platformName || "Service Connect"}
+              paymentMethodTitle={paymentData?.paymentMethodTitle}
+              paymentMethodSubtitle={paymentData?.paymentMethodSubtitle}
+              summaryTitle={paymentData?.summaryTitle}
+              summarySubtitle={paymentData?.summarySubtitle}
+              summaryItems={paymentData?.summaryItems}
+              createIntent={paymentData?.createIntent}
+              onConfirmPayment={paymentData?.onConfirmPayment}
+              secureFooterNote={paymentData?.secureFooterNote}
               details={{
                 name: customerName,
                 address: address,

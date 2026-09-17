@@ -93,7 +93,7 @@ export const PrivateRoutes = () => (
       <Route path="reviews" element={<AdminReviews />} />
       <Route path="sponsored" element={<AdminSponsored />} />
       <Route path="coins" element={<AdminCoins />} />
-      <Route path="featured" element={<AdminFeaturedPricing />} />
+      <Route path="featured" element={<Navigate to="/admin/featured-plans" replace />} />
       <Route path="reports" element={<AdminReports />} />
       <Route path="payouts" element={<AdminPayouts />} />
       <Route path="commission" element={<AdminCommission />} />

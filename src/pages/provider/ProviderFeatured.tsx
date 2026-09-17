@@ -1,281 +1,230 @@
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Sparkles, CreditCard, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
-import { subscriptionApi } from "@/services/payment";
-import { getWalletCoins } from "@/services/provider";
-import StripeSubscriptionModal from "@/components/payment/StripeSubscriptionModal";
+import { useAuthSession } from "@/hooks/useAuth";
+import StripeBookingModal from "@/components/payment/StripeBookingModal";
+import {
+  getActiveFeaturedPlans,
+  getMyFeaturedListings,
+  purchaseFeaturedListing,
+  confirmFeaturedListing,
+} from "@/services/featured/featured.service";
+import type { FeaturedPlanItem, FeaturedListingItem } from "@/types/featured";
 
-export interface PlanData {
-  id: number;
-  name: string;
-  slug?: string;
-  description?: string;
-  price: number | string;
-  currency?: string;
-  billing_interval?: string;
-  duration_days?: number;
-  proposal_limit?: number | null;
-  featured_credits?: number;
-  features?: string[] | string | null;
-  sort_order?: number;
-  popular?: boolean;
-}
-
-export interface SubscriptionData {
-  id: number;
-  provider_id: number;
-  plan_id: number;
-  status: string;
-  start_date?: string;
-  end_date?: string;
-  createdAt?: string;
-  plan?: PlanData;
-}
-
-export interface UsageData {
-  proposals_used: number;
-  proposal_limit: number | null;
-  featured_credits_remaining: number;
-}
-
-export default function ProviderFeatured() {
-  const [plans, setPlans] = useState<PlanData[]>([]);
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
-  const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
-  const [usage, setUsage] = useState<UsageData>({
-    proposals_used: 0,
-    proposal_limit: null,
-    featured_credits_remaining: 0,
-  });
-
-  const [coins, setCoins] = useState(0);
+export function ProviderFeatured() {
+  const { user } = useAuthSession();
+  const [plans, setPlans] = useState<FeaturedPlanItem[]>([]);
+  const [myListings, setMyListings] = useState<FeaturedListingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingPlan, setPendingPlan] = useState<FeaturedPlanItem | null>(null);
 
-  // Stripe Checkout Modal state
-  const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const loadSubscriptionData = useCallback(async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const [subRes, plansRes, coinsRes] = await Promise.all([
-        subscriptionApi.getProviderSubscription().catch(() => null),
-        subscriptionApi.getActivePublicPlans().catch(() => null),
-        getWalletCoins().catch(() => null),
+      const [plansRes, listingsRes] = await Promise.all([
+        getActiveFeaturedPlans(),
+        getMyFeaturedListings().catch(() => ({ data: [] })),
       ]);
 
-      // Set coins
-      setCoins(coinsRes?.data?.available_balance || 0);
-
-      // Set active plans
-      const rawPlans = plansRes?.data?.data || plansRes?.data || [];
-      const activePlansList: PlanData[] = Array.isArray(rawPlans) ? rawPlans : [];
-      setPlans(activePlansList);
-
-      // Set current subscription & usage
-      const subPayload =
-        subRes?.data?.subscription
-          ? subRes.data
-          : subRes?.data?.data?.subscription
-          ? subRes.data.data
-          : subRes?.subscription
-          ? subRes
-          : subRes?.data?.data || subRes?.data || subRes;
-
-      if (subPayload) {
-        setSubscription(subPayload.subscription || null);
-        setCurrentPlan(subPayload.plan || subPayload.subscription?.plan || null);
-        if (subPayload.usage) {
-          setUsage(subPayload.usage);
-        }
+      if (plansRes?.data) {
+        setPlans(plansRes.data);
       }
-    } catch (err) {
-      console.error("Failed to load provider subscription:", err);
-      toast.error("Failed to load subscription information.");
+      if (listingsRes?.data) {
+        setMyListings(listingsRes.data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load featured data:", err);
+      toast.error(err?.message || "Failed to load featured plans");
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    loadSubscriptionData();
-  }, [loadSubscriptionData]);
-
-  // Open Checkout Modal for a target plan
-  const handleSelectPlan = (plan: PlanData) => {
-    setSelectedPlan(plan);
-    setIsModalOpen(true);
-  };
-
-  // Format date helper
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "N/A";
-    try {
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const parseFeatures = (features: any): string[] => {
-    if (!features) return [];
-    if (Array.isArray(features)) return features;
-    if (typeof features === "string") {
-      try {
-        const parsed = JSON.parse(features);
-        return Array.isArray(parsed) ? parsed : [features];
-      } catch {
-        return [features];
-      }
-    }
-    return [];
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <Loader2 size={36} className="animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">Loading subscription status...</p>
-      </div>
-    );
-  }
-
-  const startDateFormatted = formatDate(subscription?.start_date || subscription?.createdAt);
-  const nextBillingFormatted = formatDate(subscription?.end_date);
-  const subStatus = subscription?.status
-    ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)
-    : "Inactive";
+    loadData();
+  }, []);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Subscription"
-        subtitle="Your plan controls proposal volume, visibility and support."
+        title="Featured listings"
+        subtitle="Appear above standard results in your category and ZIP codes."
       />
 
-      {/* Current Plan Card Section */}
-      <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-              Current plan
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-bold text-foreground">
-              {currentPlan?.name ?? "No active plan"}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {usd(Number(currentPlan?.price ?? 0))}/month · member since {startDateFormatted} · renews {nextBillingFormatted}
-            </p>
-          </div>
-          <StatusPill status={subStatus} />
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-
-        <Separator className="my-5" />
-
-        {/* 3 Stat Metrics */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-muted/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Proposals used</p>
-            <p className="text-sm font-semibold text-foreground">
-              {usage.proposals_used} of {usage.proposal_limit === null ? "unlimited" : usage.proposal_limit}
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-muted/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Featured credits</p>
-            <p className="text-sm font-semibold text-foreground">
-              {usage.featured_credits_remaining} remaining
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-muted/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Next invoice</p>
-            <p className="text-sm font-semibold text-foreground">
-              {usd(Number(currentPlan?.price ?? 0))} on {nextBillingFormatted}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Available Plans Section */}
-      <h2 className="mt-8 font-display text-xl font-bold text-foreground">Available plans</h2>
-      
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {plans.map((p) => {
-          const isCurrent = currentPlan?.id === p.id || subscription?.plan_id === p.id;
-          const isPopular = p.popular || p.sort_order === 2 || p.slug === "professional";
-          const featuresList = parseFeatures(p.features);
-
-          return (
-            <div
-              key={p.id}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all ${
-                isPopular
-                  ? "border-primary shadow-elevated ring-1 ring-primary/20"
-                  : "border-border"
-              }`}
-            >
-              {isPopular && (
-                <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-sm">
-                  Most popular
-                </span>
-              )}
-
-              <h3 className="font-display text-lg font-bold text-foreground">{p.name}</h3>
-
-              <p className="mt-2 font-display text-3xl font-extrabold text-primary">
-                {usd(Number(p.price))}
-                <span className="text-sm font-medium text-muted-foreground">/mo</span>
+      ) : (
+        <>
+          {/* Active Plans 3-Column Grid or Empty State */}
+          {plans.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-card">
+              <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/40" />
+              <h3 className="mt-4 font-display text-base font-bold text-foreground">
+                No featured plans available
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
+                There are currently no active boost plans published. Please check back later or contact support.
               </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>
-
-              <ul className="mt-4 flex-1 space-y-2 text-sm text-foreground/90">
-                {featuresList.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                className="mt-5 w-full font-semibold"
-                variant={isCurrent ? "outline" : "secondary"}
-                disabled={isCurrent}
-                onClick={() => handleSelectPlan(p)}
-              >
-                {isCurrent ? "Current plan" : `Switch to ${p.name}`}
-              </Button>
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {plans.map((p) => {
+                const days = p.days ?? p.duration_days;
+                const benefitsList = Array.isArray(p.benefits) ? p.benefits : [];
 
-      {/* Stripe Checkout Modal */}
-      {selectedPlan && (
-        <StripeSubscriptionModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          plan={selectedPlan}
-          coins={coins}
+                return (
+                  <div
+                    key={p.id}
+                    className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
+                  >
+                    <span className="inline-flex w-max items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 border border-rose-100">
+                      <Sparkles size={13} /> {days} days
+                    </span>
+
+                    <h3 className="mt-3 font-display text-lg font-bold text-foreground">
+                      {p.name}
+                    </h3>
+
+                    <p className="mt-1 font-display text-3xl font-extrabold text-foreground">
+                      {usd(p.price)}
+                    </p>
+
+                    <ul className="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
+                      {benefitsList.map((b, idx) => (
+                        <li key={idx}>· {b}</li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      className="mt-5 w-full bg-[#b91c1c] text-white hover:bg-[#991b1b] font-semibold"
+                      onClick={() => setPendingPlan(p)}
+                    >
+                      Feature my business
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* My Featured Listings Section */}
+          <section className="mt-8 rounded-2xl border border-border bg-card shadow-card">
+            <h2 className="px-6 pt-5 font-display text-lg font-bold">
+              My featured listings
+            </h2>
+            <div className="mt-4 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Listing</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead className="text-right">Spend</TableHead>
+                    <TableHead>Starts</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {myListings.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-8 text-center text-sm text-muted-foreground"
+                      >
+                        You have no featured listings running yet. Pick a plan above to boost your business!
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    myListings.map((l) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-medium text-foreground">
+                          {l.target}
+                        </TableCell>
+                        <TableCell>{l.plan}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {usd(l.spend)}
+                        </TableCell>
+                        <TableCell>{l.starts}</TableCell>
+                        <TableCell>{l.expires}</TableCell>
+                        <TableCell>
+                          <StatusPill status={l.status as any} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Reusable Customer Booking Payment Modal */}
+      {pendingPlan && (
+        <StripeBookingModal
+          isOpen={Boolean(pendingPlan)}
+          onClose={() => setPendingPlan(null)}
+          paymentData={{
+            modalTitle: "Purchase featured placement",
+            summaryTitle: pendingPlan.name,
+            summarySubtitle: `${pendingPlan.days ?? pendingPlan.duration_days} days of boosted placement.`,
+            businessName: pendingPlan.name,
+            subtotal: pendingPlan.price,
+            grandTotal: pendingPlan.price,
+            buttonText: `Pay ${usd(pendingPlan.price)}`,
+            paymentMethodSubtitle: "Enter your card details below to complete your visibility boost.",
+            secureFooterNote: "",
+            details: {
+              name: user?.full_name || (user as any)?.provider?.business_name || "",
+              zip: (user as any)?.zip_code || "",
+            },
+            summaryItems: [
+              { label: pendingPlan.name, value: usd(pendingPlan.price) },
+              {
+                label: "Placement Boost Duration",
+                value: `${pendingPlan.days ?? pendingPlan.duration_days} Days`,
+                isMuted: true,
+              },
+            ],
+            createIntent: async () => {
+              const res = await purchaseFeaturedListing({
+                plan_id: pendingPlan.id,
+                duration_days: pendingPlan.days ?? pendingPlan.duration_days,
+                price: pendingPlan.price,
+              });
+              const clientSecret = res?.data?.clientSecret;
+              const paymentIntentId = res?.data?.paymentIntentId;
+              if (!clientSecret) {
+                throw new Error(res?.data?.message || "Failed to initialize payment.");
+              }
+              return { clientSecret, paymentIntentId };
+            },
+            onConfirmPayment: async (paymentIntentId: string) => {
+              return await confirmFeaturedListing(paymentIntentId);
+            },
+          }}
           onSuccess={() => {
-            setIsModalOpen(false);
-            loadSubscriptionData();
-            toast.success(`You are now subscribed to the ${selectedPlan.name} plan!`, {
-              description: "Your new proposal benefits are active immediately.",
-            });
+            setPendingPlan(null);
+            toast.success("Featured listing active! Your profile now ranks above standard results in search.");
+            loadData();
           }}
         />
       )}
     </div>
   );
 }
+
+export default ProviderFeatured;

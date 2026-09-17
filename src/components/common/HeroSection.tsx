@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 
 // HOME IMAGES
-import img1 from "../assets/slide-1.png";
-import img2 from "../assets/slide-2.png";
-import img3 from "../assets/Property 1=slide-6.png";
-import img4 from "../assets/Property 1=slide-7.png";
-import img5 from "../assets/slide-5.png";
+import img1 from "../../assets/slide-1.png";
+import img2 from "../../assets/slide-2.png";
+import img3 from "../../assets/Property 1=slide-6.png";
+import img4 from "../../assets/Property 1=slide-7.png";
+import img5 from "../../assets/slide-5.png";
 
 // ABOUT IMAGES (apni images daal lena)
-import about1 from "../assets/slide1.png";
-import about2 from "../assets/slide2.png";
-import about3 from "../assets/Property 1=slide-6.png";
-import about4 from "../assets/Property 1=slide-7.png";
+import about1 from "../../assets/slide1.png";
+import about2 from "../../assets/slide2.png";
+import about3 from "../../assets/Property 1=slide-6.png";
+import about4 from "../../assets/Property 1=slide-7.png";
 
 
 const homeSlides = [

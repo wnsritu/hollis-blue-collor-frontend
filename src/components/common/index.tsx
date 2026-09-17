@@ -7,3 +7,5 @@ export { default as ScrollToTop } from "./ScrollToTop";
 export { default as CategoryFilterTabs } from "./CategoryFilterTabs";
 export { default as HeroSection } from "./HeroSection";
 export { default as DashboardWidgets } from "./DashboardWidgets";
+export { default as ConfirmDialog } from "./ConfirmDialog";
+export * from "./ConfirmDialog";

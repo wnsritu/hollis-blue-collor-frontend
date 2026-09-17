@@ -97,8 +97,8 @@ function ProviderRestrictedState({
 }) {
   const dbVerified = String(
     profile?.verified ||
-      user?.provider?.verified ||
-      ""
+    user?.provider?.verified ||
+    ""
   )
     .toLowerCase()
     .trim();
@@ -529,9 +529,9 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         const verified =
           checkIsVerified(
             profile?.verified ||
-              user?.provider?.verified,
+            user?.provider?.verified,
             profile?.onboarding_status ||
-              user?.onboarding_status
+            user?.onboarding_status
           );
 
         if (verified) {
@@ -575,9 +575,9 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   const isVerified =
     checkIsVerified(
       providerProfile?.verified ||
-        user?.provider?.verified,
+      user?.provider?.verified,
       providerProfile?.onboarding_status ||
-        user?.onboarding_status
+      user?.onboarding_status
     );
 
   /**
