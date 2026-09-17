@@ -204,7 +204,16 @@ export const FALLBACK_CATALOG_TREE: Category[] = [
 
 export const catalogApi = {
   getTree: async () => {
-    return { data: FALLBACK_CATALOG_TREE } as any;
+    try {
+      const res = await http.get<ApiSuccess<Category[]>>(ENDPOINTS.catalog.tree);
+      const list = (res as any)?.data?.data || (res as any)?.data || res;
+      if (Array.isArray(list) && list.length > 0) {
+        return { data: list } as any;
+      }
+      return { data: FALLBACK_CATALOG_TREE } as any;
+    } catch (e) {
+      return { data: FALLBACK_CATALOG_TREE } as any;
+    }
   },
 
   listCategories: () =>

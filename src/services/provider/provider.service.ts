@@ -127,12 +127,25 @@ export const uploadProviderFile = async (formData: FormData) => {
   return uploadProviderFileApi(formData);
 };
 
-export const getServiceTypes = async (_params?: any) => {
-  return [
-    { id: 1, name: "Electrical" },
-    { id: 2, name: "Plumbing" },
-    { id: 3, name: "Cleaning" },
-  ];
+export const getServiceTypes = async (params?: any) => {
+  try {
+    const res = await getServiceTypesApi(params);
+    const list = res.data?.data || res.data || [];
+    if (Array.isArray(list) && list.length > 0) {
+      return list;
+    }
+    return [
+      { id: 1, name: "Electrical" },
+      { id: 2, name: "Plumbing" },
+      { id: 3, name: "Cleaning" },
+    ];
+  } catch (e) {
+    return [
+      { id: 1, name: "Electrical" },
+      { id: 2, name: "Plumbing" },
+      { id: 3, name: "Cleaning" },
+    ];
+  }
 };
 
 export const addProviderBooking = async (_data: any) => {

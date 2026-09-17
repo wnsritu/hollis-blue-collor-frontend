@@ -821,14 +821,24 @@ const ProviderProfileSettings = () => {
                 </div>
               )}
 
-              {address && (
+              {/* {address && (
                 <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
                   <span className="shrink-0 text-muted-foreground">Address</span>
                   <span className="text-right font-medium text-foreground">
                     {[address, city, state, zip].filter(Boolean).join(", ")}
                   </span>
                 </div>
+              )} */}
+              {address && (
+                <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
+                  <span className="shrink-0 text-muted-foreground">Starting Price</span>
+                  <span className="text-right font-medium text-foreground">
+                    $120
+                  </span>
+                </div>
               )}
+
+
             </CardContent>
           </Card>
         </div>

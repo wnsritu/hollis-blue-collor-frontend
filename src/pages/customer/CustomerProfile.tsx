@@ -246,10 +246,12 @@ const CustomerProfile = () => {
                       <Input
                         id="mobileNumber"
                         type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9+]*"
                         value={mobileNumber}
                         onChange={(e) => handleMobileNumberChange(e.target.value)}
                         onBlur={() => handleMobileNumberChange(mobileNumber)}
-                        placeholder="e.g. (555) 234-5678"
+                        placeholder="e.g. 5552345678"
                         className={cn(
                           fieldErrors.mobileNumber &&
                           "border-destructive focus-visible:ring-destructive"
