@@ -396,8 +396,10 @@ const AdminOrders = () => {
                         {order.order_id ||
                           `ORD-${order.id.toString().padStart(3, "0")}`}
                       </td>
-                      <td className="px-4 py-3 text-foreground">
-                        {order.customer?.first_name} {order.customer?.last_name}
+                      <td className="px-4 py-3 text-foreground font-medium">
+                        {order.customer?.full_name ||
+                          `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() ||
+                          `Customer #${order.customer?.id || order.id}`}
                       </td>
                       <td className="px-4 py-3 text-foreground">
                         {order.provider?.business_name ||
