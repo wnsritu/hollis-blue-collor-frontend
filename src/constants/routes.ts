@@ -43,6 +43,7 @@ export const ROUTES = {
   PROVIDER_SERVICES_PRICING: "/provider/services-pricing",
   PROVIDER_AVAILABILITY: "/provider/availability",
   PROVIDER_EARNINGS: "/provider/earnings",
+  PROVIDER_SUBSCRIPTION: "/provider/subscription",
   PROVIDER_FEATURED: "/provider/featured",
   PROVIDER_PROFILE_SETTINGS: "/provider/profile",
   PROVIDER_CUSTOM_REQUEST_DETAIL: "/provider/custom-requests/:id",

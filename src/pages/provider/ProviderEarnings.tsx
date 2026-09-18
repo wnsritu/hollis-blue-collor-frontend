@@ -1,7 +1,4 @@
-import { useTranslation } from "react-i18next";
-import { DollarSign, Clock, Wallet } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Banknote, Percent, Receipt, Wallet } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -10,199 +7,140 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getBookingPaymentSummary, getOrderList } from "@/services/order.service";
-import { getProviderEarningsSummary } from "@/services/provider.service";
-import { useEffect, useState } from "react";
-import PaginationController from "@/components/ui/PaginationController";
+import { MockNotice, PageHeader, StatCard, StatusPill } from "@/components/shared/primitives";
 
-const statusColor: Record<string, string> = {
-  Approved: "bg-secondary/10 text-secondary",
-  Pending: "bg-primary/10 text-primary",
-  Rejected: "bg-destructive/10 text-destructive",
-};
+const usd = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
-const ProviderEarnings = () => {
-  const { t } = useTranslation();
-  const [orders, setOrders] = useState([]);
-  const [earning, setEarning] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+const commissionRate = 10;
 
-  const [summary, setSummary] = useState({
-    totalEarnings: 850.0,
-    pendingPayouts: 200.0,
-    availableBalance: 695.0,
-  });
+const revenueSeries = [
+  { month: "Feb", revenue: 0, commission: 0 },
+  { month: "Mar", revenue: 0, commission: 0 },
+  { month: "Apr", revenue: 0, commission: 0 },
+  { month: "May", revenue: 0, commission: 0 },
+  { month: "Jun", revenue: 0, commission: 0 },
+  { month: "Jul", revenue: 0, commission: 0 },
+  { month: "Aug", revenue: 500, commission: 50 },
+];
 
-  useEffect(() => {
-    getProviderEarningsSummary().then((res) => {
-      if (res) setSummary(res);
-    });
-  }, []);
+const transactions = [
+  {
+    id: "TRX-77188",
+    jobId: "JOB-10310",
+    customer: "Marcus Bell",
+    providerId: "abc-plumbing",
+    provider: "ABC Plumbing Co.",
+    amount: 500,
+    commissionRate: 10,
+    status: "Paid",
+    payout: "Paid",
+    date: "Aug 8, 2026",
+  },
+];
 
-  const totalEarnings = summary.totalEarnings;
-  const pendingPayouts = summary.pendingPayouts;
-  const availableBalance = summary.availableBalance;
-  const isDashboardAvailable = true; // Set to false to show Coming Soon view
-
-  if (!isDashboardAvailable) {
-    // ✅ Coming Soon View
-    return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <div className="text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-            <DollarSign size={24} />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground">
-            Earnings Dashboard Coming Soon
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            We're working on your earnings, payouts, and transaction tracking.
-            Stay tuned!
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const fetchOrderEarning = async (page = 1) => {
-    try {
-      setLoading(true);
-      const response = await getBookingPaymentSummary();
-      // debugger
-      if (response.data.success) {
-        const ordersData = response.data.data || {};
-        setEarning(ordersData);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch all orders for dashboard
-  const fetchOrderList = async (page = 1) => {
-    try {
-      setLoading(true);
-      let reqData = {
-        page: page,
-        limit: 5,
-        status: "",
-      };
-      const response = await getOrderList(reqData);
-
-      if (response.data.success) {
-        const ordersData = response.data.bookings || [];
-        setOrders(ordersData);
-        setTotalPages(response.data.total_pages || 1);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrderEarning();
-  }, []);
-
-  useEffect(() => {
-    if (true) {
-      fetchOrderList(currentPage);
-    }
-  }, [currentPage]);
+export const ProviderEarnings = () => {
+  const mine = transactions;
+  const paid = mine.filter((t) => t.status === "Paid");
+  const gross = paid.reduce((s, t) => s + t.amount, 0);
+  const commission = paid.reduce((s, t) => s + (t.amount * commissionRate) / 100, 0);
+  const payable = paid
+    .filter((t) => t.payout === "Pending")
+    .reduce((s, t) => s + (t.amount * (100 - commissionRate)) / 100, 0);
+  const released = paid
+    .filter((t) => t.payout === "Paid")
+    .reduce((s, t) => s + (t.amount * (100 - commissionRate)) / 100, 0);
+  const max = Math.max(...revenueSeries.map((r) => r.revenue || 1));
 
   return (
-    <div className="container-grid py-8">
-      <h1 className="font-heading text-2xl font-bold text-foreground">
-        {t("earnings")}
-      </h1>
+    <div className="space-y-6">
+      <PageHeader title="Earnings" subtitle={`Current platform commission rate: ${commissionRate}%`} />
 
-      {/* Wallet Summary */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-5 card-elevated">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-secondary">
-              <DollarSign size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {t("totalEarnings")}
-              </p>
-              <p className="text-xl font-bold text-foreground">
-                ${earning?.paid?.total_amount.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5 card-elevated">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-primary">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {t("pendingPayouts")}
-              </p>
-              <p className="text-xl font-bold text-foreground">
-                ${earning?.pending?.total_amount.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Gross service revenue" value={usd(gross)} hint="All paid jobs" icon={Receipt} />
+        <StatCard label="Platform commission" value={usd(commission)} hint={`${commissionRate}% of gross`} icon={Percent} tone="warning" />
+        <StatCard label="Payable balance" value={usd(payable)} hint="Awaiting payout release" icon={Wallet} tone="accent" />
+        <StatCard label="Paid out to date" value={usd(released)} hint="Deposited to your bank" icon={Banknote} tone="success" />
       </div>
 
-      {/* Transactions */}
-      <div className="mt-8 rounded-xl border border-border bg-card p-5">
-        <h2 className="font-heading text-base font-semibold text-foreground mb-4">
-          {t("transactions")}
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="pb-2 text-left font-semibold">{t("date")}</th>
-                <th className="pb-2 text-left font-semibold">{t("orderId")}</th>
-                <th className="pb-2 text-left font-semibold">{t("amount")}</th>
-                <th className="pb-2 text-left font-semibold">{t("status")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders?.map((tx, i) => (
-                <tr key={i} className="border-b border-border last:border-0">
-                  <td className="py-2.5 text-muted-foreground">{tx?.booking_date}</td>
-                  <td className="py-2.5 font-medium">{"ORD-"}{tx?.id}</td>
-                  <td className="py-2.5 text-left">${Number(tx?.total_amount || 0).toFixed(2)}</td>
-                  <td className="py-2.5">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1.5 text-xs font-medium ${
-                        tx?.payment_status === "paid"
-                          ? "bg-secondary/10 text-secondary"
-                          : "bg-primary/10 text-primary"
-                      }`}
-                    >
-                      {tx?.payment_status.charAt(0).toUpperCase() + tx?.payment_status.slice(1)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+        <h2 className="font-display text-lg font-bold">Monthly earnings trend</h2>
+        <div className="mt-6 flex h-52 items-end gap-3">
+          {revenueSeries.map((r) => {
+            const net = r.revenue - r.commission;
+            return (
+              <div key={r.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                <div className="flex h-full w-full flex-col justify-end gap-0.5">
+                  <div
+                    className="w-full rounded-t-md bg-warning/70"
+                    style={{ height: `${(r.commission / max) * 100}%` }}
+                    title={`Commission ${usd(r.commission)}`}
+                  />
+                  <div
+                    className="w-full rounded-b-md bg-primary"
+                    style={{ height: `${(net / max) * 100}%` }}
+                    title={`Net ${usd(net)}`}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">{r.month}</span>
+              </div>
+            );
+          })}
         </div>
-        <div className="mt-4">
-          <PaginationController
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => {
-              setCurrentPage(page);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-primary" /> Net to provider
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-warning/70" /> Platform commission
+          </span>
         </div>
-      </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card shadow-card">
+        <h2 className="px-6 pt-5 font-display text-lg font-bold">Transaction history</h2>
+        <div className="mt-4 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Transaction</TableHead>
+                <TableHead>Job</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Commission</TableHead>
+                <TableHead className="text-right">You receive</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Payout</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mine.map((t) => {
+                const comm = (t.amount * commissionRate) / 100;
+                const rec = t.amount - comm;
+                return (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">{t.id}</TableCell>
+                    <TableCell>{t.jobId}</TableCell>
+                    <TableCell>{t.customer}</TableCell>
+                    <TableCell className="text-right">{usd(t.amount)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">−{usd(comm)}</TableCell>
+                    <TableCell className="text-right font-semibold">{usd(rec)}</TableCell>
+                    <TableCell>
+                      <StatusPill status={t.status} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill status={t.payout === "Paid" ? "Paid" : "Pending"} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="p-6 pt-4">
+          <MockNotice>Payouts are processed according to the platform schedule and verified by administrators.</MockNotice>
+        </div>
+      </section>
     </div>
   );
 };

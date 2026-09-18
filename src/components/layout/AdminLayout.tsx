@@ -1,24 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import {
-  LayoutDashboard,
+  Gauge,
   Users,
-  Building2,
-  ClipboardList,
-  AlertTriangle,
-  Star,
-  Coins,
-  Settings,
-  ShieldCheck,
-  DollarSign,
-  LayoutGrid,
+  CheckCircle2,
+  SlidersHorizontal,
+  Briefcase,
   CreditCard,
   Sparkles,
+  List,
   Percent,
   Wallet,
-  BarChart3,
-  Receipt,
-  MessageSquare,
+  Star,
+  Settings,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
@@ -26,32 +20,26 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
+  { label: "Dashboard", to: "/admin", icon: Gauge },
   { label: "Customers", to: "/admin/customers", icon: Users },
-  { label: "Providers", to: "/admin/providers", icon: Building2 },
+  { label: "Providers", to: "/admin/providers", icon: CheckCircle2 },
   {
     label: "Category Management",
     to: "/admin/categories",
-    icon: LayoutGrid,
+    icon: SlidersHorizontal,
     children: [
       { label: "Subcategories", to: "/admin/categories" },
       { label: "Services", to: "/admin/services" },
     ],
   },
-  { label: "Service Bookings", to: "/admin/orders", icon: ClipboardList },
+  { label: "Service Bookings", to: "/admin/orders", icon: Briefcase },
   { label: "Subscriptions", to: "/admin/subscriptions", icon: CreditCard },
   { label: "Featured Plans", to: "/admin/featured-plans", icon: Sparkles },
-  { label: "Featured Listings", to: "/admin/featured-listings", icon: Star },
+  { label: "Featured Listings", to: "/admin/featured-listings", icon: List },
   { label: "Commission", to: "/admin/commission", icon: Percent },
   { label: "Payout Queue", to: "/admin/payouts", icon: Wallet },
-  { label: "Transactions", to: "/admin/transactions", icon: Receipt },
-  { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
-  { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
-  { label: "Reviews Directory", to: "/admin/reviews", icon: Star },
-  { label: "Reports", to: "/admin/reports", icon: BarChart3 },
-  { label: "Coins Management", to: "/admin/coins", icon: Coins },
-  { label: "Featured Pricing", to: "/admin/featured", icon: DollarSign },
-  { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
+  { label: "Reviews", to: "/admin/reviews", icon: Star },
+  { label: "Reports", to: "/admin/reports", icon: Gauge },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
 ];
 
@@ -93,7 +81,7 @@ export const AdminLayout = () => {
   return (
     <DashboardShell
       nav={adminNav}
-      title="Platform Admin"
+      title="ADMIN CONSOLE"
       accountName={accountName}
       accountRole="Administrator"
       avatarUrl={avatarUrl}

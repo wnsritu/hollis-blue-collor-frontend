@@ -73,7 +73,7 @@ export const ProviderProfile: React.FC = () => {
           setFetchedReviews(list);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -178,7 +178,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedCerts)) {
         certsList = parsedCerts.map((c: any) => (typeof c === "string" ? c : c.name || String(c))).filter(Boolean);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse FAQs dynamically
@@ -189,7 +189,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedFaqs)) {
         faqsList = parsedFaqs.filter((f: any) => f && f.question && f.answer);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Portfolio dynamically
@@ -200,7 +200,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedPort)) {
         portfolioList = parsedPort.filter((p: any) => p && p.url);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Reviews dynamically from API (embedded or fallback fetched)
@@ -386,7 +386,7 @@ export const ProviderProfile: React.FC = () => {
           )}
 
           {/* Portfolio (Rendered only if provider has portfolio images) */}
-          {portfolioList.length > 0 && (
+          {/* {portfolioList.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
               <h2 className="font-display text-lg font-bold mb-4">Portfolio</h2>
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
@@ -406,7 +406,7 @@ export const ProviderProfile: React.FC = () => {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Frequently Asked Questions (Rendered only if provider has FAQs) */}
           {faqsList.length > 0 && (

@@ -349,7 +349,7 @@ const SupportAgentsPage = () => {
               Create Support Agent
             </h1>
             <p className="text-center text-xs text-gray-500 mb-4">
-              Unik Clean — Handled with care
+              Hollis — Blue Collar Worker
             </p>
             {/* FORM */}
             <div className="space-y-5">
@@ -395,7 +395,7 @@ const SupportAgentsPage = () => {
                 </label>
                 <input
                   name="email"
-                  placeholder="agent@unikclean.com"
+                  placeholder="agent@hollis.com"
                   className="mt-1 h-9 w-full rounded-md border border-gray-200 px-2 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   value={form.email}
                   onChange={handleChange}
