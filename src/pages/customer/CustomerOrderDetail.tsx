@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
@@ -312,6 +313,25 @@ export const CustomerOrderDetail: React.FC = () => {
               <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
                 <MessageSquare size={14} /> Message Pro
               </Button>
+            )}
+
+            {!isCancelled && (
+              (booking.is_disputed || (booking.dispute && booking.dispute.is_disputed) || (booking.dispute?.status && booking.dispute.status !== "none" && booking.dispute.status !== "null")) ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 border border-rose-200">
+                  <AlertTriangle size={14} /> Dispute Opened ({booking.dispute?.status && booking.dispute.status !== "none" ? booking.dispute.status : "Active"})
+                </span>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                >
+                  <Link to={`/report-issue/${booking.id}`}>
+                    <AlertTriangle size={14} /> Report Issue
+                  </Link>
+                </Button>
+              )
             )}
 
             {!isPaid && !isCancelled && (

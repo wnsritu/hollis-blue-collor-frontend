@@ -102,7 +102,8 @@ const AdminDisputes = () => {
   useEffect(() => {
     const initial: Record<string | number, any> = {};
     disputes.forEach((d) => {
-      initial[d.dispute_id] = d.assigned_agent?.id || "";
+      const id = d.id || d.dispute_id;
+      initial[id] = d.assignedAgent?.id || d.agent_id || d.assigned_agent?.id || "";
     });
     setSelectedAgents(initial);
   }, [disputes]);
@@ -199,15 +200,17 @@ const AdminDisputes = () => {
   };
 
   const handleAssign = async (disputeId: any, agentId: any) => {
+    if (!agentId) return;
     setSelectedAgents((prev) => ({ ...prev, [disputeId]: agentId }));
     try {
       const res: any = await assignAgent({
         dispute_id: Number(disputeId),
-        agent_id: agentId,
+        agent_id: Number(agentId),
       });
 
       const message = res?.data?.message || "Agent assigned successfully!";
       toast.success(message);
+      fetchDisputes(currentPage);
     } catch (err: any) {
       console.error(err);
       const errorMsg = err?.response?.data?.message || "Failed to assign agent";
@@ -370,75 +373,82 @@ const AdminDisputes = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {disputes.map((d) => (
-                    <TableRow key={d?.dispute_id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-semibold font-mono text-primary text-xs">
-                        DSP-{d?.dispute_id}
-                      </TableCell>
+                  {disputes.map((d) => {
+                    const disputeId = d?.id || d?.dispute_id;
+                    const bookingNumber = d?.booking?.booking_number || d?.booking_number || (d?.booking_id ? `BK-${d.booking_id}` : "-");
+                    const customerName = d?.customer?.full_name || d?.customer?.name || "Customer";
+                    const customerEmail = d?.customer?.email;
+                    const providerName = d?.booking?.provider?.business_name || d?.provider?.business_name || "Provider";
+                    const currentStatus = d?.status || d?.dispute_status;
 
-                      <TableCell className="font-medium text-foreground text-xs font-mono">
-                        {d?.booking_number || (d?.booking_id ? `ORD-${d.booking_id}` : "-")}
-                      </TableCell>
+                    return (
+                      <TableRow key={disputeId} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-semibold font-mono text-primary text-xs">
+                          DSP-{disputeId}
+                        </TableCell>
 
-                      <TableCell>
-                        <div className="font-medium text-foreground text-sm">
-                          {d?.customer?.name || "Customer"}
-                        </div>
-                        {d?.customer?.email && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">
-                            {d.customer.email}
+                        <TableCell className="font-medium text-foreground text-xs font-mono">
+                          {bookingNumber}
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-medium text-foreground text-sm">
+                            {customerName}
                           </div>
-                        )}
-                      </TableCell>
+                          {customerEmail && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {customerEmail}
+                            </div>
+                          )}
+                        </TableCell>
 
-                      <TableCell>
-                        <div className="font-medium text-foreground text-sm">
-                          {d?.provider?.business_name || "Provider"}
-                        </div>
-                      </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-foreground text-sm">
+                            {providerName}
+                          </div>
+                        </TableCell>
 
-                      <TableCell>
-                        <span className="text-sm font-medium text-foreground capitalize">
-                          {d?.issue_type ? d.issue_type.replace(/_/g, " ") : "-"}
-                        </span>
-                      </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-medium text-foreground capitalize">
+                            {d?.issue_type ? d.issue_type.replace(/_/g, " ") : "-"}
+                          </span>
+                        </TableCell>
 
-                      <TableCell>{getStatusBadge(d?.dispute_status)}</TableCell>
+                        <TableCell>{getStatusBadge(currentStatus)}</TableCell>
 
-                      <TableCell>{getDecisionBadge(d?.admin_decision)}</TableCell>
+                        <TableCell>{getDecisionBadge(d?.admin_decision)}</TableCell>
 
-                      <TableCell>
-                        <select
-                          value={selectedAgents[d.dispute_id] || ""}
-                          onChange={(e) => handleAssign(d.dispute_id, e.target.value)}
-                          className={`rounded-lg border border-input px-2.5 py-1.5 text-xs shadow-xs w-full max-w-[160px] ${
-                            d.dispute_status !== "open"
-                              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-75"
-                              : "bg-background text-foreground cursor-pointer focus:ring-1 focus:ring-primary"
-                          }`}
-                          disabled={d.dispute_status !== "open"}
-                        >
-                          <option value="">Select Agent</option>
-                          {agents.map((agent) => (
-                            <option key={agent?.id} value={agent?.id}>
-                              {agent?.first_name} {agent?.last_name}
-                            </option>
-                          ))}
-                        </select>
-                      </TableCell>
+                        <TableCell>
+                          <select
+                            value={selectedAgents[disputeId] || ""}
+                            onChange={(e) => handleAssign(disputeId, e.target.value)}
+                            className="rounded-lg border border-input px-2.5 py-1.5 text-xs shadow-xs w-full max-w-[160px] bg-background text-foreground cursor-pointer focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="">Select Agent</option>
+                            {agents.map((agent) => {
+                              const agentName = agent?.full_name || `${agent?.first_name || ""} ${agent?.last_name || ""}`.trim() || `Agent #${agent?.id}`;
+                              return (
+                                <option key={agent?.id} value={agent?.id}>
+                                  {agentName}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </TableCell>
 
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => navigate(`/admin/disputes/${d.booking_id}`)}
-                        >
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => navigate(`/admin/disputes/${disputeId}`)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

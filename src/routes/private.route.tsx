@@ -137,6 +137,7 @@ export const PrivateRoutes = () => (
       <Route path="/orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path="orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
+      <Route path="/customer/order/:id" element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />
       <Route path={routeMap.CUSTOMER_PROFILE.path} element={<CustomerProfile />} />
