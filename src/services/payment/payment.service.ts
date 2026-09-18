@@ -72,9 +72,30 @@ export interface CommissionSettingsData {
   currency: string;
 }
 
+// 💳 Admin & User Payments API
+export const listPaymentsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/payments", { params });
+};
+
+// 💳 Payout Queue APIs
+export const listEligiblePayoutsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts", { params });
+};
+
+export const listPayoutHistoryApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts/history", { params });
+};
+
+export const processPayoutApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/process`, data);
+};
+
 export const payoutApi = {
   getCommissionRates: () =>
     http.get<ApiSuccess<CommissionSettingsData>>(ENDPOINTS.payout.commissionRates),
+  listEligible: listEligiblePayoutsApi,
+  listHistory: listPayoutHistoryApi,
+  process: processPayoutApi,
 };
 
 export default {
@@ -83,6 +104,10 @@ export default {
   createCheckoutSessionApi,
   createPaymentSubscription,
   confirmPaymentSubscription,
+  listPaymentsApi,
+  listEligiblePayoutsApi,
+  listPayoutHistoryApi,
+  processPayoutApi,
   subscriptionApi,
   payoutApi,
 };

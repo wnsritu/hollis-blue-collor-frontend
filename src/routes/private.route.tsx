@@ -26,7 +26,6 @@ const AdminCommission = lazy(() => import("@/pages/admin/AdminCommission"));
 const AdminSubscriptions = lazy(() => import("@/pages/admin/AdminSubscriptions"));
 const AdminFeaturedPlans = lazy(() => import("@/pages/admin/AdminFeaturedPlans"));
 const AdminFeaturedListings = lazy(() => import("@/pages/admin/AdminFeaturedListings"));
-const AdminTransactions = lazy(() => import("@/pages/admin/AdminTransactions"));
 const AdminMessages = lazy(() => import("@/pages/admin/AdminMessages"));
 const AdminConversation = lazy(() => import("@/pages/admin/AdminConversation"));
 const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
@@ -100,7 +99,7 @@ export const PrivateRoutes = () => (
       <Route path="subscriptions" element={<AdminSubscriptions />} />
       <Route path="featured-plans" element={<AdminFeaturedPlans />} />
       <Route path="featured-listings" element={<AdminFeaturedListings />} />
-      <Route path="transactions" element={<AdminTransactions />} />
+      <Route path="transactions" element={<Navigate to="/admin/payouts" replace />} />
       <Route path="messages" element={<AdminMessages />} />
       <Route path="messages/:id" element={<AdminConversation />} />
       <Route path="profile" element={<AdminProfile />} />
