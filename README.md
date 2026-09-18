@@ -1,4 +1,4 @@
-# Welcome to your Unik Clean project
+# Welcome to Hollis Blue Collar Project
 
 ## Project info
 

@@ -1,0 +1,12 @@
+export { default as ProviderDashboard } from "./ProviderDashboard";
+export { default as ProviderAvailability } from "./ProviderAvailability";
+export { default as ProviderEarnings } from "./ProviderEarnings";
+export { default as ProviderFeatured } from "./ProviderFeatured";
+export { default as ProviderJobs } from "./ProviderJobs";
+export { default as ProviderLeads } from "./ProviderLeads";
+export { default as ProviderOnboarding } from "./ProviderOnboarding";
+export { default as ProviderOrderDetail } from "./ProviderOrderDetail";
+export { default as ProviderOrders } from "./ProviderOrders";
+export { default as ProviderPricing } from "./ProviderPricing";
+export { default as ProviderProfileSettings } from "./ProviderProfileSettings";
+export { default as ProviderProfile } from "./ProviderProfile";

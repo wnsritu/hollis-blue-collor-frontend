@@ -17,7 +17,7 @@ import {
   AlertTriangle, DollarSign, CreditCard, Send, CheckCircle, Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { adminFinalDisputeDecision, getDisputeData } from "@/api/dispute.api";
+import { adminFinalDisputeDecision, getDisputeData } from "@/services/support";
 
 const AdminDisputeDetail = () => {
   const { id } = useParams();

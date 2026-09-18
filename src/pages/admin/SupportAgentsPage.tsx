@@ -13,16 +13,8 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { formatDate, formatPhone } from "@/utils/format";
 import PaginationController from "@/components/ui/PaginationController";
-
-interface Agent {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  createdAt: string;
-  status: "Active" | "Inactive";
-}
+import { isValidEmail } from "@/validations";
+import type { Agent } from "@/types/admin.types";
 
 const SupportAgentsPage = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -74,9 +66,7 @@ const SupportAgentsPage = () => {
 
     if (!form.email.trim()) {
       err.email = "Email is required";
-    } else if (
-      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/.test(form.email)
-    ) {
+    } else if (!isValidEmail(form.email)) {
       err.email = "Invalid email format";
     }
 
@@ -359,7 +349,7 @@ const SupportAgentsPage = () => {
               Create Support Agent
             </h1>
             <p className="text-center text-xs text-gray-500 mb-4">
-              Unik Clean — Handled with care
+              Hollis — Blue Collar Worker
             </p>
             {/* FORM */}
             <div className="space-y-5">
@@ -405,7 +395,7 @@ const SupportAgentsPage = () => {
                 </label>
                 <input
                   name="email"
-                  placeholder="agent@unikclean.com"
+                  placeholder="agent@hollis.com"
                   className="mt-1 h-9 w-full rounded-md border border-gray-200 px-2 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   value={form.email}
                   onChange={handleChange}

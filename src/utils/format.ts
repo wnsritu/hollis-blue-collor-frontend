@@ -1,13 +1,11 @@
-export const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
+import { formatDate } from "./date";
+export { formatDate };
 
-  const date = new Date(dateStr);
-
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const yyyy = date.getFullYear();
-
-  return `${mm}-${dd}-${yyyy}`;
+export const sanitizePhoneInput = (value: string): string => {
+  if (!value) return "";
+  const hasLeadingPlus = value.startsWith("+");
+  const digits = value.replace(/\D/g, "");
+  return hasLeadingPlus ? `+${digits}` : digits;
 };
 
 export const formatPhone = (phone: string) => {
@@ -29,16 +27,23 @@ export const formatPhone = (phone: string) => {
   return phone;
 };
 
-export const formatTimeSlot = (startTime: string, endTime: string) => {
-  const formatTime = (time: string) => {
-    if (!time) return "";
-    const [hour, min] = time.split(":");
-    let h = parseInt(hour);
+export const formatTimeSlot = (startTime?: string, endTime?: string) => {
+  const formatTime = (time?: string) => {
+    if (!time || typeof time !== "string") return "";
+    const parts = time.split(":");
+    if (parts.length < 2) return time;
+    let h = parseInt(parts[0], 10);
+    if (isNaN(h)) return time;
     const ampm = h >= 12 ? "PM" : "AM";
     h = h % 12 || 12;
-    return `${h}:${min} ${ampm}`;
+    return `${h}:${parts[1]} ${ampm}`;
   };
-  return `${formatTime(startTime)} – ${formatTime(endTime)}`;
+  const start = formatTime(startTime);
+  const end = formatTime(endTime);
+  if (!start && !end) return "";
+  if (!end) return start;
+  if (!start) return end;
+  return `${start} – ${end}`;
 };
 
 export const formatStatus = (status: string) => {
@@ -48,6 +53,26 @@ export const formatStatus = (status: string) => {
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+};
+
+export const formatDisplayDate = (dateStr?: string | null): string => {
+  if (!dateStr) return "Date TBD";
+  const formatted = formatDate(dateStr, "MMM d, yyyy");
+  return formatted || String(dateStr);
+};
+
+export const formatDisplayTime = (timeStr?: string | null): string => {
+  if (!timeStr) return "TBD";
+  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+  const parts = timeStr.split(":");
+  if (parts.length >= 2) {
+    let h = parseInt(parts[0], 10);
+    const m = parts[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
+  return timeStr;
 };
 
 export const SERVICE_CATEGORIES = ["Laundry", "House Cleaning", "Car Wash"];

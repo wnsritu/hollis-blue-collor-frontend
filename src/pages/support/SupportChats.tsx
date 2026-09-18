@@ -3,8 +3,8 @@ import { MessageSquare, ImageIcon, Check, X, Search } from "lucide-react";
 
 import toast from "react-hot-toast";
 
-import { getChatMessages, getProviderChats } from "@/services/chat.service";
-import { getDisputeData } from "@/api/dispute.api";
+import { getChatMessages, getProviderChats } from "@/services/chat";
+import { getDisputeData } from "@/services/support";
 import {
   Dialog,
   DialogContent,

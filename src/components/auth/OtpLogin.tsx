@@ -9,13 +9,10 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import useCountdown from "@/hooks/useCountdown";
 import toast from "react-hot-toast";
-interface OtpLoginProps {
-  onSuccess: (role_id: 3 | 4) => void;
-  onBack: () => void;
-}
+import type { OtpLoginProps, OtpLoginStep } from "@/types/auth.types";
 
 const OtpLogin = ({ onSuccess, onBack }: OtpLoginProps) => {
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [step, setStep] = useState<OtpLoginStep>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);

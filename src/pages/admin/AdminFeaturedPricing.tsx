@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Save, Zap } from "lucide-react";
 import toast from "react-hot-toast";
-import { getAllPlans, getAllProviderPlans, updatePlans } from "@/api/admin.api";
+import { getAllPlans, getAllProviderPlans, updatePlans } from "@/services/admin";
 import {
   Table,
   TableBody,

@@ -5,13 +5,11 @@ const GoogleMapsProvider = ({ children }: { children: React.ReactNode }) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    loadGoogleMaps()
-      .then(() => setReady(true))
-      .catch(console.error);
+    loadGoogleMaps().finally(() => setReady(true));
   }, []);
 
   if (!ready) {
-    return <div>Loading Maps...</div>; // or skeleton
+    return null;
   }
 
   return <>{children}</>;

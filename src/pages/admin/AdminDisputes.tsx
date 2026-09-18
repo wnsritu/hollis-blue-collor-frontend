@@ -9,7 +9,6 @@ import {
   Search,
   ShieldAlert,
   X,
-  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -21,14 +20,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import PaginationController from "@/components/ui/PaginationController";
-import { assignAgent, getDisputesApi } from "@/api/dispute.api";
 import { useNavigate } from "react-router-dom";
-import { getSupportAgentsApi } from "@/api/support.api";
+import { assignAgent, getDisputesApi, getSupportAgentsApi } from "@/services/support";
 import { Input } from "@/components/ui/input";
+import {
+  BADGE_OPEN,
+  BADGE_UNDER_REVIEW,
+  BADGE_AGENT_REVIEWED,
+  BADGE_WAITING_ADMIN,
+  BADGE_RESOLVED,
+  BADGE_REJECTED,
+  BADGE_DEFAULT,
+} from "@/styles";
 
 const AdminDisputes = () => {
   const navigate = useNavigate();
-  const [comingSoon, setComingSoon] = useState(true); // true = show Normal UI
   const [disputes, setDisputes] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<Record<string | number, any>>({});
@@ -94,7 +100,6 @@ const AdminDisputes = () => {
   };
 
   useEffect(() => {
-    // Initialize selectedAgents map based on assigned_agent in disputes
     const initial: Record<string | number, any> = {};
     disputes.forEach((d) => {
       initial[d.dispute_id] = d.assigned_agent?.id || "";
@@ -103,19 +108,15 @@ const AdminDisputes = () => {
   }, [disputes]);
 
   useEffect(() => {
-    if (comingSoon) {
-      fetchAgents();
-    }
-  }, [comingSoon]);
+    fetchAgents();
+  }, []);
 
   useEffect(() => {
-    if (comingSoon) {
-      const timer = setTimeout(() => {
-        fetchDisputes(1, searchQuery, statusFilter, decisionFilter, issueFilter);
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [searchQuery, statusFilter, decisionFilter, issueFilter, comingSoon]);
+    const timer = setTimeout(() => {
+      fetchDisputes(1, searchQuery, statusFilter, decisionFilter, issueFilter);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, statusFilter, decisionFilter, issueFilter]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -140,44 +141,20 @@ const AdminDisputes = () => {
     const s = (status || "open").toLowerCase();
     switch (s) {
       case "open":
-        return (
-          <Badge className="bg-red-50 text-red-700 border border-red-200 font-medium">
-            Open
-          </Badge>
-        );
+        return <Badge className={BADGE_OPEN}>Open</Badge>;
       case "under_review":
-        return (
-          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-            Under Review
-          </Badge>
-        );
+        return <Badge className={BADGE_UNDER_REVIEW}>Under Review</Badge>;
       case "agent_reviewed":
-        return (
-          <Badge className="bg-purple-50 text-purple-700 border border-purple-200 font-medium">
-            Agent Reviewed
-          </Badge>
-        );
+        return <Badge className={BADGE_AGENT_REVIEWED}>Agent Reviewed</Badge>;
       case "waiting_admin":
-        return (
-          <Badge className="bg-amber-50 text-amber-800 border border-amber-200 font-medium">
-            Waiting Admin
-          </Badge>
-        );
+        return <Badge className={BADGE_WAITING_ADMIN}>Waiting Admin</Badge>;
       case "resolved":
-        return (
-          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-            Resolved
-          </Badge>
-        );
+        return <Badge className={BADGE_RESOLVED}>Resolved</Badge>;
       case "rejected":
-        return (
-          <Badge className="bg-rose-50 text-rose-700 border border-rose-200 font-medium">
-            Rejected
-          </Badge>
-        );
+        return <Badge className={BADGE_REJECTED}>Rejected</Badge>;
       default:
         return (
-          <Badge className="bg-gray-100 text-gray-700 border border-gray-200 font-medium">
+          <Badge className={BADGE_DEFAULT}>
             {status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Open"}
           </Badge>
         );
@@ -221,34 +198,6 @@ const AdminDisputes = () => {
     }
   };
 
-  // 🔥 COMING SOON UI
-  if (!comingSoon) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <div className="text-center space-y-5">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-primary">
-            <AlertTriangle size={24} />
-          </div>
-
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <ShieldAlert size={12} /> Disputes Panel
-            </span>
-          </div>
-
-          <h2 className="text-lg font-semibold text-foreground">
-            Disputes Management Coming Soon
-          </h2>
-
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Admins will soon be able to handle disputes, review evidence, and
-            manage refunds from this panel.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const handleAssign = async (disputeId: any, agentId: any) => {
     setSelectedAgents((prev) => ({ ...prev, [disputeId]: agentId }));
     try {
@@ -271,11 +220,12 @@ const AdminDisputes = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">
+          <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+            <ShieldAlert className="text-primary" size={26} />
             Disputes Management
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review customer disputes, assign support agents, and monitor resolutions.
+            Review customer booking disputes, assign support agents, and monitor resolutions.
           </p>
         </div>
 
@@ -316,7 +266,7 @@ const AdminDisputes = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="">All Statuses</option>
             <option value="open">Open</option>
@@ -333,7 +283,7 @@ const AdminDisputes = () => {
           <select
             value={decisionFilter}
             onChange={(e) => setDecisionFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="">All Final Decisions</option>
             <option value="pending">Pending</option>
@@ -349,7 +299,7 @@ const AdminDisputes = () => {
           <select
             value={issueFilter}
             onChange={(e) => setIssueFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="">All Issue Types</option>
             <option value="damaged_item">Damaged Item</option>
@@ -422,17 +372,14 @@ const AdminDisputes = () => {
                 <TableBody>
                   {disputes.map((d) => (
                     <TableRow key={d?.dispute_id} className="hover:bg-muted/30 transition-colors">
-                      {/* Dispute ID */}
                       <TableCell className="font-semibold font-mono text-primary text-xs">
                         DSP-{d?.dispute_id}
                       </TableCell>
 
-                      {/* Order */}
                       <TableCell className="font-medium text-foreground text-xs font-mono">
                         {d?.booking_number || (d?.booking_id ? `ORD-${d.booking_id}` : "-")}
                       </TableCell>
 
-                      {/* Customer */}
                       <TableCell>
                         <div className="font-medium text-foreground text-sm">
                           {d?.customer?.name || "Customer"}
@@ -444,48 +391,32 @@ const AdminDisputes = () => {
                         )}
                       </TableCell>
 
-                      {/* Provider */}
                       <TableCell>
                         <div className="font-medium text-foreground text-sm">
                           {d?.provider?.business_name || "Provider"}
                         </div>
                       </TableCell>
 
-                      {/* Issue Type */}
                       <TableCell>
                         <span className="text-sm font-medium text-foreground capitalize">
                           {d?.issue_type ? d.issue_type.replace(/_/g, " ") : "-"}
                         </span>
                       </TableCell>
 
-                      {/* Status */}
-                      <TableCell>
-                        {getStatusBadge(d?.dispute_status)}
-                      </TableCell>
+                      <TableCell>{getStatusBadge(d?.dispute_status)}</TableCell>
 
-                      {/* Final Decision */}
-                      <TableCell>
-                        {getDecisionBadge(d?.admin_decision)}
-                      </TableCell>
+                      <TableCell>{getDecisionBadge(d?.admin_decision)}</TableCell>
 
-                      {/* Assign Agent */}
                       <TableCell>
                         <select
                           value={selectedAgents[d.dispute_id] || ""}
                           onChange={(e) => handleAssign(d.dispute_id, e.target.value)}
-                          className={`rounded-lg border border-input px-2.5 py-1.5 text-xs shadow-xs w-full max-w-[160px]
-                            ${
-                              d.dispute_status !== "open"
-                                ? "bg-muted text-muted-foreground cursor-not-allowed opacity-75"
-                                : "bg-background text-foreground cursor-pointer focus:ring-1 focus:ring-primary"
-                            }
-                          `}
-                          disabled={d.dispute_status !== "open"}
-                          title={
+                          className={`rounded-lg border border-input px-2.5 py-1.5 text-xs shadow-xs w-full max-w-[160px] ${
                             d.dispute_status !== "open"
-                              ? "Cannot assign agent for this dispute"
-                              : "Select agent to assign"
-                          }
+                              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-75"
+                              : "bg-background text-foreground cursor-pointer focus:ring-1 focus:ring-primary"
+                          }`}
+                          disabled={d.dispute_status !== "open"}
                         >
                           <option value="">Select Agent</option>
                           {agents.map((agent) => (
@@ -496,7 +427,6 @@ const AdminDisputes = () => {
                         </select>
                       </TableCell>
 
-                      {/* Action */}
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -515,7 +445,6 @@ const AdminDisputes = () => {
           )}
         </CardContent>
 
-        {/* Pagination: Only shown when totalPages > 1 and disputes exist */}
         {totalPages > 1 && disputes?.length > 0 && (
           <div className="p-4 border-t border-border bg-card">
             <PaginationController

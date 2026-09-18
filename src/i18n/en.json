@@ -148,5 +148,19 @@
   "saveProfile": "Save Profile",
   "profilePhoto": "Profile Photo",
   "idVerification": "ID Verification",
-  "uploadId": "Upload ID document"
+  "uploadId": "Upload ID document",
+  "welcomeBack": "Welcome back",
+  "signInSubtitle": "Select your account type to proceed to your dashboard.",
+  "signingIn": "Signing in...",
+  "resetYourPassword": "Reset your password",
+  "enterResetCode": "Enter reset code",
+  "chooseNewPassword": "Choose a new password",
+  "passwordUpdated": "Password updated",
+  "backToLogin": "Back to log in",
+  "sendResetCode": "Send reset code",
+  "verifyCode": "Verify code",
+  "resendCode": "Resend code",
+  "changeEmail": "Change email",
+  "newPassword": "New password",
+  "resetPassword": "Reset password"
 }
