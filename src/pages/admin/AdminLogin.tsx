@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Shield, Headphones, Eye, EyeOff } from "lucide-react";
 import { loginUser } from "@/services/auth.service";
+import { getErrorMessage } from "@/services";
 import Spinner from "@/components/ui/spinner";
 import { toast } from "react-hot-toast";
 import { isValidEmail } from "@/validations";
@@ -234,7 +235,11 @@ const LoginModal = ({
             </div>
 
             {/* ERROR */}
-            {apiError && <div className="text-sm text-red-500">{apiError}</div>}
+            {Boolean(apiError) && (
+              <div className="text-sm font-medium text-red-500">
+                {typeof apiError === "string" ? apiError : getErrorMessage(apiError, "Login failed")}
+              </div>
+            )}
 
             {/* REMEMBER */}
             {/* <div className="flex items-center gap-2">
