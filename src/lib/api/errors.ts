@@ -42,10 +42,54 @@ export class ApiError extends Error {
   }
 }
 
+/** Safely extract human-readable string message from any value */
+export function extractStringMessage(val: unknown): string | null {
+  if (!val) return null;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed && trimmed !== "[object Object]") return trimmed;
+    return null;
+  }
+  if (typeof val === "object") {
+    const obj = val as Record<string, unknown>;
+
+    if (typeof obj.message === "string" && obj.message && obj.message !== "[object Object]") {
+      return obj.message;
+    }
+    if (typeof obj.error === "string" && obj.error && obj.error !== "[object Object]") {
+      return obj.error;
+    }
+
+    if (obj.message) {
+      const nested = extractStringMessage(obj.message);
+      if (nested) return nested;
+    }
+    if (obj.error) {
+      const nested = extractStringMessage(obj.error);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
 export const getErrorMessage = (error: unknown, fallback = "Something went wrong"): string => {
-  if (error instanceof ApiError) return error.message || fallback;
-  if (error instanceof Error) return error.message || fallback;
-  if (typeof error === "string") return error;
+  if (!error) return fallback;
+
+  if (typeof error === "string" && error.trim() && error !== "[object Object]") {
+    return error.trim();
+  }
+
+  if (error instanceof ApiError) {
+    if (error.message && error.message !== "[object Object]") return error.message;
+  }
+
+  if (error instanceof Error) {
+    if (error.message && error.message !== "[object Object]") return error.message;
+  }
+
+  const extracted = extractStringMessage(error);
+  if (extracted) return extracted;
+
   return fallback;
 };
 
@@ -78,15 +122,16 @@ export const normalizeAxiosError = (error: AxiosError<ApiErrorBody>): ApiError =
   }
 
   const { status, data } = error.response;
+
   const message =
-    data?.message ||
-    data?.error ||
-    (typeof data === "string" ? data : null) ||
-    error.message ||
+    extractStringMessage(data?.message) ||
+    extractStringMessage(data?.error) ||
+    extractStringMessage(data) ||
+    extractStringMessage(error.message) ||
     `Request failed (${status})`;
 
   return new ApiError({
-    message: String(message),
+    message,
     status,
     details: data?.errors ?? data,
     body: typeof data === "object" && data ? data : null,
