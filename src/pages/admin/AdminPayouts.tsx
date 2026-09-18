@@ -3,6 +3,8 @@ import {
   Banknote,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   FileText,
   Loader2,
@@ -147,46 +149,88 @@ export function AdminPayouts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Payments Pagination State (Default limit = 20)
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Payout Queue State (GET /admin/payouts & GET /admin/payouts/history)
   const [eligiblePayouts, setEligiblePayouts] = useState<PayoutRecord[]>([]);
   const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>([]);
   const [selectedPayout, setSelectedPayout] = useState<PayoutRecord | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
+  // Payout Queue Pagination State (Default limit = 20)
+  const [eligiblePage, setEligiblePage] = useState(1);
+  const [eligibleLimit] = useState(20);
+  const [eligibleTotal, setEligibleTotal] = useState(0);
+  const [eligibleTotalPages, setEligibleTotalPages] = useState(1);
+
+  // Payout History Pagination State (Default limit = 20)
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLimit] = useState(20);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+
+  // Reset payment page when search or status filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       const res = await listPaymentsApi({
+        page,
+        limit,
         search: searchQuery.trim() || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
-        limit: 50,
       });
-      const data = res?.data?.data || res?.data || [];
-      setPayments(Array.isArray(data) ? data : []);
+      const resPayload = res?.data;
+      const dataArray = resPayload?.data || (Array.isArray(resPayload) ? resPayload : []);
+      const pagination = resPayload?.pagination;
+
+      setPayments(Array.isArray(dataArray) ? dataArray : []);
+      if (pagination) {
+        setTotal(pagination.total ?? dataArray.length ?? 0);
+        setTotalPages(pagination.totalPages ?? Math.ceil((pagination.total || dataArray.length || 1) / limit));
+      } else {
+        setTotal(dataArray.length || 0);
+        setTotalPages(Math.max(1, Math.ceil((dataArray.length || 1) / limit)));
+      }
     } catch (err) {
       console.error("Failed to fetch payments:", err);
       toast.error("Failed to load payments ledger.");
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, statusFilter]);
+  }, [page, limit, searchQuery, statusFilter]);
 
   const fetchPayouts = useCallback(async () => {
     try {
       const [eligibleRes, historyRes] = await Promise.all([
-        listEligiblePayoutsApi({ limit: 50 }).catch(() => null),
-        listPayoutHistoryApi({ limit: 50 }).catch(() => null),
+        listEligiblePayoutsApi({ page: eligiblePage, limit: eligibleLimit }).catch(() => null),
+        listPayoutHistoryApi({ page: historyPage, limit: historyLimit }).catch(() => null),
       ]);
 
-      const eligibleData = eligibleRes?.data?.data || eligibleRes?.data || [];
+      const eligiblePayload = eligibleRes?.data;
+      const eligibleData = eligiblePayload?.data || (Array.isArray(eligiblePayload) ? eligiblePayload : []);
+      const eligiblePagination = eligiblePayload?.pagination;
       setEligiblePayouts(Array.isArray(eligibleData) ? eligibleData : []);
+      setEligibleTotal(eligiblePagination?.total ?? eligibleData.length ?? 0);
+      setEligibleTotalPages(eligiblePagination?.totalPages ?? Math.max(1, Math.ceil((eligiblePagination?.total || eligibleData.length || 1) / eligibleLimit)));
 
-      const historyData = historyRes?.data?.data || historyRes?.data || [];
+      const historyPayload = historyRes?.data;
+      const historyData = historyPayload?.data || (Array.isArray(historyPayload) ? historyPayload : []);
+      const historyPagination = historyPayload?.pagination;
       setPayoutHistory(Array.isArray(historyData) ? historyData : []);
+      setHistoryTotal(historyPagination?.total ?? historyData.length ?? 0);
+      setHistoryTotalPages(historyPagination?.totalPages ?? Math.max(1, Math.ceil((historyPagination?.total || historyData.length || 1) / historyLimit)));
     } catch (err) {
       console.error("Failed to fetch payouts:", err);
     }
-  }, []);
+  }, [eligiblePage, eligibleLimit, historyPage, historyLimit]);
 
   useEffect(() => {
     fetchPayments();
@@ -404,6 +448,36 @@ export function AdminPayouts() {
                 </TableBody>
               </Table>
             )}
+
+            {/* Payments Ledger Pagination Bar */}
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  Page <strong className="text-foreground">{page}</strong> of{" "}
+                  <strong className="text-foreground">{totalPages}</strong> ({total} total transactions)
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="h-8 text-xs gap-1"
+                  >
+                    <ChevronLeft size={14} /> Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="h-8 text-xs gap-1"
+                  >
+                    Next <ChevronRight size={14} />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -476,6 +550,36 @@ export function AdminPayouts() {
                     })}
                   </TableBody>
                 </Table>
+
+                {/* Eligible Payout Queue Pagination Bar */}
+                {eligibleTotalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Page <strong className="text-foreground">{eligiblePage}</strong> of{" "}
+                      <strong className="text-foreground">{eligibleTotalPages}</strong> ({eligibleTotal} total eligible payouts)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={eligiblePage <= 1}
+                        onClick={() => setEligiblePage((p) => Math.max(1, p - 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <ChevronLeft size={14} /> Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={eligiblePage >= eligibleTotalPages}
+                        onClick={() => setEligiblePage((p) => Math.min(eligibleTotalPages, p + 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        Next <ChevronRight size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -508,6 +612,36 @@ export function AdminPayouts() {
                   ))}
                 </TableBody>
               </Table>
+
+              {/* Processed Payout History Pagination Bar */}
+              {historyTotalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Page <strong className="text-foreground">{historyPage}</strong> of{" "}
+                    <strong className="text-foreground">{historyTotalPages}</strong> ({historyTotal} total processed payouts)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={historyPage <= 1}
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                      className="h-8 text-xs gap-1"
+                    >
+                      <ChevronLeft size={14} /> Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={historyPage >= historyTotalPages}
+                      onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                      className="h-8 text-xs gap-1"
+                    >
+                      Next <ChevronRight size={14} />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </TabsContent>
