@@ -640,22 +640,30 @@ export const ProjectDetail: React.FC = () => {
             </div>
           </section>
 
-          {/* Payment Breakdown Card (matching Image 2) */}
+          {/* Payment Breakdown / Estimated Budget Card */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-            <h2 className="font-display text-lg font-bold">Payment Breakdown</h2>
-            <dl className="space-y-2.5 text-xs">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Subtotal (Services)</dt>
-                <dd className="font-medium text-foreground">
-                  {activeBreakdown?.subtotal
-                    ? usd(activeBreakdown.subtotal)
-                    : project.budget_min
-                      ? usd(project.budget_min)
-                      : "Flexible"}
-                </dd>
-              </div>
-              {activeBreakdown && (
-                <>
+            <h2 className="font-display text-lg font-bold">
+              {activeBreakdown ? "Payment Breakdown" : "Estimated Budget"}
+            </h2>
+            {activeBreakdown ? (
+              <>
+                <dl className="space-y-2.5 text-xs">
+                  {activeBreakdown.line_items_subtotal !== undefined && activeBreakdown.line_items_subtotal > activeBreakdown.subtotal && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <dt>Line Items Subtotal</dt>
+                      <dd className="font-medium text-foreground">{usd(activeBreakdown.line_items_subtotal)}</dd>
+                    </div>
+                  )}
+                  {activeBreakdown.discount_amount !== undefined && activeBreakdown.discount_amount > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                      <dt>Proposal Discount</dt>
+                      <dd>-{usd(activeBreakdown.discount_amount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-muted-foreground">
+                    <dt>Base Service Quote</dt>
+                    <dd className="font-medium text-foreground">{usd(activeBreakdown.subtotal)}</dd>
+                  </div>
                   <div className="flex justify-between text-muted-foreground">
                     <dt>Platform Service Fee ({activeBreakdown.service_fee_rate}%)</dt>
                     <dd className="font-medium text-foreground">+{usd(activeBreakdown.service_fee)}</dd>
@@ -666,20 +674,30 @@ export const ProjectDetail: React.FC = () => {
                       <dd className="font-medium text-foreground">+{usd(activeBreakdown.platform_fee)}</dd>
                     </div>
                   )}
-                </>
-              )}
-            </dl>
-            <Separator className="my-3" />
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-sm">Total Customer Payment</span>
-              <span className="font-display text-xl font-bold text-primary">
-                {activeBreakdown?.total
-                  ? usd(activeBreakdown.total)
-                  : project.budget_max
-                    ? usd(project.budget_max)
-                    : "Custom Quote"}
-              </span>
-            </div>
+                </dl>
+                <Separator className="my-3" />
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">Total Customer Payment</span>
+                  <span className="font-display text-xl font-bold text-primary">
+                    {usd(activeBreakdown.total)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center py-2 px-3 rounded-xl bg-muted/40 border border-border/50">
+                  <span className="text-muted-foreground font-medium">Customer Budget Range</span>
+                  <span className="font-bold text-foreground text-sm font-display">
+                    {project.budget_min || project.budget_max
+                      ? `${project.budget_min ? usd(project.budget_min) : "$0"} - ${project.budget_max ? usd(project.budget_max) : "Flexible"}`
+                      : "Flexible"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Final payment breakdown will be calculated once a proposal is accepted.
+                </p>
+              </div>
+            )}
 
             {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && (
               <Button

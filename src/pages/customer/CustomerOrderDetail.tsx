@@ -220,6 +220,31 @@ export const CustomerOrderDetail: React.FC = () => {
   const subtotalNum = normalized.subtotal;
   const serviceFeeNum = normalized.serviceFee;
 
+  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
+  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
+
+  let finSnapshot: any = null;
+  if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
+    try {
+      finSnapshot = JSON.parse(booking.notes)?.financial_snapshot || JSON.parse(booking.notes);
+    } catch (e) {}
+  }
+
+  const paidTotalAmount = Number(
+    booking?.payment?.amount ||
+    finSnapshot?.customer_total ||
+    priceAdj?.original_total_amount ||
+    (isPaid ? totalAmountNum : 0)
+  ) || totalAmountNum;
+
+  const paidSubtotal = Number(
+    finSnapshot?.line_items_subtotal ||
+    finSnapshot?.proposal_total ||
+    subtotalNum
+  ) || subtotalNum;
+
+  const paidFee = Math.max(0, Number((paidTotalAmount - paidSubtotal).toFixed(2)));
+
   // Format Payment Date
   let formattedPaymentDate = "";
   if (normalized.paymentDate) {
@@ -378,11 +403,21 @@ export const CustomerOrderDetail: React.FC = () => {
                   <h3 className="font-bold text-amber-900 text-base">
                     Provider Proposed Price Adjustment: {usd(totalAmountNum)}
                   </h3>
-                  {booking.notes && (
-                    <p className="text-xs text-amber-800 mt-1 italic">"{booking.notes}"</p>
+                  {priceAdj?.original_total_amount > 0 && priceAdj.original_total_amount !== totalAmountNum && (
+                    <p className="text-xs text-amber-800 font-semibold mt-1">
+                      Original Service Price: {usd(priceAdj.original_total_amount)}
+                      {priceAdj.additional_amount_due > 0 && (
+                        <span className="text-amber-900 font-extrabold ml-1">
+                          (Additional Amount Due: +{usd(priceAdj.additional_amount_due)})
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {counterNote && (
+                    <p className="text-xs text-amber-800 mt-1 italic">"{counterNote}"</p>
                   )}
                   <p className="text-xs text-amber-700 mt-1">
-                    Please review the updated price proposal and proceed to payment if accepted.
+                    Please review the updated price proposal and proceed to accept/pay the adjustment.
                   </p>
                 </div>
               </div>
@@ -637,17 +672,17 @@ export const CustomerOrderDetail: React.FC = () => {
             <dl className="space-y-2.5 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal (Services)</span>
-                <span className="font-semibold text-foreground">{usd(subtotalNum)}</span>
+                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidSubtotal : subtotalNum)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Service &amp; Platform Fee</span>
-                <span className="font-semibold text-foreground">{usd(serviceFeeNum)}</span>
+                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : serviceFeeNum)}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between text-sm pt-1">
-                <span className="font-bold text-foreground">Total Amount</span>
+                <span className="font-bold text-foreground">{isPaid && isPriceUpdated ? "Total Paid Amount" : "Total Amount"}</span>
                 <span className="font-extrabold text-primary text-base">
-                  {usd(totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum)}
+                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum))}
                 </span>
               </div>
             </dl>

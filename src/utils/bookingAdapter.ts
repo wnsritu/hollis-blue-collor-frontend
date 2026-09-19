@@ -157,13 +157,21 @@ export function normalizeBooking(b: any): NormalizedBooking {
     : [];
 
   // Service Title
+  const projectTitle = b.project?.title || b.project_title || b.projectTitle;
+  const serviceTypeName = b.service?.service_type?.name || b.service_type?.name || b.service_type_name;
+  const rawJoinedItems = servicesList.map((s: any) => s.name).filter(Boolean).join(", ");
+  const isGenericLineItems =
+    rawJoinedItems.includes("Labor & Service") ||
+    rawJoinedItems.includes("Materials & Supplies") ||
+    rawJoinedItems.includes("Additional Fees");
+
   const serviceName =
-    servicesList.map((s: any) => s.name).filter(Boolean).join(", ") ||
-    b.service?.service_type?.name ||
+    projectTitle ||
+    (serviceTypeName && serviceTypeName !== "Service Details" ? serviceTypeName : null) ||
+    (!isGenericLineItems && rawJoinedItems ? rawJoinedItems : null) ||
     b.service?.category_name ||
-    b.service_type?.name ||
-    b.project?.title ||
     b.service_category ||
+    rawJoinedItems ||
     "Service Details";
 
   const categoryName =
@@ -171,8 +179,19 @@ export function normalizeBooking(b: any): NormalizedBooking {
     b.service_category ||
     "Home Services";
 
+  let cleanNotesText = b.notes;
+  if (cleanNotesText && String(cleanNotesText).trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(cleanNotesText);
+      cleanNotesText = parsed.note_text || parsed.counter_note || null;
+    } catch (e) {
+      cleanNotesText = null;
+    }
+  }
+
   const serviceDescription =
-    b.notes ||
+    cleanNotesText ||
+    b.project?.description ||
     b.description ||
     b.service?.service_type?.description ||
     b.service_description ||
