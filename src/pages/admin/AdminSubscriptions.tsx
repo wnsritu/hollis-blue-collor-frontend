@@ -45,7 +45,7 @@ export function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "49", description: "", features: "" });
+  const [form, setForm] = useState({ name: "", price: "49", description: "", proposal_limit: "10", isUnlimited: false, features: "" });
 
   const loadData = useCallback(async () => {
     try {

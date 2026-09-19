@@ -84,6 +84,8 @@ export interface AdminPaymentRecord {
   platform_fee_amount?: number | string;
   provider_amount?: number | string;
   payout_id?: number | null;
+  idempotency_key?: string | null;
+  failure_reason?: string | null;
   createdAt?: string;
   updatedAt?: string;
   booking?: {
