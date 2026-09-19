@@ -119,11 +119,15 @@ export const ProjectDetail: React.FC = () => {
 
   interface ProposalBreakdownMap {
     [proposalId: number]: {
+      line_items_subtotal?: number;
+      discount_amount?: number;
+      proposal_total: number;
       subtotal: number;
       service_fee_rate: number;
       service_fee: number;
       platform_fee: number;
       tax_amount: number;
+      customer_total: number;
       total: number;
     };
   }
@@ -142,25 +146,32 @@ export const ProjectDetail: React.FC = () => {
         if (amountNum <= 0) continue;
         try {
           const res: any = await bookingApi.calculatePrice({
+            proposal_id: prop.id,
             subtotal: amountNum,
             total_amount: amountNum,
             discount: 0,
           });
           const data = res?.data?.data || res?.data?.breakdown || res?.data;
           if (data) {
-            const subtotal = Number(data.subtotal) || amountNum;
-            const serviceFeeRate = Number(data.service_fee_rate) || 15;
-            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(subtotal * 0.15 * 100) / 100;
+            const lineItemsSubtotal = Number(data.line_items_subtotal) || amountNum;
+            const discountAmount = Number(data.discount_amount) || 0;
+            const proposalTotal = Number(data.proposal_total ?? data.subtotal) || amountNum;
+            const serviceFeeRate = Number(data.service_fee_rate) || 5;
+            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(proposalTotal * 0.05 * 100) / 100;
             const platformFee = Number(data.platform_fee) || Number(data.platform_fee_amount) || 0;
-            const total = Number(data.total) || Math.round((subtotal + serviceFee + platformFee) * 100) / 100;
+            const customerTotal = Number(data.customer_total ?? data.total) || Math.round((proposalTotal + serviceFee + platformFee) * 100) / 100;
 
             newMap[prop.id] = {
-              subtotal,
+              line_items_subtotal: lineItemsSubtotal,
+              discount_amount: discountAmount,
+              proposal_total: proposalTotal,
+              subtotal: proposalTotal,
               service_fee_rate: serviceFeeRate,
               service_fee: serviceFee,
               platform_fee: platformFee,
               tax_amount: Number(data.tax_amount) || 0,
-              total,
+              customer_total: customerTotal,
+              total: customerTotal,
             };
           }
         } catch (err) {
@@ -538,6 +549,18 @@ export const ProjectDetail: React.FC = () => {
                           <div className="flex items-center gap-1.5 font-semibold text-foreground mb-1">
                             <Calculator size={13} className="text-primary" /> Customer Price Breakdown
                           </div>
+                          {bd.line_items_subtotal !== undefined && bd.line_items_subtotal > bd.subtotal && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Line Items Subtotal</span>
+                              <span className="font-medium text-foreground">{usd(bd.line_items_subtotal)}</span>
+                            </div>
+                          )}
+                          {bd.discount_amount !== undefined && bd.discount_amount > 0 && (
+                            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Proposal Discount</span>
+                              <span>-{usd(bd.discount_amount)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between text-muted-foreground">
                             <span>Base Service Quote</span>
                             <span className="font-medium text-foreground">{usd(bd.subtotal)}</span>
