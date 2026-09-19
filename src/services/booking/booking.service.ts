@@ -136,9 +136,11 @@ export const appointmentApi = {
   updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) => {
     const raw = payload.appointment_status || payload.status;
     const norm = normalizeToAppointmentStatus(raw);
+    const reason = payload.reason || payload.cancellation_reason || payload.notes;
     return http.patch<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), {
       appointment_status: norm as any,
       status: norm as any,
+      ...(reason ? { reason, cancellation_reason: reason } : {}),
     });
   },
 

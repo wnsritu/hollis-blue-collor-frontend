@@ -119,11 +119,15 @@ export const ProjectDetail: React.FC = () => {
 
   interface ProposalBreakdownMap {
     [proposalId: number]: {
+      line_items_subtotal?: number;
+      discount_amount?: number;
+      proposal_total: number;
       subtotal: number;
       service_fee_rate: number;
       service_fee: number;
       platform_fee: number;
       tax_amount: number;
+      customer_total: number;
       total: number;
     };
   }
@@ -142,25 +146,32 @@ export const ProjectDetail: React.FC = () => {
         if (amountNum <= 0) continue;
         try {
           const res: any = await bookingApi.calculatePrice({
+            proposal_id: prop.id,
             subtotal: amountNum,
             total_amount: amountNum,
             discount: 0,
           });
           const data = res?.data?.data || res?.data?.breakdown || res?.data;
           if (data) {
-            const subtotal = Number(data.subtotal) || amountNum;
-            const serviceFeeRate = Number(data.service_fee_rate) || 15;
-            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(subtotal * 0.15 * 100) / 100;
+            const lineItemsSubtotal = Number(data.line_items_subtotal) || amountNum;
+            const discountAmount = Number(data.discount_amount) || 0;
+            const proposalTotal = Number(data.proposal_total ?? data.subtotal) || amountNum;
+            const serviceFeeRate = Number(data.service_fee_rate) || 5;
+            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(proposalTotal * 0.05 * 100) / 100;
             const platformFee = Number(data.platform_fee) || Number(data.platform_fee_amount) || 0;
-            const total = Number(data.total) || Math.round((subtotal + serviceFee + platformFee) * 100) / 100;
+            const customerTotal = Number(data.customer_total ?? data.total) || Math.round((proposalTotal + serviceFee + platformFee) * 100) / 100;
 
             newMap[prop.id] = {
-              subtotal,
+              line_items_subtotal: lineItemsSubtotal,
+              discount_amount: discountAmount,
+              proposal_total: proposalTotal,
+              subtotal: proposalTotal,
               service_fee_rate: serviceFeeRate,
               service_fee: serviceFee,
               platform_fee: platformFee,
               tax_amount: Number(data.tax_amount) || 0,
-              total,
+              customer_total: customerTotal,
+              total: customerTotal,
             };
           }
         } catch (err) {
@@ -538,6 +549,18 @@ export const ProjectDetail: React.FC = () => {
                           <div className="flex items-center gap-1.5 font-semibold text-foreground mb-1">
                             <Calculator size={13} className="text-primary" /> Customer Price Breakdown
                           </div>
+                          {bd.line_items_subtotal !== undefined && bd.line_items_subtotal > bd.subtotal && (
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Line Items Subtotal</span>
+                              <span className="font-medium text-foreground">{usd(bd.line_items_subtotal)}</span>
+                            </div>
+                          )}
+                          {bd.discount_amount !== undefined && bd.discount_amount > 0 && (
+                            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span>Proposal Discount</span>
+                              <span>-{usd(bd.discount_amount)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between text-muted-foreground">
                             <span>Base Service Quote</span>
                             <span className="font-medium text-foreground">{usd(bd.subtotal)}</span>
@@ -570,7 +593,7 @@ export const ProjectDetail: React.FC = () => {
                           )}
                         </div>
 
-                        {userIsCustomer && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
+                        {userIsCustomer && project.status !== "cancelled" && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
@@ -617,22 +640,30 @@ export const ProjectDetail: React.FC = () => {
             </div>
           </section>
 
-          {/* Payment Breakdown Card (matching Image 2) */}
+          {/* Payment Breakdown / Estimated Budget Card */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-            <h2 className="font-display text-lg font-bold">Payment Breakdown</h2>
-            <dl className="space-y-2.5 text-xs">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Subtotal (Services)</dt>
-                <dd className="font-medium text-foreground">
-                  {activeBreakdown?.subtotal
-                    ? usd(activeBreakdown.subtotal)
-                    : project.budget_min
-                      ? usd(project.budget_min)
-                      : "Flexible"}
-                </dd>
-              </div>
-              {activeBreakdown && (
-                <>
+            <h2 className="font-display text-lg font-bold">
+              {activeBreakdown ? "Payment Breakdown" : "Estimated Budget"}
+            </h2>
+            {activeBreakdown ? (
+              <>
+                <dl className="space-y-2.5 text-xs">
+                  {activeBreakdown.line_items_subtotal !== undefined && activeBreakdown.line_items_subtotal > activeBreakdown.subtotal && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <dt>Line Items Subtotal</dt>
+                      <dd className="font-medium text-foreground">{usd(activeBreakdown.line_items_subtotal)}</dd>
+                    </div>
+                  )}
+                  {activeBreakdown.discount_amount !== undefined && activeBreakdown.discount_amount > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                      <dt>Proposal Discount</dt>
+                      <dd>-{usd(activeBreakdown.discount_amount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-muted-foreground">
+                    <dt>Base Service Quote</dt>
+                    <dd className="font-medium text-foreground">{usd(activeBreakdown.subtotal)}</dd>
+                  </div>
                   <div className="flex justify-between text-muted-foreground">
                     <dt>Platform Service Fee ({activeBreakdown.service_fee_rate}%)</dt>
                     <dd className="font-medium text-foreground">+{usd(activeBreakdown.service_fee)}</dd>
@@ -643,22 +674,32 @@ export const ProjectDetail: React.FC = () => {
                       <dd className="font-medium text-foreground">+{usd(activeBreakdown.platform_fee)}</dd>
                     </div>
                   )}
-                </>
-              )}
-            </dl>
-            <Separator className="my-3" />
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-sm">Total Customer Payment</span>
-              <span className="font-display text-xl font-bold text-primary">
-                {activeBreakdown?.total
-                  ? usd(activeBreakdown.total)
-                  : project.budget_max
-                    ? usd(project.budget_max)
-                    : "Custom Quote"}
-              </span>
-            </div>
+                </dl>
+                <Separator className="my-3" />
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">Total Customer Payment</span>
+                  <span className="font-display text-xl font-bold text-primary">
+                    {usd(activeBreakdown.total)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center py-2 px-3 rounded-xl bg-muted/40 border border-border/50">
+                  <span className="text-muted-foreground font-medium">Customer Budget Range</span>
+                  <span className="font-bold text-foreground text-sm font-display">
+                    {project.budget_min || project.budget_max
+                      ? `${project.budget_min ? usd(project.budget_min) : "$0"} - ${project.budget_max ? usd(project.budget_max) : "Flexible"}`
+                      : "Flexible"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Final payment breakdown will be calculated once a proposal is accepted.
+                </p>
+              </div>
+            )}
 
-            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && (
+            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && project.status !== "cancelled" && (activeBooking?.appointment_status as string)?.toLowerCase() !== "cancelled" && (
               <Button
                 className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 onClick={handlePayNow}
