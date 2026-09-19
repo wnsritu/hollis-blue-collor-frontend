@@ -132,6 +132,7 @@ export type Appointment = {
   payment?: AppointmentPayment | null;
   reschedule?: AppointmentReschedule | null;
   dispute?: AppointmentDispute | null;
+  cancellation_reason?: string | null;
   notes?: string | null;
 
   // Legacy / Direct database fields (supported for backward compatibility)
@@ -169,6 +170,9 @@ export type UpdateAppointmentStatusPayload = {
   appointment_status: AppointmentStatus;
   /** alias accepted by some callers */
   status?: AppointmentStatus;
+  reason?: string;
+  cancellation_reason?: string;
+  notes?: string;
 };
 
 export type RescheduleAppointmentPayload = {

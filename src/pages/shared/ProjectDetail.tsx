@@ -593,7 +593,7 @@ export const ProjectDetail: React.FC = () => {
                           )}
                         </div>
 
-                        {userIsCustomer && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
+                        {userIsCustomer && project.status !== "cancelled" && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
@@ -699,7 +699,7 @@ export const ProjectDetail: React.FC = () => {
               </div>
             )}
 
-            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && (
+            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && project.status !== "cancelled" && (activeBooking?.appointment_status as string)?.toLowerCase() !== "cancelled" && (
               <Button
                 className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 onClick={handlePayNow}
