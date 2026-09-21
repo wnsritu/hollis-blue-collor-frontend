@@ -56,6 +56,9 @@ export const ratingApi = {
 
   moderate: (id: number | string, payload: { action: string; note?: string }) =>
     http.post<ApiSuccess>(`/admin/reviews/${id}/moderate`, payload),
+
+  reply: (id: number | string, payload: { reply: string }) =>
+    http.post<ApiSuccess>(ENDPOINTS.rating.reply(id), payload),
 };
 
 export default {

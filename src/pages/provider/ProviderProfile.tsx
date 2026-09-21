@@ -14,6 +14,7 @@ import {
   Loader2,
   FileText,
   Globe,
+  CornerDownRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -460,6 +461,23 @@ export const ProviderProfile: React.FC = () => {
                       </div>
                       {r.title && <p className="mt-2 font-medium text-xs text-foreground">{r.title}</p>}
                       <p className="mt-1 text-xs text-muted-foreground">{r.comment || r.body || r.review}</p>
+                      {(r.provider_reply || r.reply) && (
+                        <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                              <CornerDownRight size={13} className="text-primary" /> Response from {provider?.business_name || "Professional"}
+                            </span>
+                            {(r.reply_date || r.replied_at) && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatDate(r.reply_date || r.replied_at)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-foreground/90 pl-4 leading-relaxed">
+                            {r.provider_reply || r.reply}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -122,7 +122,14 @@ export function normalizeBooking(b: any): NormalizedBooking {
       providerStatusLabel: "Request Received",
       servicesList: [],
       reschedule: { requested: false, requestedBy: null, date: null, timeSlotId: null },
-      dispute: { isDisputed: false, status: "none", deadlineAt: null },
+      dispute: {
+        id: null,
+        isDisputed: false,
+        status: "none",
+        adminDecision: null,
+        adminResolutionNote: null,
+        deadlineAt: null,
+      },
       raw: b,
     };
   }
@@ -314,6 +321,10 @@ export function normalizeBooking(b: any): NormalizedBooking {
         rating: Number(b.review.rating) || 0,
         comment: b.review.comment || null,
         status: b.review.status || "visible",
+        provider_reply: b.review.provider_reply || b.review.reply || null,
+        reply: b.review.provider_reply || b.review.reply || null,
+        reply_date: b.review.reply_date || b.review.replied_at || null,
+        replied_at: b.review.reply_date || b.review.replied_at || null,
         created_at: b.review.created_at || b.review.createdAt || null,
       }
     : null;
