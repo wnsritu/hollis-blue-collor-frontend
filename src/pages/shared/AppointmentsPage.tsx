@@ -47,6 +47,17 @@ export const AppointmentsPage: React.FC = () => {
     handleConfirmReschedule,
     handleRejectReschedule,
     handleUpdateStatus,
+    cancelModalOpen,
+    setCancelModalOpen,
+    selectedCancelAppointment,
+    setSelectedCancelAppointment,
+    cancelPresetReason,
+    setCancelPresetReason,
+    cancelCustomNotes,
+    setCancelCustomNotes,
+    cancelling,
+    handleOpenCancelModal,
+    handleCancelSubmit,
   } = useAppointments();
 
   const rescheduleModalMarkup = (
@@ -119,6 +130,101 @@ export const AppointmentsPage: React.FC = () => {
             </Button>
             <Button type="submit" disabled={rescheduling}>
               {rescheduling ? <Loader2 size={15} className="animate-spin" /> : "Request new time"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const cancelModalMarkup = (
+    <Dialog
+      open={cancelModalOpen}
+      onOpenChange={(v) => {
+        if (!v) {
+          setCancelModalOpen(false);
+          setSelectedCancelAppointment(null);
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-lg font-bold text-destructive flex items-center gap-2">
+            <span>Cancel Appointment</span>
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Please select a reason for cancelling this job. This helps maintain quality & clear communication.
+        </p>
+
+        <form onSubmit={handleCancelSubmit} className="space-y-4 mt-2">
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground">Select Reason</Label>
+            <div className="space-y-1.5">
+              {(side === "provider"
+                ? [
+                    "Schedule conflict / Unavailable",
+                    "Location out of service area",
+                    "Required tools or materials unavailable",
+                    "Customer requested cancellation",
+                    "Other reason",
+                  ]
+                : [
+                    "Schedule change / No longer needed",
+                    "Booked by mistake",
+                    "Found alternative provider",
+                    "Provider unavailable at required time",
+                    "Other reason",
+                  ]
+              ).map((reason) => (
+                <label
+                  key={reason}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-2.5 text-xs transition cursor-pointer",
+                    cancelPresetReason === reason
+                      ? "border-primary bg-primary/5 text-foreground font-semibold"
+                      : "border-border hover:bg-muted/50 text-muted-foreground"
+                  )}
+                >
+                  <span>{reason}</span>
+                  <input
+                    type="radio"
+                    name="cancellationReason"
+                    value={reason}
+                    checked={cancelPresetReason === reason}
+                    onChange={(e) => setCancelPresetReason(e.target.value)}
+                    className="accent-primary h-3.5 w-3.5"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">Additional Notes (Optional)</Label>
+            <Input
+              placeholder="e.g. Provide specific details..."
+              value={cancelCustomNotes}
+              onChange={(e) => setCancelCustomNotes(e.target.value)}
+            />
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCancelModalOpen(false)}
+              disabled={cancelling}
+            >
+              Back
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={cancelling}
+              className="gap-1.5"
+            >
+              {cancelling ? <Loader2 size={15} className="animate-spin" /> : "Confirm Cancel"}
             </Button>
           </DialogFooter>
         </form>
@@ -301,7 +407,7 @@ export const AppointmentsPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleUpdateStatus(apt.id, "Cancelled")}
+                          onClick={() => handleOpenCancelModal(apt)}
                         >
                           Cancel
                         </Button>
@@ -313,7 +419,13 @@ export const AppointmentsPage: React.FC = () => {
                       </span>
                     )}
                     {n.isCancelled && (
-                      <div className="flex items-center gap-2">
+                      <div className="w-full space-y-2">
+                        {(apt.cancellation_reason || (n.raw as any)?.cancellation_reason) && (
+                          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 text-xs text-destructive">
+                            <strong>Cancellation Reason:</strong> {apt.cancellation_reason || (n.raw as any)?.cancellation_reason}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -342,7 +454,7 @@ export const AppointmentsPage: React.FC = () => {
                           >
                             Dispute No-Show
                           </Button>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -541,7 +653,7 @@ export const AppointmentsPage: React.FC = () => {
                         size="sm"
                         variant="ghost"
                         className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleUpdateStatus(apt.id, "Cancelled")}
+                        onClick={() => handleOpenCancelModal(apt)}
                       >
                         Cancel
                       </Button>
@@ -555,6 +667,7 @@ export const AppointmentsPage: React.FC = () => {
       )}
 
       {rescheduleModalMarkup}
+      {cancelModalMarkup}
     </div>
   );
 };
