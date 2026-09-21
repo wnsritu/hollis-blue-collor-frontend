@@ -50,13 +50,53 @@ export function useAppointments() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>("9:30 AM");
 
-  const handleUpdateStatus = async (id: number | string, newStatus: string) => {
+  // Cancellation modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [selectedCancelAppointment, setSelectedCancelAppointment] = useState<Appointment | null>(null);
+  const [cancelPresetReason, setCancelPresetReason] = useState<string>("Schedule conflict / Unavailable");
+  const [cancelCustomNotes, setCancelCustomNotes] = useState<string>("");
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleUpdateStatus = async (id: number | string, newStatus: string, reason?: string) => {
     try {
-      await appointmentApi.updateStatus(id, { appointment_status: newStatus });
+      await appointmentApi.updateStatus(id, { appointment_status: newStatus, reason });
       toast.success(`Appointment marked as ${newStatus}`);
       fetchAppointments();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update appointment status.");
+    }
+  };
+
+  const handleOpenCancelModal = (apt: Appointment) => {
+    setSelectedCancelAppointment(apt);
+    setCancelPresetReason(userIsProvider ? "Schedule conflict / Unavailable" : "Schedule change / No longer needed");
+    setCancelCustomNotes("");
+    setCancelModalOpen(true);
+  };
+
+  const handleCancelSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedCancelAppointment) return;
+
+    const fullReason = cancelCustomNotes.trim()
+      ? `${cancelPresetReason} - ${cancelCustomNotes.trim()}`
+      : cancelPresetReason;
+
+    setCancelling(true);
+    try {
+      await appointmentApi.updateStatus(selectedCancelAppointment.id, {
+        appointment_status: "Cancelled",
+        reason: fullReason,
+        cancellation_reason: fullReason,
+      });
+      toast.success("Appointment cancelled successfully");
+      setCancelModalOpen(false);
+      setSelectedCancelAppointment(null);
+      fetchAppointments();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to cancel appointment.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -309,5 +349,16 @@ const FALLBACK_SEED_APPOINTMENTS: Appointment[] = [
     handleUpdateStatus,
     filteredAppointments,
     fetchAppointments,
+    cancelModalOpen,
+    setCancelModalOpen,
+    selectedCancelAppointment,
+    setSelectedCancelAppointment,
+    cancelPresetReason,
+    setCancelPresetReason,
+    cancelCustomNotes,
+    setCancelCustomNotes,
+    cancelling,
+    handleOpenCancelModal,
+    handleCancelSubmit,
   };
 }

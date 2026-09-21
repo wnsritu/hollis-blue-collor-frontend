@@ -1,8 +1,18 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import {
   ArrowLeft,
   ArrowRight,
+  AlertCircle,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -25,19 +35,18 @@ import { Textarea } from "@/components/ui/textarea";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
-import StripeBookingModal from "@/components/payment/StripeBookingModal";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { parseGooglePlace } from "@/utils/googlePlaces";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
+import { stripePromise } from "@/hooks/useStripeCardPayment";
+import CustomBookingPaymentForm from "@/components/payment/CustomBookingPaymentForm";
 import { useFormik } from "formik";
+import { isValidZip } from "@/validations/common";
 import {
   bookingAddressValidationSchema,
   type BookingAddressFormValues,
-  bookingPaymentValidationSchema,
-  type BookingPaymentFormValues,
-  DEFAULT_BOOKING_PAYMENT_VALUES,
 } from "@/validations/booking";
 
 export default function BookService() {
@@ -75,7 +84,10 @@ export default function BookService() {
     removeItem,
     subtotal,
     serviceFee,
+    serviceFeeRate,
+    taxAmount,
     grandTotal,
+    formattedPrices,
     selectedDateObj,
     unselectedServices,
     handleProceedToStep2,
@@ -108,13 +120,6 @@ export default function BookService() {
     },
   });
 
-  const paymentFormik = useFormik<BookingPaymentFormValues>({
-    initialValues: DEFAULT_BOOKING_PAYMENT_VALUES,
-    validationSchema: bookingPaymentValidationSchema,
-    onSubmit: () => {
-      handleCreateBookingAndPay();
-    },
-  });
 
 
   if (loading) {
@@ -648,188 +653,57 @@ export default function BookService() {
               </Card>
 
               {/* Payment Method & Payment Summary Panels */}
-              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                {/* Payment Method Card */}
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="font-display text-lg font-bold text-foreground">Payment method</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Enter your credit card or payment details below to complete your order securely.
-                  </p>
-
-                  <div className="mt-5 grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="cardNumber" className="text-xs font-semibold">
-                        Card number <span className="text-destructive">*</span>
-                      </Label>
-                      <div className="relative">
-                        <CreditCard
-                          size={16}
-                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <Input
-                          id="cardNumber"
-                          name="cardNumber"
-                          placeholder="4242 4242 4242 4242"
-                          value={paymentFormik.values.cardNumber}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          inputMode="numeric"
-                          className={`pl-9 ${
-                            paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }`}
-                        />
-                      </div>
-                      {paymentFormik.touched.cardNumber && paymentFormik.errors.cardNumber && (
-                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.cardNumber}</p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="grid gap-2">
-                        <Label htmlFor="expiry" className="text-xs font-semibold">
-                          Expiry <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="expiry"
-                          name="expiry"
-                          placeholder="09 / 29"
-                          value={paymentFormik.values.expiry}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.expiry && paymentFormik.errors.expiry
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.expiry && paymentFormik.errors.expiry && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.expiry}</p>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="cvc" className="text-xs font-semibold">
-                          CVC <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="cvc"
-                          name="cvc"
-                          placeholder="123"
-                          value={paymentFormik.values.cvc}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.cvc && paymentFormik.errors.cvc
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.cvc && paymentFormik.errors.cvc && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.cvc}</p>
-                        )}
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="zip" className="text-xs font-semibold">
-                          Billing ZIP
-                        </Label>
-                        <Input
-                          id="zip"
-                          name="zip"
-                          placeholder="78704"
-                          value={paymentFormik.values.zip}
-                          onChange={paymentFormik.handleChange}
-                          onBlur={paymentFormik.handleBlur}
-                          className={
-                            paymentFormik.touched.zip && paymentFormik.errors.zip
-                              ? "border-destructive focus-visible:ring-destructive"
-                              : ""
-                          }
-                        />
-                        {paymentFormik.touched.zip && paymentFormik.errors.zip && (
-                          <p className="text-[11px] text-destructive font-medium">{paymentFormik.errors.zip}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="nameOnCard" className="text-xs font-semibold">
-                        Name on card <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="nameOnCard"
-                        name="nameOnCard"
-                        placeholder="e.g. John Doe"
-                        value={paymentFormik.values.nameOnCard}
-                        onChange={paymentFormik.handleChange}
-                        onBlur={paymentFormik.handleBlur}
-                        className={
-                          paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : ""
-                        }
-                      />
-                      {paymentFormik.touched.nameOnCard && paymentFormik.errors.nameOnCard && (
-                        <p className="text-xs text-destructive font-medium">{paymentFormik.errors.nameOnCard}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-4">
-                    <ShieldCheck size={14} className="text-success" /> Secure 256-bit SSL encrypted transaction.
-                  </div>
-                </div>
-
-                {/* Payment Summary Card */}
-                <div className="h-max rounded-2xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="font-display text-lg font-bold text-foreground">Payment Summary</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Paying through Hollis platform to {businessName}
-                  </p>
-
-                  <dl className="mt-5 space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-foreground">Subtotal (Services)</dt>
-                      <dd className="font-semibold text-foreground">${subtotal}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Service Fee (10%)</dt>
-                      <dd className="text-muted-foreground font-medium">${serviceFee}</dd>
-                    </div>
-                  </dl>
-
-                  <div className="my-4 border-t border-border/60" />
-
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">Total due</span>
-                    <span className="font-display text-2xl font-bold text-foreground">${grandTotal}</span>
-                  </div>
-
-                  <Button
-                    size="lg"
-                    type="button"
-                    onClick={() => paymentFormik.handleSubmit()}
-                    disabled={submitting}
-                    className="mt-5 w-full gap-2 shadow-sm font-semibold"
-                  >
-                    {submitting ? (
-                      "Processing..."
-                    ) : (
-                      <>
-                        <Lock size={16} /> Pay & Confirm Booking
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex justify-start">
-                <Button variant="outline" onClick={() => setStep(1)}>
-                  <ArrowLeft size={16} className="mr-1.5" /> Back to Date & Address
-                </Button>
-              </div>
+              <Elements stripe={stripePromise}>
+                <CustomBookingPaymentForm
+                  details={details}
+                  grandTotal={grandTotal}
+                  formattedPrices={formattedPrices}
+                  subtotal={subtotal}
+                  serviceFee={serviceFee}
+                  serviceFeeRate={serviceFeeRate}
+                  taxAmount={taxAmount}
+                  businessName={businessName}
+                  submitting={submitting}
+                  onBack={() => setStep(1)}
+                  onPaySuccess={() => {
+                    toast.success("Payment confirmed! Your booking is complete.");
+                    navigate("/appointments");
+                  }}
+                  createBooking={async () => {
+                    if (!isAuthenticated) {
+                      toast.error("Please log in to finalize your booking.");
+                      navigate("/login?redirect=" + encodeURIComponent(window.location.pathname));
+                      throw new Error("Not authenticated");
+                    }
+                    const { addProviderBookApi } = await import("@/services/provider");
+                    const res = await addProviderBookApi({
+                      provider_id: Number(providerId),
+                      service_type_id: provider?.service_type_id || provider?.sub_category_id || provider?.category_id || 1,
+                      service_category: provider?.category?.name || "Home Services",
+                      order_type: "item_based",
+                      booking_date: selectedDate,
+                      time_slot_id: selectedTimeSlotId,
+                      total_amount: grandTotal,
+                      pickup_address: `${details.address}, ${details.city}, ${details.zip}`,
+                      delivery_address: `${details.address}, ${details.city}, ${details.zip}`,
+                      notes: details.notes,
+                      items: selectedItems.map((item) => ({
+                        service_name: item.name,
+                        quantity: item.qty,
+                        price: item.price,
+                        unit: item.unit,
+                      })),
+                    });
+                    const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
+                    const bookingId =
+                      bookingData?.id ||
+                      bookingData?.data?.id ||
+                      bookingData?.booking?.id;
+                    if (!bookingId) throw new Error("Failed to create booking. Please try again.");
+                    return Number(bookingId);
+                  }}
+                />
+              </Elements>
             </div>
           )}
         </div>
@@ -892,15 +766,21 @@ export default function BookService() {
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">${subtotal}</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Service Fee (10%)</span>
-                  <span className="font-semibold text-foreground">${serviceFee}</span>
+                  <span>Service Fee ({serviceFeeRate || 10}%)</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
                 </div>
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Taxes</span>
+                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount}`}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border/60">
                   <span>Total</span>
-                  <span className="text-primary text-base">${grandTotal}</span>
+                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal}`}</span>
                 </div>
               </div>
             </CardContent>
@@ -923,20 +803,10 @@ export default function BookService() {
         }}
       />
 
-      {/* Stripe Payment Modal - commented out for now; will be re-enabled in future when paid status is ready */}
-      {/*
-      {createdBooking && (
-        <StripeBookingModal
-          isOpen={stripeModalOpen}
-          onClose={() => setStripeModalOpen(false)}
-          bookingData={createdBooking}
-          onSuccess={(paymentIntent) => {
-            toast.success("Payment confirmed! Your booking is complete.");
-            navigate("/appointments");
-          }}
-        />
-      )}
-      */}
+      {/* Stripe modal removed — payment is now handled inline in Step 2 */}
     </div>
   );
 }
+
+export { default as BookingPaymentForm } from "@/components/payment/CustomBookingPaymentForm";
+

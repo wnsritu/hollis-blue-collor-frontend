@@ -1,66 +1,83 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
-import { getOrderDetails } from "@/services/order";
+import React, { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  FileText,
+  HelpCircle,
+  ImageIcon,
+  Loader2,
+  ShieldAlert,
+  Trash2,
+  UploadCloud,
+  User,
+  Wrench,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import { createDisputeApi } from "@/services/support";
-import { useNavigate } from "react-router-dom";
-import { formatDate } from "@/utils/date";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  PageHeader,
+  StatusPill,
+  EmptyState,
+} from "@/components/shared/primitives";
+import { usd } from "@/components/shared/cards";
+import { getOrderDetails } from "@/services/order";
+import { createDisputeApi } from "@/services/support/support.service";
+import { normalizeBooking } from "@/utils/bookingAdapter";
 
+const CARD_SHADOW_CLASS = "rounded-2xl border border-border bg-card p-6 shadow-card";
 
 const ReportIssue = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [orderData, setOrderData] = useState<any>(null);
+  const [bookingRaw, setBookingRaw] = useState<any>(null);
+  const [normalized, setNormalized] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const [issueType, setIssueType] = useState("damaged_item");
   const [description, setDescription] = useState("");
+  const [refundRequested, setRefundRequested] = useState<string>("");
   const [images, setImages] = useState<File[]>([]);
 
   useEffect(() => {
     const fetchOrder = async () => {
+      if (!id) return;
       try {
+        setLoading(true);
         const res: any = await getOrderDetails(id);
-        if (res?.data?.success) {
-          setOrderData(res.data.data);
+        const rawPayload = res?.data?.data || res?.data || res;
+        const bkg = rawPayload?.booking || rawPayload?.data?.booking || rawPayload;
+        if (bkg) {
+          setBookingRaw(bkg);
+          setNormalized(normalizeBooking(bkg));
         }
       } catch (err) {
-        toast.error("Failed to load order");
+        console.error("Failed to load booking details:", err);
+        toast.error("Failed to load booking details.");
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) fetchOrder();
+    fetchOrder();
   }, [id]);
-
-  // ✅ image handler
-  // const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   if (!e.target.files) return;
-
-  //   const files = Array.from(e.target.files) as File[];
-
-  //   if (images.length + files.length > 5) {
-  //     toast.error("Max 5 images allowed");
-  //     return;
-  //   }
-
-  //   // Filter for allowed types just in case
-  //   const allowedTypes = /jpeg|jpg|png|webp|heic|heif/i;
-  //   const filteredFiles = files.filter((file) => {
-  //     if (!allowedTypes.test(file.name)) {
-  //       toast.error(`File "${file.name}" is not a supported image type`);
-  //       return false;
-  //     }
-  //     return true;
-  //   });
-
-  //   setImages((prev) => [...prev, ...filteredFiles]);
-  // };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -68,309 +85,385 @@ const ReportIssue = () => {
     const files = Array.from(e.target.files) as File[];
 
     if (images.length + files.length > 5) {
-      toast.error("Max 5 images allowed");
+      toast.error("Maximum 5 evidence images allowed.");
       return;
     }
 
-    // Filter for allowed types just in case
     const allowedTypes = /jpeg|jpg|png|webp|heic|heif/i;
 
     const filteredFiles = files.filter((file) => {
-      // ✅ Check file type
       if (!allowedTypes.test(file.name)) {
-        toast.error(`File is not a supported image type`);
-        // toast.error(`File "${file.name}" is not a supported image type`);
+        toast.error(`"${file.name}" is not a supported image file.`);
         return false;
       }
-
-      // ✅ Check file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (file.size > maxSize) {
-        toast.error(`File exceeds 5MB limit`);
-        // toast.error(`File "${file.name}" exceeds 5MB limit`);
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds maximum size of 5MB.`);
         return false;
       }
-
       return true;
     });
 
-    if (filteredFiles.length === 0) {
-      return; // no valid files to add
+    if (filteredFiles.length > 0) {
+      setImages((prev) => [...prev, ...filteredFiles]);
     }
-
-    setImages((prev) => [...prev, ...filteredFiles]);
   };
 
-// const handleSubmit = async () => {
-//   if (!description) {
-//     toast.error("Please describe the issue");
-//     return;
-//   }
-
-//   const formData = new FormData();
-//   formData.append("booking_id", orderData.id);
-//   formData.append("issue_type", issueType);
-//   formData.append("description", description);
-
-//   images.forEach((file) => {
-//     formData.append("evidence", file);
-//   });
-
-//   try {
-//     await toast.promise(createDisputeApi(formData), {
-//       loading: "Submitting dispute...",
-//       success: (res: any) => {
-//         if (res?.data?.success) {
-//           // reset form
-//           setDescription("");
-//           setImages([]);
-//           setIssueType("damaged_item");
-//           return "Dispute submitted successfully";
-//         } else {
-//           throw new Error(res?.data?.message || "Failed");
-//         }
-//       },
-//       error: (err: any) =>
-//         err?.response?.data?.message || "Something went wrong",
-//     });
-//   } catch (error) {
-//     console.error(error);
-//   }
-// };
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
-    if (!description) {
-      toast.error("Please describe the issue");
+    if (!description.trim()) {
+      toast.error("Please provide a detailed description of the issue.");
+      return;
+    }
+
+    const requestedNum = Number(refundRequested);
+    if (!isNaN(requestedNum) && requestedNum > totalAmount && totalAmount > 0) {
+      toast.error(`Refund requested (${usd(requestedNum)}) cannot exceed total customer payment (${usd(totalAmount)}).`);
       return;
     }
 
     const formData = new FormData();
-    formData.append("booking_id", orderData.id);
+    formData.append("booking_id", String(bookingRaw?.id || id));
+    formData.append("reason", issueType);
     formData.append("issue_type", issueType);
-    formData.append("description", description);
+    formData.append("description", description.trim());
+    if (refundRequested.trim()) {
+      formData.append("refund_requested", refundRequested.trim());
+    }
 
     images.forEach((file) => {
       formData.append("evidence", file);
     });
 
-    // setLoading(true); // optional, if you have a loading state
+    setSubmitting(true);
     try {
       const res = await createDisputeApi(formData);
       if (res?.data?.success) {
-        toast.success("Dispute submitted successfully");
-        // Reset form
-        setDescription("");
-        setImages([]);
-        setIssueType("damaged_item");
-
-        // Navigate to order page with booking id
-        navigate(`/order/${orderData.id}`);
+        toast.success("Issue report submitted successfully! Our support team will review within 24 hours.");
+        navigate(`/order/${bookingRaw?.id || id}`);
       } else {
-        toast.error(res?.data?.message || "Failed to submit dispute");
+        toast.error(res?.data?.message || "Failed to submit issue report.");
       }
     } catch (error: any) {
-      console.error(error);
-      toast.error(error?.response?.data?.message || "Something went wrong");
+      console.error("Dispute error:", error);
+      toast.error(error?.response?.data?.message || "Failed to submit issue report.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // ✅ Loading UI
-  // if (loading) {
-  //   return (
-  //     <div className="flex justify-center items-center h-[50vh]">
-  //       Loading...
-  //     </div>
-  //   );
-  // }
-
-  // ❌ No data
-  if (!orderData) {
-    return <div className="text-center mt-10">Order not found</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 space-y-3">
+        <Loader2 size={36} className="animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Loading order details...</p>
+      </div>
+    );
   }
-  
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+
+  if (!bookingRaw || !normalized) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 space-y-4">
+        <Link
+          to="/customer/bookings"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft size={15} /> All Bookings
+        </Link>
+        <EmptyState
+          icon={AlertTriangle}
+          title="Booking Not Found"
+          description="The booking you are trying to report an issue for could not be found."
+          action={
+            <Button asChild>
+              <Link to="/customer/bookings">Back to My Bookings</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const displayId = normalized.displayId || `BK-${bookingRaw.id}`;
+  const providerName = normalized.providerName || "Assigned Provider";
+  const serviceName = normalized.serviceName || "Marketplace Service";
+  const categoryName = normalized.categoryName || "General Service";
+  const formattedDate = normalized.formattedDate || "N/A";
+  const status = normalized.appointmentStatus || normalized.status || "Completed";
+  const totalAmount = normalized.totalAmount || 0;
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* HEADER */}
-      <h1 className="text-xl font-semibold text-foreground">Report an Issue</h1>
+    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+      {/* Back Link */}
+      <Link
+        to={`/order/${bookingRaw.id}`}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft size={15} /> Back to Order #{displayId}
+      </Link>
 
-      {/* ORDER SUMMARY */}
-      <Card>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 py-5 text-sm">
-          <div>
-            <p className="text-muted-foreground">Order</p>
-            <p className="font-medium">
-              {" "}
-              {orderData.order_id || `#${orderData.id}`}
+      <PageHeader
+        title="Report an Issue & Request Support"
+        subtitle={`Submit a formal dispute or request resolution for booking ${displayId}.`}
+      />
+
+      {/* Booking Summary Banner Card */}
+      <section className={CARD_SHADOW_CLASS}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div className="space-y-1">
+            <p className="text-muted-foreground font-medium flex items-center gap-1">
+              <FileText size={13} className="text-primary" /> Order ID
             </p>
+            <p className="font-mono font-bold text-sm text-foreground">{displayId}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{categoryName}</p>
           </div>
 
-          <div>
-            <p className="text-muted-foreground">Provider</p>
-            <p className="font-medium"> {orderData.provider?.business_name}</p>
-          </div>
-
-          <div>
-            <p className="text-muted-foreground">Service Type</p>
-            <p className="font-medium"> {orderData.order_type}</p>
-          </div>
-
-          <div>
-            <p className="text-muted-foreground">Order Date</p>
-            <p className="font-medium">
-              {formatDate(orderData.booking_date)}
+          <div className="space-y-1">
+            <p className="text-muted-foreground font-medium flex items-center gap-1">
+              <User size={13} className="text-primary" /> Assigned Provider
             </p>
+            <p className="font-bold text-sm text-foreground truncate">{providerName}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{serviceName}</p>
           </div>
 
-          <div>
-            <p className="text-muted-foreground">Order Status</p>
-            <span className="inline-block mt-1 px-3 py-1 text-xs rounded-full bg-green-100 text-green-600">
-              {orderData.status}
-            </span>
+          <div className="space-y-1">
+            <p className="text-muted-foreground font-medium flex items-center gap-1">
+              <Calendar size={13} className="text-primary" /> Service Date
+            </p>
+            <p className="font-bold text-sm text-foreground">{formattedDate}</p>
+            <p className="text-[11px] text-muted-foreground">Total: {usd(totalAmount)}</p>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* FORM */}
-      <Card>
-        <CardContent className="py-6 space-y-6">
-          <div>
-            <h2 className="font-medium text-foreground">
-              Need help with your order?
+          <div className="space-y-1">
+            <p className="text-muted-foreground font-medium flex items-center gap-1">
+              <Clock size={13} className="text-primary" /> Order Status
+            </p>
+            <div className="pt-0.5">
+              <StatusPill status={status} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Issue Report Form */}
+      <section className={CARD_SHADOW_CLASS}>
+        <div className="space-y-6">
+          <div className="border-b border-border pb-4">
+            <h2 className="font-display text-lg font-bold flex items-center gap-2">
+              <AlertTriangle size={18} className="text-rose-500" /> Issue Details &amp; Evidence
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Tell us what went wrong and we will review your request within 24
-              hours.
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Provide clear details about what went wrong so our support team can investigate and resolve your request promptly.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {/* LEFT SIDE */}
-            <div className="space-y-4">
-              {/* Issue Type */}
-              <div>
-                <label className="text-sm font-medium">Issue Type</label>
-                <select
-                  className="mt-1 w-full h-10 rounded-md border px-3 text-sm"
-                  value={issueType}
-                  onChange={(e) => setIssueType(e.target.value)}
-                >
-                  <option value="damaged_item">Damaged Items</option>
-                  <option value="late_delivery">Late Delivery</option>
-                  <option value="missing_item">Missing Items</option>
-                  <option value="wrong_service">Wrong Service</option>
-                  <option value="other">Other</option>
-                </select>
+            {/* Left Column: Form Fields */}
+            <div className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="issueType" className="text-xs font-bold text-foreground">
+                  Issue Type <span className="text-destructive">*</span>
+                </Label>
+                <Select value={issueType} onValueChange={setIssueType}>
+                  <SelectTrigger id="issueType" className="h-10 text-xs">
+                    <SelectValue placeholder="Select primary issue type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="damaged_item">Damaged Items or Property</SelectItem>
+                    <SelectItem value="late_delivery">Late Arrival / Provider No-Show</SelectItem>
+                    <SelectItem value="missing_item">Incomplete Service / Missing Items</SelectItem>
+                    <SelectItem value="wrong_service">Wrong Service / Poor Quality</SelectItem>
+                    <SelectItem value="other">Other Issue</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="text-sm font-medium">
-                  Describe the issue
-                </label>
-                <textarea
-                  placeholder="Please provide details about what happened"
-                  className="mt-1 w-full rounded-md border p-3 text-sm min-h-[120px]"
-                  rows={4}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="refundAmount" className="text-xs font-bold text-foreground">
+                    Refund Amount Requested (USD)
+                  </Label>
+                  {totalAmount > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Max Refundable: <strong>{usd(totalAmount)}</strong>
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick Option Buttons */}
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={refundRequested === String(totalAmount) ? "default" : "outline"}
+                    onClick={() => setRefundRequested(String(totalAmount))}
+                    className="h-7 text-[11px] gap-1 px-2.5"
+                  >
+                    Full Refund ({usd(totalAmount)})
+                  </Button>
+                  {totalAmount > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={refundRequested === (totalAmount / 2).toFixed(2) ? "default" : "outline"}
+                      onClick={() => setRefundRequested((totalAmount / 2).toFixed(2))}
+                      className="h-7 text-[11px] px-2.5"
+                    >
+                      50% Partial ({usd(totalAmount / 2)})
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={refundRequested === "0" ? "secondary" : "ghost"}
+                    onClick={() => setRefundRequested("0")}
+                    className="h-7 text-[11px] px-2.5"
+                  >
+                    No Refund (0)
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="refundAmount"
+                    type="number"
+                    min="0"
+                    max={totalAmount}
+                    step="0.01"
+                    placeholder={`e.g. ${totalAmount}`}
+                    value={refundRequested}
+                    onChange={(e) => setRefundRequested(e.target.value)}
+                    className={`pl-8 text-xs h-10 ${
+                      Number(refundRequested) > totalAmount ? "border-destructive focus-visible:ring-destructive" : ""
+                    }`}
+                  />
+                </div>
+
+                {Number(refundRequested) > totalAmount && (
+                  <p className="text-[11px] font-bold text-destructive">
+                    ⚠️ Refund requested ({usd(Number(refundRequested))}) cannot exceed booking payment total ({usd(totalAmount)}).
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-xs font-bold text-foreground">
+                  Describe What Happened <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="description"
+                  rows={5}
+                  placeholder="Please describe the issue in detail (what was expected vs what occurred)..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  className="text-xs min-h-[130px]"
                 />
               </div>
             </div>
 
-            {/* RIGHT SIDE */}
-            <div>
-              <label className="text-sm font-medium">
-                Upload Photos (if applicable)
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Instruction: Add photos to help us review your issue faster
-              </p>
+            {/* Right Column: Evidence Upload */}
+            <div className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-foreground">
+                  Upload Photo Evidence (Optional)
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Attach photos or screenshots (PNG, JPG, WEBP — Max 5MB per file, up to 5 images).
+                </p>
+              </div>
 
-              <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition">
+              {/* Upload Dropzone */}
+              <div className="relative border-2 border-dashed border-border hover:border-primary/50 rounded-2xl p-6 text-center transition-colors bg-muted/20">
                 <input
                   type="file"
                   multiple
-                  className="hidden"
                   accept=".jpeg,.jpg,.png,.webp,.heic,.heif"
-                  id="upload"
+                  id="fileUpload"
                   onChange={handleImageUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 />
-                <label htmlFor="upload" className="cursor-pointer">
-                  <Upload className="mx-auto text-muted-foreground" />
-                  <p className="text-sm mt-2">Click or drag files to upload</p>
-                </label>
+                <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                  <div className="p-3 rounded-full bg-primary/10 text-primary">
+                    <UploadCloud size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">Click or Drag &amp; Drop Photos</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Supports PNG, JPG, WEBP up to 5MB</p>
+                  </div>
+                </div>
               </div>
-              {/* <div className="flex gap-2 mt-3 flex-wrap">
-                {images.map((file, i) => (
-                  <img
-                    key={i}
-                    src={URL.createObjectURL(file)}
-                    className="h-16 w-16 object-cover rounded"
-                  />
-                ))}
-              </div> */}
 
-{/* Preview uploaded images */}
-  <div className="flex gap-2 mt-3 flex-wrap">
-    {images.map((file, i) => (
-      <div key={i} className="relative group">
-        <img
-          src={URL.createObjectURL(file)}
-          className="h-16 w-16 object-cover rounded"
-        />
-        {/* ❌ Remove button */}
-        <button
-          type="button"
-          onClick={() => handleRemoveImage(i)}
-          className="
-            absolute -top-2 -right-2
-            bg-red-500 hover:bg-red-600
-            text-white
-            rounded-full
-            w-5 h-5
-            flex items-center justify-center
-            shadow-md
-            opacity-100 md:opacity-0 md:group-hover:opacity-100
-            transition
-          "
-        >
-          X
-        </button>
-      </div>
-    ))}
-  </div>
-
+              {/* Uploaded Images Preview Grid */}
+              {images.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground">
+                    Attached Files ({images.length}/5)
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {images.map((file, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-border bg-card">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Evidence preview ${idx + 1}`}
+                          className="h-20 w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-rose-600 text-white shadow-md hover:bg-rose-700 transition-colors"
+                          title="Remove image"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        <div className="p-1 text-[10px] truncate text-muted-foreground text-center bg-card">
+                          {file.name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* REVIEW PROCESS */}
-      <Card>
-        <CardContent className="py-5 space-y-4">
-          <h3 className="font-medium">Review Process</h3>
+      {/* Review Process & Dispute Policy Callout */}
+      <section className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-5 space-y-3 text-xs">
+        <h3 className="font-display text-sm font-bold text-rose-700 dark:text-rose-400 flex items-center gap-2">
+          <ShieldAlert size={16} /> Marketplace Protection &amp; Resolution Process
+        </h3>
+        <ul className="space-y-1.5 text-muted-foreground list-disc pl-5 text-[11px]">
+          <li>
+            <strong>Payment Protection:</strong> Submitting a dispute automatically freezes provider payout release until our support team completes review.
+          </li>
+          <li>
+            <strong>Review SLA:</strong> Our dispute resolution agents will investigate and respond within <strong>24 hours</strong>.
+          </li>
+          <li>
+            <strong>Communication:</strong> Our team may contact you via email or platform messages if additional documentation is required.
+          </li>
+        </ul>
+      </section>
 
-          <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
-            <li>Your report will be reviewed within 24 hours</li>
-            <li>Payment may be temporarily paused during review</li>
-            <li>We may contact you for additional information if needed</li>
-          </ul>
+      {/* Submit Action Bar */}
+      <div className="flex items-center justify-end gap-3 pt-2">
+        <Button variant="outline" asChild disabled={submitting}>
+          <Link to={`/order/${bookingRaw.id}`}>Cancel</Link>
+        </Button>
 
-          <div className="bg-muted px-4 py-2 rounded-md text-sm text-muted-foreground w-fit">
-            Issues must be reported within 24 hours of order completion
-          </div>
-
-          <Button className="mt-2" onClick={handleSubmit}>
-            Submit Issue
-          </Button>
-        </CardContent>
-      </Card>
+        <Button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+        >
+          {submitting ? <Loader2 size={16} className="animate-spin" /> : <ShieldAlert size={16} />}
+          Submit Issue &amp; Open Dispute
+        </Button>
+      </div>
     </div>
   );
 };

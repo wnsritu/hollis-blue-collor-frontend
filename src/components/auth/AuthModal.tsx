@@ -705,7 +705,7 @@ const handleVerifyOtp = async (otp: string) => {
                 {tab === "login" ? t("login") : t("createAccount")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Hollis — Blue Collar Worker
+                Hollis — Handled with care
               </p>
             </div>
 
@@ -1092,7 +1092,7 @@ const handleVerifyOtp = async (otp: string) => {
                         <ol className="list-decimal list-inside space-y-1">
                           <li><strong>Overview:</strong> Hollis is a marketplace platform connecting customers with independent service providers. Hollis does not directly provide services.</li>
                           <li><strong>User Accounts:</strong> Users must provide accurate information and maintain account security. Providers must complete verification before activation.</li>
-                          <li><strong>Services:</strong> Providers independently offer blue collar and home services. Hollis is not responsible for how services are performed.</li>
+                          <li><strong>Services:</strong> Providers independently offer home and local services. Hollis is not responsible for how services are performed.</li>
                           <li><strong>Booking & Payments:</strong> Customer requests → Provider accepts → Customer pays via Stripe. Funds are released upon confirmation or automatically after 4 hours.</li>
                           <li><strong>Pricing:</strong> Includes provider pricing, service fees, pickup/delivery fees, and platform fees.</li>
                           <li><strong>Cancellations:</strong> Late cancellation: 50% customer refund, 10% provider, 40% platform.</li>

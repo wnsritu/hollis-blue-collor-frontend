@@ -57,8 +57,11 @@ export interface NormalizedBooking {
     reason?: string | null;
   };
   dispute: {
+    id: number | null;
     isDisputed: boolean;
     status: string;
+    adminDecision: string | null;
+    adminResolutionNote: string | null;
     deadlineAt: string | null;
   };
   review?: {
@@ -157,13 +160,21 @@ export function normalizeBooking(b: any): NormalizedBooking {
     : [];
 
   // Service Title
+  const projectTitle = b.project?.title || b.project_title || b.projectTitle;
+  const serviceTypeName = b.service?.service_type?.name || b.service_type?.name || b.service_type_name;
+  const rawJoinedItems = servicesList.map((s: any) => s.name).filter(Boolean).join(", ");
+  const isGenericLineItems =
+    rawJoinedItems.includes("Labor & Service") ||
+    rawJoinedItems.includes("Materials & Supplies") ||
+    rawJoinedItems.includes("Additional Fees");
+
   const serviceName =
-    servicesList.map((s: any) => s.name).filter(Boolean).join(", ") ||
-    b.service?.service_type?.name ||
+    projectTitle ||
+    (serviceTypeName && serviceTypeName !== "Service Details" ? serviceTypeName : null) ||
+    (!isGenericLineItems && rawJoinedItems ? rawJoinedItems : null) ||
     b.service?.category_name ||
-    b.service_type?.name ||
-    b.project?.title ||
     b.service_category ||
+    rawJoinedItems ||
     "Service Details";
 
   const categoryName =
@@ -171,8 +182,19 @@ export function normalizeBooking(b: any): NormalizedBooking {
     b.service_category ||
     "Home Services";
 
+  let cleanNotesText = b.notes;
+  if (cleanNotesText && String(cleanNotesText).trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(cleanNotesText);
+      cleanNotesText = parsed.note_text || parsed.counter_note || null;
+    } catch (e) {
+      cleanNotesText = null;
+    }
+  }
+
   const serviceDescription =
-    b.notes ||
+    cleanNotesText ||
+    b.project?.description ||
     b.description ||
     b.service?.service_type?.description ||
     b.service_description ||
@@ -217,22 +239,30 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const formattedTime = formatDisplayTime(rawStartTime);
 
   // Pricing
+  const itemsSum = servicesList.reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0);
+
   const totalAmount = Number(
     b.pricing?.total ??
-    b.payment?.amount ??
     b.total_amount ??
+    b.payment?.amount ??
     b.price ??
     0
   );
 
-  const subtotal = Number(
-    b.pricing?.subtotal ??
-    (totalAmount > 0 ? Math.round((totalAmount / 1.1) * 100) / 100 : 0)
-  );
+  const subtotal = itemsSum > 0
+    ? itemsSum
+    : Number(
+        b.pricing?.subtotal ??
+        b.payment?.gross_amount ??
+        b.proposal?.amount ??
+        b.subtotal ??
+        totalAmount
+      );
 
   const serviceFee = Number(
-    b.pricing?.service_fee ??
-    Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
+    b.pricing?.service_fee && b.pricing?.service_fee > 0
+      ? b.pricing.service_fee
+      : Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
   );
 
   const currency = b.pricing?.currency || b.payment?.currency || "USD";
@@ -264,9 +294,16 @@ export function normalizeBooking(b: any): NormalizedBooking {
   };
 
   // Dispute info
+  const disputeStatus = b.dispute?.status ?? b.dispute_status ?? "none";
   const dispute = {
-    isDisputed: Boolean(b.dispute?.is_disputed ?? b.is_disputed),
-    status: b.dispute?.status ?? b.dispute_status ?? "none",
+    id: b.dispute?.id ? Number(b.dispute.id) : null,
+    isDisputed: Boolean(
+      b.dispute?.is_disputed ??
+        (b.is_disputed && !["resolved", "rejected", "closed"].includes(disputeStatus))
+    ),
+    status: disputeStatus,
+    adminDecision: b.dispute?.admin_decision ?? b.admin_decision ?? null,
+    adminResolutionNote: b.dispute?.admin_resolution_note ?? b.admin_resolution_note ?? null,
     deadlineAt: b.dispute?.deadline_at ?? b.dispute_deadline_at ?? null,
   };
 

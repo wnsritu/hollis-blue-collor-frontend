@@ -26,7 +26,6 @@ const AdminCommission = lazy(() => import("@/pages/admin/AdminCommission"));
 const AdminSubscriptions = lazy(() => import("@/pages/admin/AdminSubscriptions"));
 const AdminFeaturedPlans = lazy(() => import("@/pages/admin/AdminFeaturedPlans"));
 const AdminFeaturedListings = lazy(() => import("@/pages/admin/AdminFeaturedListings"));
-const AdminTransactions = lazy(() => import("@/pages/admin/AdminTransactions"));
 const AdminMessages = lazy(() => import("@/pages/admin/AdminMessages"));
 const AdminConversation = lazy(() => import("@/pages/admin/AdminConversation"));
 const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
@@ -67,6 +66,7 @@ const ProviderAvailability = lazy(() => import("@/pages/provider/ProviderAvailab
 const ProviderEarnings = lazy(() => import("@/pages/provider/ProviderEarnings"));
 const ProviderSubscription = lazy(() => import("@/pages/provider/ProviderSubscription"));
 const ProviderFeatured = lazy(() => import("@/pages/provider/ProviderFeatured"));
+const ProviderSubscriptionPage = lazy(() => import("@/pages/provider/ProviderSubscriptionPage"));
 const ProviderProfileSettings = lazy(() => import("@/pages/provider/ProviderProfileSettings"));
 const ProviderCustomRequestDetail = lazy(() => import("@/pages/provider/ProviderCustomRequestDetail"));
 
@@ -93,14 +93,14 @@ export const PrivateRoutes = () => (
       <Route path="reviews" element={<AdminReviews />} />
       <Route path="sponsored" element={<AdminSponsored />} />
       <Route path="coins" element={<AdminCoins />} />
-      <Route path="featured" element={<AdminFeaturedPricing />} />
+      <Route path="featured" element={<Navigate to="/admin/featured-plans" replace />} />
       <Route path="reports" element={<AdminReports />} />
       <Route path="payouts" element={<AdminPayouts />} />
       <Route path="commission" element={<AdminCommission />} />
       <Route path="subscriptions" element={<AdminSubscriptions />} />
       <Route path="featured-plans" element={<AdminFeaturedPlans />} />
       <Route path="featured-listings" element={<AdminFeaturedListings />} />
-      <Route path="transactions" element={<AdminTransactions />} />
+      <Route path="transactions" element={<Navigate to="/admin/payouts" replace />} />
       <Route path="messages" element={<AdminMessages />} />
       <Route path="messages/:id" element={<AdminConversation />} />
       <Route path="profile" element={<AdminProfile />} />
@@ -138,6 +138,7 @@ export const PrivateRoutes = () => (
       <Route path="/orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path="orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
+      <Route path="/customer/order/:id" element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />
       <Route path={routeMap.CUSTOMER_PROFILE.path} element={<CustomerProfile />} />
@@ -179,6 +180,7 @@ export const PrivateRoutes = () => (
       <Route path={routeMap.PROVIDER_EARNINGS.path} element={<ProviderEarnings />} />
       <Route path={routeMap.PROVIDER_SUBSCRIPTION.path} element={<ProviderSubscription />} />
       <Route path={routeMap.PROVIDER_FEATURED.path} element={<ProviderFeatured />} />
+      <Route path={routeMap.PROVIDER_SUBSCRIPTION.path} element={<ProviderSubscriptionPage />} />
       <Route path={routeMap.PROVIDER_PROFILE_SETTINGS.path} element={<ProviderProfileSettings />} />
       <Route path={routeMap.PROVIDER_CUSTOM_REQUEST_DETAIL.path} element={<ProviderCustomRequestDetail />} />
     </Route>

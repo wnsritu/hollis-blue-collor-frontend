@@ -33,7 +33,12 @@ export const AdminSettings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const save = () => toast.success("Settings saved");
+  const [passErrors, setPassErrors] = useState<Record<string, string>>({});
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [platform, setPlatform] = useState({
+    name: "Hollis",
+    email: "support@hollis.com",
+  });
 
   const handleUpdatePassword = (e: React.FormEvent) => {
     e.preventDefault();

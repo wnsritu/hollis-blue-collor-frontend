@@ -14,110 +14,159 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertTriangle, DollarSign, CreditCard, Send, CheckCircle, Eye,
+  AlertTriangle, DollarSign, CreditCard, Send, Eye, ShieldAlert,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { adminFinalDisputeDecision, getDisputeData } from "@/services/support";
 
 const AdminDisputeDetail = () => {
   const { id } = useParams();
-  const [disputeData, setDisputeData] = useState(null);
+  const [disputeData, setDisputeData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [partialRefundOpen, setPartialRefundOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [partialNotes, setPartialNotes] = useState("");
-  const [decision, setDecision] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
   const fetchDispute = async () => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await getDisputeData({"booking_id": id});
+      const res: any = await getDisputeData(id);
       if (res?.data?.success) {
-        setDisputeData(res.data.data);
-        setPartialAmount(res.data.data.dispute.total_amount);
+        const rawData = res.data.data;
+        setDisputeData(rawData);
+        const disputeObj = rawData?.dispute || rawData;
+        const totalAmt = disputeObj?.booking?.total_amount || disputeObj?.refund_requested || disputeObj?.total_amount || "";
+        setPartialAmount(totalAmt ? String(totalAmt) : "");
       } else {
-        toast.error("Failed to load dispute");
+        toast.error("Failed to load dispute details");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Something went wrong");
+      toast.error("Something went wrong while fetching dispute");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch dispute by ID
   useEffect(() => {
     fetchDispute();
   }, [id]);
 
-  const handleDecision = async (type: any, id: any) => {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
+        <p className="text-sm font-medium">Loading dispute details...</p>
+      </div>
+    );
+  }
+
+  if (!disputeData) {
+    return (
+      <div className="text-center py-16 px-4 space-y-4">
+        <ShieldAlert size={48} className="mx-auto text-muted-foreground" />
+        <h3 className="text-lg font-semibold text-foreground">Dispute Not Found</h3>
+        <Link to="/admin/disputes">
+          <Button variant="outline" size="sm">Back to Disputes</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // Safe extraction of dispute object whether API returned { dispute, evidences } or direct dispute object
+  const dispute = disputeData?.dispute || disputeData;
+  const evidences: any[] = disputeData?.evidences || dispute?.evidences || [];
+
+  const disputeId = dispute?.id || id;
+  const bookingNumber = dispute?.booking?.booking_number || (dispute?.booking_id ? `BK-${dispute.booking_id}` : "-");
+  const customerName = dispute?.customer?.full_name || dispute?.customer_name || "Customer";
+  const customerEmail = dispute?.customer?.email;
+  const providerName = dispute?.booking?.provider?.business_name || dispute?.provider_name || "Provider";
+  const issueType = dispute?.issue_type ? dispute.issue_type.replace(/_/g, " ") : "-";
+  const description = dispute?.description || dispute?.customer_description || "No description provided.";
+  const agentName = dispute?.assignedAgent?.full_name || dispute?.agent_name || "Unassigned";
+  const status = (dispute?.status || "open").toLowerCase();
+  const adminDecision = dispute?.admin_decision || "pending";
+  const resolutionNote = dispute?.admin_resolution_note || dispute?.agent_description;
+
+  const isDisabled = status === "resolved" || status === "rejected";
+
+  const handleDecision = async (type: string) => {
     setLoading(true);
     try {
-      let req = {
-        "dispute_id": id,
-        "decision": type,
+      const req = {
+        dispute_id: Number(disputeId),
+        decision: type,
+        status: type === "reject_dispute" ? "rejected" : "resolved",
       };
-      const res = await adminFinalDisputeDecision(req);
+      const res: any = await adminFinalDisputeDecision(req);
       if (res?.data?.success) {
         toast.success(res.data.message || "Decision submitted successfully");
         fetchDispute();
       } else {        
-        toast.error(res.data.message || "Failed to load dispute");
+        toast.error(res?.data?.message || "Failed to submit decision");
       }
-    } catch (err) {      
-      toast.error(err || "Something went wrong");
+    } catch (err: any) {      
+      toast.error(err?.response?.data?.message || "Something went wrong submitting decision");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDecisionPartial = async (type: any, notes: string, amount: any, id: any) => {
+  const handleDecisionPartial = async () => {
+    if (!partialAmount || Number(partialAmount) <= 0) {
+      toast.error("Please enter a valid refund amount");
+      return;
+    }
     setLoading(true);
     try {
-      let req = {
-        "dispute_id": id,
-        "decision": type,
-        "refund_amount": amount,
-        "admin_note": notes,
+      const req = {
+        dispute_id: Number(disputeId),
+        decision: "partial_refund",
+        status: "resolved",
+        refund_amount: Number(partialAmount),
+        admin_note: partialNotes || "Partial refund issued by admin",
       };
-      const res = await adminFinalDisputeDecision(req);      
+      const res: any = await adminFinalDisputeDecision(req);      
       if (res?.data?.success) {
         toast.success(res.data.message || "Partial refund issued successfully");
         setPartialRefundOpen(false);
         fetchDispute();
       } else {
-        toast.error("Failed to load dispute");
+        toast.error(res?.data?.message || "Failed to issue partial refund");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Something went wrong");
+      toast.error(err?.response?.data?.message || "Something went wrong issuing partial refund");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !disputeData) {
-    return <p className="text-center py-10 text-muted-foreground">Loading dispute details...</p>;
-  }
-
-  const { dispute, evidences, timeline } = disputeData;
-
-  const isDisabled = disputeData?.dispute?.status === "resolved";
-
-  const statusColors = {
-    open: "bg-red-100 text-red-600",
-    resolved: "bg-green-100 text-green-600",
+  const getStatusBadge = (st: string) => {
+    switch (st) {
+      case "open":
+        return <Badge className="bg-red-50 text-red-700 border-red-200">Open</Badge>;
+      case "under_review":
+        return <Badge className="bg-blue-50 text-blue-700 border-blue-200">Under Review</Badge>;
+      case "resolved":
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Resolved</Badge>;
+      case "rejected":
+        return <Badge className="bg-rose-50 text-rose-700 border-rose-200">Rejected</Badge>;
+      default:
+        return <Badge className="bg-gray-50 text-gray-700 border-gray-200 capitalize">{st}</Badge>;
+    }
   };
 
-  const getDisabledMessage = (adminDecision) => {
-    // debugger
-    if (!adminDecision) return "";
-    return "Action already performed by admin"; // ✅ single generic message
+  const buildImageUrl = (rawUrl: string) => {
+    if (!rawUrl) return "";
+    const clean = rawUrl.replace(/"/g, "").trim();
+    if (clean.startsWith("http")) return clean;
+    return `${BASE_URL}${clean.startsWith("/") ? "" : "/"}${clean}`;
   };
 
   return (
@@ -128,21 +177,41 @@ const AdminDisputeDetail = () => {
           <Link to="/admin/disputes" className="text-sm text-muted-foreground hover:text-foreground mb-2 inline-block">
             ← Back to Disputes
           </Link>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Dispute {dispute.id}</h1>
+          <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+            Dispute DSP-{disputeId}
+          </h1>
         </div>
-        <Badge className={`w-fit border-0 ${decision ? "bg-secondary/10 text-secondary" : statusColors[dispute.status]}`}>
-          {decision ? "Resolved" : dispute.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {getStatusBadge(status)}
+          {adminDecision && adminDecision !== "pending" && (
+            <Badge variant="outline" className="capitalize bg-purple-50 text-purple-700 border-purple-200">
+              Decision: {adminDecision.replace(/_/g, " ")}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Dispute Info */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div><p className="text-muted-foreground">Order</p><p className="font-medium text-foreground">ORD-{dispute?.booking_id}</p></div>
-            <div><p className="text-muted-foreground">Customer</p><p className="font-medium text-foreground">{dispute?.customer_name}</p></div>
-            <div><p className="text-muted-foreground">Provider</p><p className="font-medium text-foreground">{dispute?.provider_name}</p></div>
-            <div><p className="text-muted-foreground">Issue Type</p><p className="font-medium text-foreground">{dispute?.issue_type.replace("_", " ")}</p></div>
+          <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Booking / Order</p>
+              <p className="font-semibold text-foreground font-mono text-base">{bookingNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Customer</p>
+              <p className="font-semibold text-foreground">{customerName}</p>
+              {customerEmail && <p className="text-xs text-muted-foreground">{customerEmail}</p>}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Provider</p>
+              <p className="font-semibold text-foreground">{providerName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Issue Type</p>
+              <p className="font-semibold text-foreground capitalize">{issueType}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -151,46 +220,65 @@ const AdminDisputeDetail = () => {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle size={16} className="text-destructive" /> Issue Details
+            <AlertTriangle size={18} className="text-destructive" /> Issue Details & Description
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="rounded-lg bg-accent p-3">
-            <p className="text-xs font-medium text-foreground mb-1">Customer Comment</p>
-            <p className="text-sm text-muted-foreground">{dispute?.customer_description}</p>
+          <div className="rounded-lg bg-accent/50 p-4 border border-border/50">
+            <p className="text-xs font-medium text-foreground mb-1">Customer Statement</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Evidence */}
-      <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Evidence</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-            {evidences.map((img, i) => (
-              <button key={img.id} onClick={() => setPreviewImage(img.image_url.replace(/"/g, ""))} className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors">
-                <img src={`${BASE_URL}${img?.image_url.replace(/"/g, "")}`} alt={`Evidence ${i+1}`} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
-                  <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Support Agent Recommendation */}
-      <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Support Agent Recommendation</CardTitle></CardHeader>
-        <CardContent>
-          <div className="rounded-lg bg-accent p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-foreground">{dispute?.agent_name}</p>
-              <Badge variant="outline" className="bg-secondary/10 text-secondary border-secondary/20">{dispute?.agent_recommendation || "Agent Recomended"}</Badge>
+      {evidences.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Uploaded Evidence ({evidences.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {evidences.map((img: any, i: number) => {
+                const rawUrl = img.file_url || img.image_url || "";
+                const fullUrl = buildImageUrl(rawUrl);
+                return (
+                  <button
+                    key={img.id || i}
+                    onClick={() => setPreviewImage(fullUrl)}
+                    className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors bg-muted"
+                  >
+                    <img src={fullUrl} alt={`Evidence ${i + 1}`} className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+                      <Eye size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            {/* <p className="text-sm text-muted-foreground">{dispute?.recommendation}</p> */}
-            <p className="text-sm text-muted-foreground">{dispute?.agent_description}</p>
-            {/* <p className="text-xs text-muted-foreground">{dispute?.date}</p> */}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assigned Agent Details */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Support Agent Handling</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg bg-accent/40 p-4 space-y-2 border border-border/50">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Agent: {agentName}</p>
+              <Badge variant="outline" className="bg-secondary/10 text-secondary border-secondary/20">
+                {status === "open" ? "Pending Agent" : "Assigned"}
+              </Badge>
+            </div>
+            {resolutionNote && (
+              <div className="mt-2 pt-2 border-t border-border/40">
+                <p className="text-xs font-medium text-foreground">Resolution Notes / Recommendation:</p>
+                <p className="text-sm text-muted-foreground">{resolutionNote}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -198,23 +286,47 @@ const AdminDisputeDetail = () => {
       {/* Admin Final Decision */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Final Decision</CardTitle>
+          <CardTitle className="text-base">Admin Decision</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Review all evidence and make a final decision on this dispute.</Label>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {isDisabled
+              ? `This dispute has been marked as ${status}.`
+              : "Review all evidence and select a final decision to resolve or close this dispute."}
+          </p>
 
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={isDisabled}
-              className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setPartialRefundOpen(true)}>
-              <CreditCard size={14} className="mr-1" /> Issue Partial Refund
+          <div className="flex flex-wrap gap-3">
+            <Button
+              disabled={isDisabled || loading}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => setPartialRefundOpen(true)}
+            >
+              <CreditCard size={16} className="mr-1.5" /> Issue Partial Refund
             </Button>
-            <Button disabled={isDisabled} onClick={() => handleDecision("refund", dispute?.id)} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <DollarSign size={14} className="mr-1" /> Issue Full Refund
+
+            <Button
+              disabled={isDisabled || loading}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={() => handleDecision("refund")}
+            >
+              <DollarSign size={16} className="mr-1.5" /> Issue Full Refund
             </Button>
-            <Button disabled={isDisabled} className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => handleDecision("release_payment", dispute?.id)}>
-              <Send size={14} className="mr-1" /> Release Payment
+
+            <Button
+              disabled={isDisabled || loading}
+              variant="outline"
+              className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => handleDecision("release_payment")}
+            >
+              <Send size={16} className="mr-1.5" /> Release Payment to Provider
+            </Button>
+
+            <Button
+              disabled={isDisabled || loading}
+              variant="destructive"
+              onClick={() => handleDecision("reject_dispute")}
+            >
+              Reject Dispute
             </Button>
           </div>
         </CardContent>
@@ -223,20 +335,34 @@ const AdminDisputeDetail = () => {
       {/* Partial Refund Modal */}
       <Dialog open={partialRefundOpen} onOpenChange={setPartialRefundOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Issue Partial Refund</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Issue Partial Refund</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Refund Amount ($)</Label>
-              <Input type="number" step="0.01" min="0" max={partialAmount} placeholder="0.00" value={partialAmount} onChange={(e) => setPartialAmount(e.target.value)} />
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={partialAmount}
+                onChange={(e) => setPartialAmount(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea placeholder="Reason for partial refund..." value={partialNotes} onChange={(e) => setPartialNotes(e.target.value)} rows={3} />
+              <Label>Resolution Notes</Label>
+              <Textarea
+                placeholder="Reason for partial refund..."
+                value={partialNotes}
+                onChange={(e) => setPartialNotes(e.target.value)}
+                rows={3}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPartialRefundOpen(false)}>Cancel</Button>
-            <Button onClick={() => handleDecisionPartial("partial_refund", partialNotes || "Partial refund issued.", partialAmount, dispute?.id)}>Confirm</Button>
+            <Button onClick={handleDecisionPartial} disabled={loading}>Confirm Refund</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -249,8 +375,8 @@ const AdminDisputeDetail = () => {
           </DialogHeader>
           {previewImage && (
             <img
-              src={`${BASE_URL}${previewImage.replace(/"/g, "")}`}
-              alt="Evidence"
+              src={previewImage}
+              alt="Evidence Preview"
               className="w-full rounded-lg object-contain max-h-[70vh]"
             />
           )}

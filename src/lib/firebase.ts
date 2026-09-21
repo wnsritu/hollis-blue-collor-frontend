@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCfnkpvXf56PRJSXtxwIVsQlcGQJVz0rq8",
-  authDomain: "unik-clean-ed2ca.firebaseapp.com",
-  projectId: "unik-clean-ed2ca",
-  storageBucket: "unik-clean-ed2ca.firebasestorage.app",
-  messagingSenderId: "10003156624",
-  appId: "1:10003156624:web:80e498af459507c138d215",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCfnkpvXf56PRJSXtxwIVsQlcGQJVz0rq8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "hollis-app.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "hollis-app",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "hollis-app.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "10003156624",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:10003156624:web:80e498af459507c138d215",
 };
 
 // ✅ Check if already initialized
@@ -35,20 +35,4 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// Import the functions you need from the SDKs you need
-// import { initializeApp } from "firebase/app";
-// // TODO: Add SDKs for Firebase products that you want to use
-// // https://firebase.google.com/docs/web/setup#available-libraries
 
-// // Your web app's Firebase configuration
-// const firebaseConfig = {
-//   apiKey: "AIzaSyCfnkpvXf56PRJSXtxwIVsQlcGQJVz0rq8",
-//   authDomain: "unik-clean-ed2ca.firebaseapp.com",
-//   projectId: "unik-clean-ed2ca",
-//   storageBucket: "unik-clean-ed2ca.firebasestorage.app",
-//   messagingSenderId: "10003156624",
-//   appId: "1:10003156624:web:80e498af459507c138d215",
-// };
-
-// // Initialize Firebase
-// const app = initializeApp(firebaseConfig);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
@@ -220,6 +221,31 @@ export const CustomerOrderDetail: React.FC = () => {
   const subtotalNum = normalized.subtotal;
   const serviceFeeNum = normalized.serviceFee;
 
+  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
+  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
+
+  let finSnapshot: any = null;
+  if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
+    try {
+      finSnapshot = JSON.parse(booking.notes)?.financial_snapshot || JSON.parse(booking.notes);
+    } catch (e) {}
+  }
+
+  const paidTotalAmount = Number(
+    booking?.payment?.amount ||
+    finSnapshot?.customer_total ||
+    priceAdj?.original_total_amount ||
+    (isPaid ? totalAmountNum : 0)
+  ) || totalAmountNum;
+
+  const paidSubtotal = Number(
+    finSnapshot?.line_items_subtotal ||
+    finSnapshot?.proposal_total ||
+    subtotalNum
+  ) || subtotalNum;
+
+  const paidFee = Math.max(0, Number((paidTotalAmount - paidSubtotal).toFixed(2)));
+
   // Format Payment Date
   let formattedPaymentDate = "";
   if (normalized.paymentDate) {
@@ -254,6 +280,12 @@ export const CustomerOrderDetail: React.FC = () => {
       navigate("/messages", { state: { selectedChatId: booking.id } });
     }
   };
+
+  const canReportIssue =
+    isPaid &&
+    !isCancelled &&
+    ["confirmed", "accepted", "job accepted", "en route", "en_route", "arrived", "arrived at site", "in progress", "in_progress", "completed", "finished", "delivered", "reviewed"].includes(normStatus) &&
+    (!booking.dispute_deadline_at || new Date() <= new Date(booking.dispute_deadline_at));
 
   return (
     <div className="space-y-6">
@@ -312,6 +344,36 @@ export const CustomerOrderDetail: React.FC = () => {
               <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
                 <MessageSquare size={14} /> Message Pro
               </Button>
+            )}
+
+            {!isCancelled && (
+              normalized.dispute.status && !["none", "null"].includes(normalized.dispute.status) ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    ["resolved", "rejected", "closed"].includes(normalized.dispute.status)
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200"
+                      : "bg-rose-500/10 text-rose-600 border border-rose-200"
+                  }`}
+                >
+                  <AlertTriangle size={14} />
+                  {["resolved", "rejected", "closed"].includes(normalized.dispute.status)
+                    ? `Dispute ${normalized.dispute.status.charAt(0).toUpperCase() + normalized.dispute.status.slice(1)}`
+                    : `Dispute Opened (${normalized.dispute.status === "open" ? "Active" : normalized.dispute.status})`}
+                </span>
+              ) : (
+                canReportIssue && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                  >
+                    <Link to={`/report-issue/${booking.id}`}>
+                      <AlertTriangle size={14} /> Report Issue
+                    </Link>
+                  </Button>
+                )
+              )
             )}
 
             {!isPaid && !isCancelled && (
@@ -378,11 +440,21 @@ export const CustomerOrderDetail: React.FC = () => {
                   <h3 className="font-bold text-amber-900 text-base">
                     Provider Proposed Price Adjustment: {usd(totalAmountNum)}
                   </h3>
-                  {booking.notes && (
-                    <p className="text-xs text-amber-800 mt-1 italic">"{booking.notes}"</p>
+                  {priceAdj?.original_total_amount > 0 && priceAdj.original_total_amount !== totalAmountNum && (
+                    <p className="text-xs text-amber-800 font-semibold mt-1">
+                      Original Service Price: {usd(priceAdj.original_total_amount)}
+                      {priceAdj.additional_amount_due > 0 && (
+                        <span className="text-amber-900 font-extrabold ml-1">
+                          (Additional Amount Due: +{usd(priceAdj.additional_amount_due)})
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {counterNote && (
+                    <p className="text-xs text-amber-800 mt-1 italic">"{counterNote}"</p>
                   )}
                   <p className="text-xs text-amber-700 mt-1">
-                    Please review the updated price proposal and proceed to payment if accepted.
+                    Please review the updated price proposal and proceed to accept/pay the adjustment.
                   </p>
                 </div>
               </div>
@@ -637,17 +709,17 @@ export const CustomerOrderDetail: React.FC = () => {
             <dl className="space-y-2.5 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal (Services)</span>
-                <span className="font-semibold text-foreground">{usd(subtotalNum)}</span>
+                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidSubtotal : subtotalNum)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Service &amp; Platform Fee</span>
-                <span className="font-semibold text-foreground">{usd(serviceFeeNum)}</span>
+                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : serviceFeeNum)}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between text-sm pt-1">
-                <span className="font-bold text-foreground">Total Amount</span>
+                <span className="font-bold text-foreground">{isPaid && isPriceUpdated ? "Total Paid Amount" : "Total Amount"}</span>
                 <span className="font-extrabold text-primary text-base">
-                  {usd(totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum)}
+                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum))}
                 </span>
               </div>
             </dl>
@@ -660,6 +732,22 @@ export const CustomerOrderDetail: React.FC = () => {
                   {isPaid ? "Paid (Success)" : "Pending Payment"}
                 </span>
               </div>
+
+              {isPaid && booking.payment?.payment_method_type && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                  <span>Payment Method:</span>
+                  <span className="font-semibold text-foreground capitalize">
+                    {booking.payment.payment_method_type}
+                  </span>
+                </div>
+              )}
+
+              {isPaid && booking.payment?.amount && Number(booking.payment.amount) !== totalAmountNum && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                  <span>Total Charged Amount:</span>
+                  <span className="font-bold text-foreground">{usd(Number(booking.payment.amount))}</span>
+                </div>
+              )}
 
               {formattedPaymentDate && (
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">

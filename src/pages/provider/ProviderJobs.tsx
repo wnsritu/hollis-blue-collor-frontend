@@ -278,6 +278,22 @@ export function ProviderJobs() {
               ["completed", "finished", "delivered", "work completed", "reviewed"].includes(normApt);
             const isDeclined = ["cancelled", "canceled", "rejected", "declined", "no-show"].includes(normApt);
 
+            let notesObj: any = null;
+            if (b.notes && String(b.notes).trim().startsWith("{")) {
+              try {
+                notesObj = JSON.parse(b.notes);
+              } catch (e) {}
+            }
+            const counterNote = notesObj?.counter_note || (!String(b.notes).trim().startsWith("{") ? b.notes : null);
+            const originalPrice = Number(
+              notesObj?.original_total_amount ||
+              notesObj?.customer_total ||
+              notesObj?.proposal_total ||
+              b.original_total_amount ||
+              b.proposal?.amount ||
+              0
+            );
+
             // Visual Stepper Index (0 to 5)
             let stepIdx = 0;
             if (isConfirmed) stepIdx = 1;
@@ -296,10 +312,10 @@ export function ProviderJobs() {
             ];
 
             const title =
+              b.project?.title ||
               n.serviceName ||
               b.service?.service_type?.name ||
               b.service_type?.name ||
-              b.project?.title ||
               b.services?.[0]?.name ||
               b.items?.[0]?.custom_item_name ||
               b.service?.category_name ||
@@ -438,14 +454,25 @@ export function ProviderJobs() {
                     </div>
                   )}
 
-                  {/* Price Banner if Price Updated */}
+                  {/* Price Banner if Price Updated (matching Service Connect reference UI) */}
                   {isPriceUpdated && (
-                    <div className="mt-4 rounded-xl border border-amber-300 bg-amber-500/10 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
-                      <Clock size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold">Price Adjustment Proposed: {usd(price)}</p>
-                        {b.notes && <p className="mt-1 text-xs italic">"{b.notes}"</p>}
-                        <p className="mt-1 font-semibold text-[11px] text-amber-700">
+                    <div className="mt-4 rounded-2xl border border-amber-300/80 bg-amber-50/80 dark:bg-amber-950/20 p-4 text-xs text-amber-950 dark:text-amber-100 flex items-start gap-3 shadow-sm">
+                      <div className="grid size-7 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 shrink-0 mt-0.5">
+                        <Clock size={16} />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="font-extrabold text-amber-950 dark:text-amber-100 text-sm">
+                          Price Adjustment Proposed: {usd(price)}
+                        </p>
+                        {originalPrice > 0 && originalPrice !== price && (
+                          <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                            Original Service Price: {usd(originalPrice)}
+                          </p>
+                        )}
+                        {counterNote && (
+                          <p className="text-xs italic text-amber-900/80 mt-1">"{counterNote}"</p>
+                        )}
+                        <p className="font-semibold text-[11px] text-amber-700 dark:text-amber-400 mt-1">
                           Awaiting customer acceptance or rejection.
                         </p>
                       </div>
@@ -518,7 +545,7 @@ export function ProviderJobs() {
                     </div>
                   </div>
 
-                  {b.notes && !isPriceUpdated && (
+                  {b.notes && !isPriceUpdated && !String(b.notes).trim().startsWith("{") && (
                     <p className="mt-3 text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg border border-border">
                       <strong>Customer Notes:</strong> {b.notes}
                     </p>
@@ -555,7 +582,7 @@ export function ProviderJobs() {
                             <XCircle size={14} /> Decline
                           </Button>
 
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenPriceModal(b)}
@@ -563,7 +590,7 @@ export function ProviderJobs() {
                             disabled={actionLoadingId === b.id}
                           >
                             <DollarSign size={14} /> Update Price
-                          </Button>
+                          </Button> */}
 
                           <Button
                             size="sm"

@@ -195,15 +195,11 @@ export const bookingApi = {
     return Promise.resolve({ status: "success", data: newB } as ApiSuccess);
   },
 
-  list: (_payload?: Record<string, unknown>) =>
-    Promise.resolve({
-      status: "success",
-      data: {
-        bookings: FALLBACK_SEED_BOOKINGS,
-        total: FALLBACK_SEED_BOOKINGS.length,
-      },
-      bookings: FALLBACK_SEED_BOOKINGS,
-    } as unknown as ApiSuccess),
+  calculatePrice: (payload: Record<string, unknown>) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.calculatePrice, payload),
+
+  list: (payload?: Record<string, unknown>) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.list, payload),
 
   getById: (id: number | string) => {
     const b = FALLBACK_SEED_BOOKINGS.find((x) => String(x.id) === String(id)) || FALLBACK_SEED_BOOKINGS[0];
@@ -257,11 +253,12 @@ export const appointmentApi = {
   updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) => {
     const raw = payload.appointment_status || payload.status;
     const norm = normalizeToAppointmentStatus(raw);
-    const apt = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), status: norm, appointment_status: norm };
-    return Promise.resolve({
-      status: "success",
-      data: apt as unknown as Appointment,
-    } as ApiSuccess<Appointment>);
+    const reason = payload.reason || payload.cancellation_reason || payload.notes;
+    return http.patch<ApiSuccess<Appointment>>(ENDPOINTS.appointment.status(id), {
+      appointment_status: norm as any,
+      status: norm as any,
+      ...(reason ? { reason, cancellation_reason: reason } : {}),
+    });
   },
 
   reschedule: (id: number | string, _payload: RescheduleAppointmentPayload) => {

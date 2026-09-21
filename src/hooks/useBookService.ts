@@ -8,6 +8,7 @@ import {
   addProviderBookApi,
   getProviderAvailabilityByProviderIdApi,
 } from "@/services/provider";
+import { bookingApi } from "@/services/booking/booking.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import type {
   OfferedService,
@@ -336,9 +337,50 @@ export function useBookService() {
     setSelectedItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const subtotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0);
-  const serviceFee = Math.round(subtotal * 0.1);
-  const grandTotal = subtotal + serviceFee;
+  const [priceBreakdown, setPriceBreakdown] = useState<any>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (selectedItems.length === 0) {
+      setPriceBreakdown(null);
+      return;
+    }
+
+    const fetchBackendPrice = async () => {
+      try {
+        const payload = {
+          provider_id: Number(providerId),
+          items: selectedItems.map((item) => ({
+            id: item.id,
+            service_name: item.name,
+            quantity: item.qty,
+            price: item.price,
+          })),
+        };
+        const res: any = await bookingApi.calculatePrice(payload);
+        const data = res?.data?.data || res?.data?.breakdown || res?.data;
+        if (isMounted && data) {
+          setPriceBreakdown(data);
+        }
+      } catch (err) {
+        console.error("Backend price calculation error:", err);
+      }
+    };
+
+    fetchBackendPrice();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedItems, providerId]);
+
+  const rawSubtotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0);
+  const subtotal = priceBreakdown?.subtotal ?? rawSubtotal;
+  const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 10;
+  const serviceFee = priceBreakdown?.service_fee ?? Math.round(rawSubtotal * 0.1);
+  const grandTotal = priceBreakdown?.total ?? (subtotal + serviceFee);
+  const taxAmount = priceBreakdown?.tax_amount ?? 0;
+  const formattedPrices = priceBreakdown?.formatted || null;
 
   const selectedDateObj = dates.find((d) => d.iso === selectedDate);
   const unselectedServices = offeredServices.filter((svc) => !selectedItems.some((item) => item.id === svc.id));
@@ -404,16 +446,10 @@ export function useBookService() {
       const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
 
       if (bookingData && (bookingData.id || bookingData.data?.id || bookingData.booking?.id)) {
-        toast.success("Booking created successfully!");
-
-        // Stripe payment modal commented out for now. Redirect directly to booking page.
-        // When payment flow / paid status is implemented in the future, uncomment this:
-        /*
+        toast.success("Booking created! Initializing secure payment...");
+        // Set createdBooking — this triggers StripeInlineCardSection to fetch PaymentIntent
         setCreatedBooking(bookingData);
-        setStripeModalOpen(true);
-        */
-
-        navigate("/appointments");
+        // stripeModalOpen is no longer used; inline payment section handles everything
       } else {
         toast.error("Failed to create booking. Please try again.");
       }
@@ -424,6 +460,7 @@ export function useBookService() {
       setSubmitting(false);
     }
   };
+
 
   return {
     providerId,
@@ -459,7 +496,11 @@ export function useBookService() {
     removeItem,
     subtotal,
     serviceFee,
+    serviceFeeRate,
+    taxAmount,
     grandTotal,
+    formattedPrices,
+    priceBreakdown,
     selectedDateObj,
     unselectedServices,
     handleProceedToStep2,

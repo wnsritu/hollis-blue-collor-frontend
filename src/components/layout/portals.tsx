@@ -97,8 +97,8 @@ function ProviderRestrictedState({
 }) {
   const dbVerified = String(
     profile?.verified ||
-      user?.provider?.verified ||
-      ""
+    user?.provider?.verified ||
+    ""
   )
     .toLowerCase()
     .trim();
@@ -313,8 +313,8 @@ export const providerNav: NavItem[] = [
   },
   { to: "/messages", label: "Messages", icon: MessageSquare, matchPaths: ["/messages"] },
   { to: "/provider/earnings", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
-  { to: "/provider/subscription", label: "Subscription", icon: CreditCard, matchPaths: ["/provider/subscription"] },
-  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles, matchPaths: ["/provider/featured"] },
+  { to: "/provider/subscription", label: "Subscription", icon: CreditCard, exact: true },
+  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles, matchPaths: ["/provider/featured", "/provider/sponsored"] },
   {
     to: "/provider/profile",
     label: "Business Profile",
@@ -529,9 +529,9 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         const verified =
           checkIsVerified(
             profile?.verified ||
-              user?.provider?.verified,
+            user?.provider?.verified,
             profile?.onboarding_status ||
-              user?.onboarding_status
+            user?.onboarding_status
           );
 
         if (verified) {
@@ -575,9 +575,9 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   const isVerified =
     checkIsVerified(
       providerProfile?.verified ||
-        user?.provider?.verified,
+      user?.provider?.verified,
       providerProfile?.onboarding_status ||
-        user?.onboarding_status
+      user?.onboarding_status
     );
 
   /**

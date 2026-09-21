@@ -349,7 +349,7 @@ const SupportAgentsPage = () => {
               Create Support Agent
             </h1>
             <p className="text-center text-xs text-gray-500 mb-4">
-              Hollis — Blue Collar Worker
+              Hollis — Handled with care
             </p>
             {/* FORM */}
             <div className="space-y-5">

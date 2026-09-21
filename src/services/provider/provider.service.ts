@@ -113,10 +113,38 @@ export const getProviderAvailabilityByProviderIdApi = (_providerId?: number | st
   return getProviderTimeSlotsApi();
 };
 
-export const searchProviders = async (_payload?: any) => {
-  return { status: "success", data: [] };
+
+export const getProviderData = (data: any) => {
+  const providerId = typeof data === "object" ? (data.id || data.providerId) : data;
+  return apiClient.get(`/providers/${providerId}`);
 };
 
+export const getAllSlots = () => {
+  return apiClient.get("/time-slots");
+};
+
+export const selectPlan = (data: any) => {
+  return apiClient.post("/provider/select-plan", data);
+};
+
+export const getWalletCoins = () => {
+  return apiClient.get("/coins/balance");
+};
+
+export const getMyPlan = () => {
+  return apiClient.get("/provider/subscription");
+};
+
+// ── High-Level Service Methods ──
+
+export const searchProviders = async (payload?: any) => {
+  try {
+    const res = await getProviderListApi(payload);
+    return res?.data?.data || res?.data || [];
+  } catch {
+    return [];
+  }
+};
 
 export const updateProviderProfile = async (payload: any) => {
   const res = await updateProviderProfileApi(payload);

@@ -24,12 +24,12 @@ export const createCheckoutSessionApi = (data: {
 
 // 💳 Create subscription payment intent
 export const createPaymentSubscription = (data: any) => {
-  return apiClient.post("/subscriptions/create-payment", data);
+  return apiClient.post("/subscriptions/create-intent", data);
 };
 
 // 💳 Confirm subscription payment
 export const confirmPaymentSubscription = (data: any) => {
-  return apiClient.post("/subscriptions/confirm-payment", data);
+  return apiClient.post("/subscriptions/confirm", data);
 };
 
 export const subscriptionApi = {
@@ -45,6 +45,12 @@ export const subscriptionApi = {
   confirm: (payload: Record<string, unknown>) =>
     http.post<ApiSuccess>(ENDPOINTS.subscription.confirm, payload),
 
+  getActivePublicPlans: () =>
+    http.get<ApiSuccess<SubscriptionPlan[]>>(ENDPOINTS.subscription.activePublicPlans),
+
+  getProviderSubscription: () =>
+    http.get<ApiSuccess>(ENDPOINTS.subscription.providerCurrentSubscription),
+
   getCurrent: () => http.get<ApiSuccess>(ENDPOINTS.subscription.current),
 
   cancel: (payload?: Record<string, unknown>) =>
@@ -58,11 +64,74 @@ export const subscriptionApi = {
     http.get<ApiSuccess>(ENDPOINTS.subscription.allProviders),
 };
 
+export interface CommissionSettingsData {
+  id?: number;
+  admin_commission: number;
+  platform_fee: number;
+  tax_percentage?: number;
+  currency: string;
+}
+
+// 💳 Admin & User Payments API
+export const listPaymentsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/payments", { params });
+};
+
+// 💳 Payout Queue APIs
+export const listEligiblePayoutsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts", { params });
+};
+
+export const listPayoutHistoryApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts/history", { params });
+};
+
+export const processPayoutApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/process`, data);
+};
+
+export const listOnHoldPayoutsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts/on-hold", { params });
+};
+
+export const markPayoutEligibleApi = (payoutId: number | string) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/eligible`);
+};
+
+export const markPayoutFailedApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/fail`, data);
+};
+
+export const retryPayoutApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/retry`, data);
+};
+
+export const payoutApi = {
+  getCommissionRates: () =>
+    http.get<ApiSuccess<CommissionSettingsData>>(ENDPOINTS.payout.commissionRates),
+  listEligible: listEligiblePayoutsApi,
+  listOnHold: listOnHoldPayoutsApi,
+  listHistory: listPayoutHistoryApi,
+  process: processPayoutApi,
+  markEligible: markPayoutEligibleApi,
+  markFailed: markPayoutFailedApi,
+  retry: retryPayoutApi,
+};
+
 export default {
   createPaymentIntent,
   confirmPayment,
   createCheckoutSessionApi,
   createPaymentSubscription,
   confirmPaymentSubscription,
+  listPaymentsApi,
+  listEligiblePayoutsApi,
+  listOnHoldPayoutsApi,
+  listPayoutHistoryApi,
+  processPayoutApi,
+  markPayoutEligibleApi,
+  markPayoutFailedApi,
+  retryPayoutApi,
   subscriptionApi,
+  payoutApi,
 };

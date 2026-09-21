@@ -177,6 +177,8 @@ export const ENDPOINTS = {
 
   subscription: {
     plans: "/subscriptions/plans",
+    activePublicPlans: "/subscription-plans",
+    providerCurrentSubscription: "/provider/subscription",
     createCheckout: "/subscriptions/create-checkout-session",
     createIntent: "/subscriptions/create-intent",
     confirm: "/subscriptions/confirm",
@@ -185,6 +187,15 @@ export const ENDPOINTS = {
     history: "/subscriptions/history",
     status: "/subscriptions/status",
     allProviders: "/subscriptions/all-providers",
+  },
+
+  adminSubscription: {
+    listPlans: "/admin/subscription-plans",
+    getPlan: (id: number | string) => `/admin/subscription-plans/${id}`,
+    createPlan: "/admin/subscription-plans",
+    updatePlan: (id: number | string) => `/admin/subscription-plans/${id}`,
+    updatePlanStatus: (id: number | string) => `/admin/subscription-plans/${id}/status`,
+    overview: "/admin/subscriptions/overview",
   },
 
   // ─── Support / legacy ──────────────────────────────────
@@ -219,6 +230,7 @@ export const ENDPOINTS = {
 
   booking: {
     add: "/booking/add",
+    calculatePrice: "/booking/calculate-price",
     list: "/booking/list",
     details: (id: number | string) => `/booking/${id}`,
     edit: (id: number | string) => `/booking/${id}`,
@@ -277,6 +289,21 @@ export const ENDPOINTS = {
     list: "/sponsored/list",
     create: "/sponsored/create",
     byId: (id: number | string) => `/sponsored/${id}`,
+  },
+
+  featuredPlan: {
+    adminList: "/admin/featured-plans",
+    adminCreate: "/admin/featured-plans",
+    adminUpdate: (id: number | string) => `/admin/featured-plans/${id}`,
+    adminDelete: (id: number | string) => `/admin/featured-plans/${id}`,
+    activeList: "/featured-plans",
+  },
+
+  featuredListing: {
+    adminList: "/admin/featured-listings",
+    myList: "/featured-listings/my",
+    purchase: "/featured-listings/purchase",
+    confirm: "/featured-listings/confirm",
   },
 
   // ─── Dashboard APIs ────────────────────────────────────
