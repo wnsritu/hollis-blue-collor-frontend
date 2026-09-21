@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Star, MessageSquareQuote } from "lucide-react";
+import { CheckCircle2, Loader2, Star, MessageSquareQuote, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -176,6 +176,30 @@ export const CustomerReviews: React.FC = () => {
                       <p className="text-sm text-foreground/90 leading-relaxed bg-muted/20 p-3 rounded-xl border border-border/50">
                         "{r.comment}"
                       </p>
+                    )}
+
+                    {(r.provider_reply || r.reply) && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-1.5 mt-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <CornerDownRight size={14} className="text-primary shrink-0" />
+                            <span className="text-xs font-bold text-foreground">
+                              Response from {providerName}
+                            </span>
+                            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                              Provider
+                            </span>
+                          </div>
+                          {(r.reply_date || r.replied_at) && (
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatDisplayDate(r.reply_date || r.replied_at)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-foreground/90 pl-5 leading-relaxed">
+                          {r.provider_reply || r.reply}
+                        </p>
+                      </div>
                     )}
                   </div>
                 );

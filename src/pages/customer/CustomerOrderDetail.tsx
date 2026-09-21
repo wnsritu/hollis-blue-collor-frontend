@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  CornerDownRight,
   CreditCard,
   DollarSign,
   FileText,
@@ -129,6 +130,8 @@ export const CustomerOrderDetail: React.FC = () => {
             rating: itemData.rating,
             comment: itemData.review_comment || itemData.comment || "",
             created_at: itemData.reviewed_at || itemData.updated_at,
+            provider_reply: itemData.provider_reply || itemData.review_reply || null,
+            reply_date: itemData.reply_date || null,
           });
         } else if (
           itemData.reviewed ||
@@ -638,15 +641,15 @@ export const CustomerOrderDetail: React.FC = () => {
           )}
 
           {reviewed && (
-            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-3">
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-base font-bold flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-success" />
                   Your Submitted Review
                 </h3>
-                {existingReview?.created_at && (
+                {(existingReview?.created_at || booking?.review?.created_at) && (
                   <span className="text-xs text-muted-foreground">
-                    {formatDisplayDate(existingReview.created_at)}
+                    {formatDisplayDate(existingReview?.created_at || booking?.review?.created_at)}
                   </span>
                 )}
               </div>
@@ -669,10 +672,50 @@ export const CustomerOrderDetail: React.FC = () => {
               </div>
 
               {(existingReview?.comment || booking?.review?.comment || booking?.comment) && (
-                <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg border border-border">
+                <p className="text-sm text-foreground bg-muted/30 p-3.5 rounded-xl border border-border leading-relaxed italic">
                   "{existingReview?.comment || booking?.review?.comment || booking?.comment}"
                 </p>
               )}
+
+              {/* Provider Response Display */}
+              {(() => {
+                const providerReplyText =
+                  existingReview?.provider_reply ||
+                  existingReview?.reply ||
+                  booking?.review?.provider_reply ||
+                  booking?.review?.reply;
+                const providerReplyDate =
+                  existingReview?.reply_date ||
+                  existingReview?.replied_at ||
+                  booking?.review?.reply_date ||
+                  booking?.review?.replied_at;
+
+                if (!providerReplyText) return null;
+
+                return (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2 mt-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CornerDownRight size={15} className="text-primary shrink-0" />
+                        <span className="text-xs font-bold text-foreground">
+                          Response from {providerName}
+                        </span>
+                        <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                          Provider
+                        </span>
+                      </div>
+                      {providerReplyDate && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {formatDisplayDate(providerReplyDate)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-foreground/90 pl-5 leading-relaxed">
+                      {providerReplyText}
+                    </p>
+                  </div>
+                );
+              })()}
             </section>
           )}
         </div>

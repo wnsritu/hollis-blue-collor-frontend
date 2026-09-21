@@ -5,12 +5,15 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  CornerDownRight,
   DollarSign,
+  Edit3,
   FileText,
   MapPin,
   MessageSquare,
   Navigation,
   Play,
+  Send,
   Star,
   Tag,
   XCircle,
@@ -33,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
 import { appointmentApi, bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
+import { ratingApi } from "@/services/rating";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
@@ -55,6 +59,9 @@ export function ProviderJobs() {
 
   // State for View Review Modal
   const [viewReviewModalBooking, setViewReviewModalBooking] = useState<any | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isEditingReply, setIsEditingReply] = useState(false);
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   const fetchActiveJobs = async (tabOverride?: string) => {
     setLoading(true);
@@ -210,6 +217,66 @@ export function ProviderJobs() {
       navigate("/messages", { state: { selectedChatId: chatId } });
     } catch (err) {
       navigate("/messages", { state: { selectedChatId: b.id } });
+    }
+  };
+
+  const handleOpenReviewModal = (booking: any) => {
+    setViewReviewModalBooking(booking);
+    const rev = normalizeBooking(booking).review || booking.review;
+    const existing = rev?.provider_reply || rev?.reply || "";
+    setReplyText(existing);
+    setIsEditingReply(!existing);
+  };
+
+  const handleSendReply = async () => {
+    if (!viewReviewModalBooking) return;
+    const rev = normalizeBooking(viewReviewModalBooking).review || viewReviewModalBooking.review;
+    const reviewId = rev?.id;
+    if (!reviewId) {
+      toast.error("Review ID not found.");
+      return;
+    }
+    if (!replyText.trim()) {
+      toast.error("Please enter a reply before submitting.");
+      return;
+    }
+
+    setSubmittingReply(true);
+    try {
+      await ratingApi.reply(reviewId, { reply: replyText.trim() });
+      toast.success("Reply submitted successfully!");
+
+      const updatedReview = {
+        ...rev,
+        provider_reply: replyText.trim(),
+        reply: replyText.trim(),
+        reply_date: new Date().toISOString(),
+        replied_at: new Date().toISOString(),
+      };
+
+      setViewReviewModalBooking((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          review: updatedReview,
+        };
+      });
+
+      setAppointments((prev: any[]) =>
+        prev.map((item) =>
+          item.id === viewReviewModalBooking.id
+            ? { ...item, review: updatedReview }
+            : item
+        )
+      );
+
+      setIsEditingReply(false);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to submit review reply."
+      );
+    } finally {
+      setSubmittingReply(false);
     }
   };
 
@@ -663,7 +730,7 @@ export function ProviderJobs() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setViewReviewModalBooking(b)}
+                          onClick={() => handleOpenReviewModal(b)}
                           className="gap-1 text-xs border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 font-bold"
                         >
                           <Star size={14} className="fill-amber-500 text-amber-500" />
@@ -761,9 +828,14 @@ export function ProviderJobs() {
       {viewReviewModalBooking && (
         <Dialog
           open={Boolean(viewReviewModalBooking)}
-          onOpenChange={() => setViewReviewModalBooking(null)}
+          onOpenChange={(openState) => {
+            if (!openState) {
+              setViewReviewModalBooking(null);
+              setIsEditingReply(false);
+            }
+          }}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
                 <Star size={18} className="fill-amber-500 text-amber-500" /> Customer Review
@@ -779,9 +851,12 @@ export function ProviderJobs() {
               const ratingVal = Number(rev?.rating) || 0;
               const commentText = rev?.comment || "No written review comment provided.";
               const dateVal = rev?.created_at || rev?.createdAt;
+              const hasExistingReply = Boolean(rev?.provider_reply || rev?.reply);
+              const existingReplyText = rev?.provider_reply || rev?.reply || "";
+              const replyDate = rev?.reply_date || rev?.replied_at;
 
               return (
-                <div className="space-y-4 py-2">
+                <div className="space-y-4 py-1">
                   {/* STAR RATING DISPLAY */}
                   <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -808,20 +883,117 @@ export function ProviderJobs() {
                     <div className="rounded-xl bg-muted/40 p-3.5 text-xs text-foreground leading-relaxed italic border border-border">
                       "{commentText}"
                     </div>
+                    {dateVal && (
+                      <p className="text-[11px] text-muted-foreground text-right pt-0.5">
+                        Submitted on {formatDisplayDate(dateVal)}
+                      </p>
+                    )}
                   </div>
 
-                  {/* REVIEW DATE */}
-                  {dateVal && (
-                    <p className="text-[11px] text-muted-foreground text-right">
-                      Submitted on {formatDisplayDate(dateVal)}
-                    </p>
-                  )}
+                  {/* PROVIDER REPLY SECTION */}
+                  <div className="pt-2 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <CornerDownRight size={15} className="text-primary" />
+                        <span className="text-xs font-bold text-foreground">
+                          Your Reply to Customer
+                        </span>
+                        {hasExistingReply && (
+                          <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                            Replied
+                          </span>
+                        )}
+                      </div>
+
+                      {hasExistingReply && !isEditingReply && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setReplyText(existingReplyText);
+                            setIsEditingReply(true);
+                          }}
+                          className="h-7 text-xs gap-1 text-primary hover:text-primary"
+                        >
+                          <Edit3 size={13} /> Edit Reply
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Display existing reply card */}
+                    {hasExistingReply && !isEditingReply ? (
+                      <div className="rounded-xl bg-primary/5 border border-primary/20 p-3.5 space-y-1.5">
+                        <p className="text-xs text-foreground leading-relaxed">
+                          {existingReplyText}
+                        </p>
+                        {replyDate && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Replied on {formatDisplayDate(replyDate)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      /* Reply input form */
+                      <div className="space-y-2.5">
+                        <Textarea
+                          rows={3}
+                          placeholder="Thank the customer or respond to their feedback (visible to customer)..."
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          maxLength={2000}
+                          className="text-xs resize-none"
+                        />
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{replyText.length} / 2000 characters</span>
+                          <div className="flex items-center gap-2">
+                            {hasExistingReply && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  setReplyText(existingReplyText);
+                                  setIsEditingReply(false);
+                                }}
+                                disabled={submittingReply}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 text-xs gap-1.5"
+                              onClick={handleSendReply}
+                              disabled={submittingReply || !replyText.trim()}
+                            >
+                              {submittingReply ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Send size={13} />
+                              )}
+                              {hasExistingReply ? "Update Reply" : "Send Reply"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
 
-            <div className="flex justify-end pt-2">
-              <Button variant="outline" onClick={() => setViewReviewModalBooking(null)}>
+            <div className="flex justify-end pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setViewReviewModalBooking(null);
+                  setIsEditingReply(false);
+                }}
+              >
                 Close
               </Button>
             </div>
