@@ -57,8 +57,11 @@ export interface NormalizedBooking {
     reason?: string | null;
   };
   dispute: {
+    id: number | null;
     isDisputed: boolean;
     status: string;
+    adminDecision: string | null;
+    adminResolutionNote: string | null;
     deadlineAt: string | null;
   };
   review?: {
@@ -291,9 +294,16 @@ export function normalizeBooking(b: any): NormalizedBooking {
   };
 
   // Dispute info
+  const disputeStatus = b.dispute?.status ?? b.dispute_status ?? "none";
   const dispute = {
-    isDisputed: Boolean(b.dispute?.is_disputed ?? b.is_disputed),
-    status: b.dispute?.status ?? b.dispute_status ?? "none",
+    id: b.dispute?.id ? Number(b.dispute.id) : null,
+    isDisputed: Boolean(
+      b.dispute?.is_disputed ??
+        (b.is_disputed && !["resolved", "rejected", "closed"].includes(disputeStatus))
+    ),
+    status: disputeStatus,
+    adminDecision: b.dispute?.admin_decision ?? b.admin_decision ?? null,
+    adminResolutionNote: b.dispute?.admin_resolution_note ?? b.admin_resolution_note ?? null,
     deadlineAt: b.dispute?.deadline_at ?? b.dispute_deadline_at ?? null,
   };
 

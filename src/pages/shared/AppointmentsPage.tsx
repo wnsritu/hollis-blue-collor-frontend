@@ -454,11 +454,12 @@ export const AppointmentsPage: React.FC = () => {
                           >
                             Dispute No-Show
                           </Button>
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
+              </div>
               );
             })
           )}
