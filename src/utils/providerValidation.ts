@@ -32,11 +32,11 @@ export interface ProviderValidationErrors {
 
 export function validatePhone(phone: string): string | undefined {
   if (!phone || !phone.trim()) {
-    return "Mobile phone number is required.";
+    return "Mobile number is required.";
   }
   const digits = phone.replace(/\D/g, "");
-  if (digits.length !== 10) {
-    return "Mobile phone number must be exactly 10 digits.";
+  if (digits.length !== 10 || phone.trim() !== digits) {
+    return "Please enter a valid 10-digit mobile number.";
   }
   return undefined;
 }
@@ -61,8 +61,8 @@ export function validateBusinessName(name: string): string | undefined {
     return "Business name is required.";
   }
   const trimmed = name.trim();
-  if (trimmed.length < 2) {
-    return "Business name must be at least 2 characters.";
+  if (trimmed.length < 3) {
+    return "Business name must be at least 3 characters.";
   }
   if (trimmed.length > 150) {
     return "Business name cannot exceed 150 characters.";
@@ -75,14 +75,11 @@ export function validateFullName(name: string): string | undefined {
     return "Full name is required.";
   }
   const trimmed = name.trim();
-  if (trimmed.length < 2) {
-    return "Full name must be at least 2 characters.";
+  if (trimmed.length < 3) {
+    return "Name must be at least 3 characters.";
   }
   if (trimmed.length > 150) {
     return "Full name cannot exceed 150 characters.";
-  }
-  if (!/^[a-zA-Z\s'-]+$/.test(trimmed)) {
-    return "Full name can only contain letters and spaces.";
   }
   return undefined;
 }
@@ -103,11 +100,6 @@ export function validatePassword(password: string): string | undefined {
 export function validateZipCode(zip: string): string | undefined {
   if (!zip || !zip.trim()) {
     return undefined;
-  }
-  const digits = zip.trim().replace(/\s/g, "");
-  // Simple numeric / standard zip check (3 to 10 digits/characters if provided)
-  if (!/^[a-zA-Z0-9\s\-]{3,10}$/.test(digits)) {
-    return "ZIP / Postal code format is invalid.";
   }
   return undefined;
 }
@@ -150,8 +142,8 @@ export function validateLicenseNumber(license: string): string | undefined {
   if (!license || !license.trim()) {
     return "License number is required.";
   }
-  if (license.trim().length < 2 || license.trim().length > 100) {
-    return "License number must be between 2 and 100 characters.";
+  if (license.trim().length > 100) {
+    return "License number cannot exceed 100 characters.";
   }
   return undefined;
 }
@@ -160,8 +152,8 @@ export function validateInsurancePolicy(policy: string): string | undefined {
   if (!policy || !policy.trim()) {
     return "Insurance policy number is required.";
   }
-  if (policy.trim().length < 2 || policy.trim().length > 100) {
-    return "Insurance policy number must be between 2 and 100 characters.";
+  if (policy.trim().length > 100) {
+    return "Insurance policy number cannot exceed 100 characters.";
   }
   return undefined;
 }

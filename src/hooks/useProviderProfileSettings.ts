@@ -157,12 +157,9 @@ export function useProviderProfileSettings() {
   };
 
   const handleMobileChange = (val: string) => {
-    const sanitized = sanitizePhoneInput(val);
+    const sanitized = val.replace(/\D/g, "").slice(0, 10);
     setMobile(sanitized);
-    let err: string | undefined;
-    if (sanitized.trim()) {
-      err = validatePhone(sanitized);
-    }
+    const err = validatePhone(sanitized);
     setFieldErrors((prev) => ({ ...prev, mobile: err }));
   };
 

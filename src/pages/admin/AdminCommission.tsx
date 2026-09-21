@@ -25,7 +25,7 @@ export function AdminCommission() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Commission & Fee Settings"
+        title="Commission"
         subtitle="Applies to every completed job across the marketplace."
       />
 

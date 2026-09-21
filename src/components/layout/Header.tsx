@@ -30,6 +30,7 @@ const Header = () => {
     ? [
         { to: "/", label: "Home" },
         { to: "/how-it-works", label: "How It Works" },
+        { to: "/search", label: "Find a Professional" },
         { to: "/provider/onboarding", label: "Become a Pro" },
       ]
     : isCustomerUser

@@ -72,8 +72,8 @@ export function AdminReports() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reports & Analytics"
-        subtitle="Marketplace performance across revenue, volume, and category metrics"
+        title="Reports"
+        subtitle="Marketplace analytics overview"
         action={
           <div className="flex items-center gap-3">
             <Select value={range} onValueChange={setRange}>

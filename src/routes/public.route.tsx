@@ -2,7 +2,6 @@ import { lazy } from "react";
 import { Route } from "react-router-dom";
 import { routeMap } from "./routeMap";
 import HomeRoute from "./HomeRoute";
-import ProtectedRoute from "./ProtectedRoute";
 import PublicLayout from "@/components/layout/PublicLayout";
 
 // Public pages
@@ -40,6 +39,7 @@ export const PublicRoutes = () => (
 
       {/* General Public Pages */}
       <Route path={routeMap.ABOUT.path} element={<About />} />
+      <Route path={routeMap.SEARCH.path} element={<SearchProviders />} />
       <Route path={routeMap.PROVIDER_PROFILE.path} element={<ProviderProfile />} />
 
       {/* Booking Flow */}
@@ -49,11 +49,6 @@ export const PublicRoutes = () => (
       <Route path={routeMap.BOOKING_DETAIL.path} element={<BookService />} />
       <Route path={routeMap.CHECKOUT.path} element={<Checkout />} />
       <Route path={routeMap.RATING.path} element={<RatingPage />} />
-
-      {/* Protected search route with public layout */}
-      <Route element={<ProtectedRoute />}>
-        <Route path={routeMap.SEARCH.path} element={<SearchProviders />} />
-      </Route>
     </Route>
 
     {/* Guest-only Auth Routes (Redirects authenticated users, standalone layout) */}

@@ -14,6 +14,7 @@ import {
   Receipt,
   RotateCw,
   Search,
+  Tag,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -48,6 +49,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EmptyState,
+  MockNotice,
   PageHeader,
   StatCard,
   StatusPill,
@@ -122,10 +124,22 @@ export interface AdminPaymentRecord {
   };
 }
 
+export const formatDate = (dateString?: string | null) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
 export interface PayoutRecord {
   id: number;
   provider_id: number;
   payment_id: number;
+  booking_id?: number | null;
   amount: number | string;
   currency: string;
   status: string;
@@ -151,12 +165,29 @@ export interface PayoutRecord {
     commission_amount: number | string;
     provider_amount: number | string;
     status: string;
+    booking?: any;
   };
   booking?: {
     id: number;
+    booking_number?: string;
+    service_category?: string;
     appointment_status?: string;
     delivered_at?: string;
     dispute_deadline_at?: string;
+    booking_date?: string;
+    scheduled_date?: string;
+    createdAt?: string;
+    customer?: {
+      id: number;
+      full_name?: string;
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+    };
+    service_type?: {
+      id: number;
+      name?: string;
+    };
     dispute?: {
       id: number;
       status: string;
@@ -167,8 +198,9 @@ export interface PayoutRecord {
 }
 
 export function AdminPayouts() {
-  const [activeTab, setActiveTab] = useState("payments");
+  const [activeTab, setActiveTab] = useState("payouts");
   const [loading, setLoading] = useState(true);
+  const [releasingAll, setReleasingAll] = useState(false);
 
   // Payments State (GET /payments)
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
@@ -260,7 +292,7 @@ export function AdminPayouts() {
       setEligibleTotal(eligiblePagination?.total ?? eligibleData.length ?? 0);
       setEligibleTotalPages(
         eligiblePagination?.totalPages ??
-          Math.max(1, Math.ceil((eligiblePagination?.total || eligibleData.length || 1) / eligibleLimit))
+        Math.max(1, Math.ceil((eligiblePagination?.total || eligibleData.length || 1) / eligibleLimit))
       );
 
       const onHoldPayload = onHoldRes?.data;
@@ -270,7 +302,7 @@ export function AdminPayouts() {
       setOnHoldTotal(onHoldPagination?.total ?? onHoldData.length ?? 0);
       setOnHoldTotalPages(
         onHoldPagination?.totalPages ??
-          Math.max(1, Math.ceil((onHoldPagination?.total || onHoldData.length || 1) / onHoldLimit))
+        Math.max(1, Math.ceil((onHoldPagination?.total || onHoldData.length || 1) / onHoldLimit))
       );
 
       const historyPayload = historyRes?.data;
@@ -280,7 +312,7 @@ export function AdminPayouts() {
       setHistoryTotal(historyPagination?.total ?? historyData.length ?? 0);
       setHistoryTotalPages(
         historyPagination?.totalPages ??
-          Math.max(1, Math.ceil((historyPagination?.total || historyData.length || 1) / historyLimit))
+        Math.max(1, Math.ceil((historyPagination?.total || historyData.length || 1) / historyLimit))
       );
     } catch (err) {
       console.error("Failed to fetch payouts:", err);
@@ -319,6 +351,44 @@ export function AdminPayouts() {
       toast.error(err?.response?.data?.message || "Failed to mark payout as paid.");
     } finally {
       setSubmittingPayout(false);
+    }
+  };
+
+  const handleReleaseAll = async () => {
+    if (!eligiblePayouts.length) return;
+    if (!confirm(`Are you sure you want to release all ${eligiblePayouts.length} pending payouts?`)) {
+      return;
+    }
+
+    const ref = prompt(
+      "Enter bank transfer reference code for bulk payout release:",
+      `BULK-RELEASE-${Date.now().toString().slice(-6)}`
+    );
+    if (ref === null) return;
+
+    setReleasingAll(true);
+    let successCount = 0;
+    try {
+      for (const p of eligiblePayouts) {
+        try {
+          await processPayoutApi(p.id, {
+            transfer_reference: ref.trim() || `BULK-${p.id}`,
+            notes: "Bulk payout release by admin",
+          });
+          successCount++;
+        } catch {
+          /* continue remaining payouts */
+        }
+      }
+      toast.success(`Released ${successCount} of ${eligiblePayouts.length} pending payouts!`, {
+        // description: `Marked as paid to provider bank accounts.`,
+      });
+      fetchPayouts();
+      fetchPayments();
+    } catch (err: any) {
+      toast.error("An error occurred during bulk payout release.");
+    } finally {
+      setReleasingAll(false);
     }
   };
 
@@ -366,22 +436,6 @@ export function AdminPayouts() {
     }
   };
 
-  // Metrics calculations
-  const successfulPayments = payments.filter((p) => p.status === "success" || p.status === "succeeded");
-  const totalVolume = successfulPayments.reduce(
-    (sum, p) => sum + Number(p.amount || p.gross_amount || 0),
-    0
-  );
-  const totalCommission = successfulPayments.reduce(
-    (sum, p) => sum + (Number(p.commission_amount || 0) + Number(p.platform_fee_amount || 0)),
-    0
-  );
-  const totalProviderNet = successfulPayments.reduce(
-    (sum, p) => sum + Number(p.provider_amount || 0),
-    0
-  );
-  const eligiblePayoutTotal = eligiblePayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "N/A";
     try {
@@ -389,60 +443,249 @@ export function AdminPayouts() {
         month: "short",
         day: "numeric",
         year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
       });
     } catch {
       return dateStr;
     }
   };
 
+  // Metrics calculations
+  const pendingNetTotal = eligiblePayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const paidNetTotal = payoutHistory.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const allProvidersSet = new Set([
+    ...eligiblePayouts.map((p) => p.provider_id || p.provider?.id),
+    ...payoutHistory.map((p) => p.provider_id || p.provider?.id),
+  ].filter(Boolean));
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Payouts & Payments Ledger"
-        subtitle="Manage marketplace transactions, platform commission, and provider payouts."
+        title="Payout Queue"
+        subtitle="Release full weekly earnings to providers based on completed services."
+        action={
+          eligiblePayouts.length > 0 ? (
+            <Button onClick={handleReleaseAll} disabled={releasingAll} className="gap-1.5 font-semibold">
+              {releasingAll ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              Release All Pending Payouts
+            </Button>
+          ) : undefined
+        }
       />
 
-      {/* Overview Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      {/* Overview Stat Cards matching Service Connect exact design */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Processed Volume"
-          value={usd(totalVolume)}
-          hint={`${successfulPayments.length} successful transactions`}
-          icon={Receipt}
-        />
-        <StatCard
-          label="Platform Earnings"
-          value={usd(totalCommission)}
-          hint="Commission + Platform Fees"
-          icon={Percent}
-          tone="accent"
-        />
-        <StatCard
-          label="Owed to Providers"
-          value={usd(totalProviderNet)}
-          hint="Net payable earnings"
+          label="Pending Weekly Payouts"
+          value={usd(pendingNetTotal)}
+          hint={`${eligiblePayouts.length} provider weeks in queue`}
           icon={Wallet}
+          tone="warning"
+        />
+        <StatCard
+          label="Released Payouts"
+          value={usd(paidNetTotal)}
+          hint={`${payoutHistory.length} weekly payouts released`}
+          icon={Banknote}
           tone="success"
         />
         <StatCard
-          label="Pending Payout Queue"
-          value={usd(eligiblePayoutTotal)}
-          hint={`${eligiblePayouts.length} eligible payouts`}
-          icon={Banknote}
-          tone="warning"
+          label="Providers Paid"
+          value={allProvidersSet.size || 0}
+          hint="Active platform providers"
+          icon={CheckCircle2}
         />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
         <TabsList className="grid w-full grid-cols-3 max-w-xl">
+          <TabsTrigger value="payouts">Payout Queue ({eligiblePayouts.length})</TabsTrigger>
           <TabsTrigger value="payments">Transactions Ledger</TabsTrigger>
           <TabsTrigger value="on_hold">On Hold ({onHoldPayouts.length})</TabsTrigger>
-          <TabsTrigger value="payouts">Payout Queue ({eligiblePayouts.length})</TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: REAL PAYMENTS LEDGER (GET /payments) */}
+        {/* TAB 1: WEEKLY PAYOUT QUEUE & HISTORY (DEFAULT TAB) */}
+        <TabsContent value="payouts" className="space-y-6">
+          {/* PENDING PAYOUT QUEUE SECTION */}
+          <section className="rounded-2xl border border-border bg-card shadow-card">
+            <div className="px-6 pt-5 pb-2 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-bold">Weekly Payout Queue</h2>
+                <p className="text-xs text-muted-foreground">
+                  Full week earnings compiled per provider (No individual job IDs).
+                </p>
+              </div>
+            </div>
+
+            {eligiblePayouts.length === 0 ? (
+              <div className="p-6">
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="Payout queue is clear"
+                  description="All provider weekly earnings have been reviewed and paid out."
+                />
+              </div>
+            ) : (
+              <div className="mt-2 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Provider</TableHead>
+                      <TableHead>Start Week</TableHead>
+                      <TableHead>End Week</TableHead>
+                      <TableHead className="text-center">Completed Services</TableHead>
+                      <TableHead className="text-right">Gross Earnings</TableHead>
+                      <TableHead className="text-right">Service Fee</TableHead>
+                      <TableHead className="text-right font-bold">Net Payout</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {eligiblePayouts.map((p) => {
+                      const gross = Number(p.payment?.gross_amount ?? p.payment?.amount ?? p.amount ?? 0);
+                      const comm = Number(p.payment?.commission_amount || 0);
+                      const net = Number(p.amount || (gross - comm));
+                      const providerName = p.provider?.business_name || `Provider #${p.provider_id}`;
+                      const startDate = formatDate(p.eligible_at || p.createdAt);
+                      const endDate = formatDate(p.eligible_at || p.createdAt);
+
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-bold text-foreground">{providerName}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{startDate}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{endDate}</TableCell>
+                          <TableCell className="text-center font-medium">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold">
+                              <Tag size={12} /> 1 service
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{usd(gross || net)}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            −{usd(comm)}
+                          </TableCell>
+                          <TableCell className="text-right font-display text-base font-bold text-primary">
+                            {usd(net)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedPayout(p)}
+                                className="gap-1 text-xs"
+                              >
+                                <Eye size={14} /> View Page
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={processingId === p.id}
+                                onClick={() => openMarkPaidModal(p)}
+                                className="text-xs"
+                              >
+                                Mark Paid
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {/* Eligible Payout Queue Pagination Bar */}
+                {eligibleTotalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Page <strong className="text-foreground">{eligiblePage}</strong> of{" "}
+                      <strong className="text-foreground">{eligibleTotalPages}</strong> ({eligibleTotal} total eligible payouts)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={eligiblePage <= 1}
+                        onClick={() => setEligiblePage((p) => Math.max(1, p - 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <ChevronLeft size={14} /> Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={eligiblePage >= eligibleTotalPages}
+                        onClick={() => setEligiblePage((p) => Math.min(eligibleTotalPages, p + 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        Next <ChevronRight size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* COMPLETED WEEKLY PAYOUT HISTORY SECTION */}
+          <section className="rounded-2xl border border-border bg-card shadow-card">
+            <h2 className="px-6 pt-5 font-display text-lg font-bold">Weekly Payout History</h2>
+            <div className="mt-2 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Start Week</TableHead>
+                    <TableHead>End Week</TableHead>
+                    <TableHead className="text-right">Net Payout</TableHead>
+                    <TableHead>Paid Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payoutHistory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-6 text-xs text-muted-foreground">
+                        No released weekly payouts in history yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    payoutHistory.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.provider?.business_name || `Provider #${p.provider_id}`}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{formatDate(p.eligible_at || p.createdAt)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{formatDate(p.paid_at || p.updatedAt)}</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {usd(Number(p.amount))}
+                        </TableCell>
+                        <TableCell className="text-xs">{formatDate(p.paid_at || p.updatedAt)}</TableCell>
+                        <TableCell>
+                          <StatusPill status={p.status || "Paid"} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedPayout(p)}
+                            className="gap-1 text-xs"
+                          >
+                            <Eye size={14} /> View Services
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="p-6 pt-4">
+              <MockNotice>
+                Payouts are compiled week-wise and processed manually by Admin.
+              </MockNotice>
+            </div>
+          </section>
+        </TabsContent>
+
+        {/* TAB 2: REAL PAYMENTS LEDGER (GET /payments) */}
         <TabsContent value="payments" className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative max-w-sm flex-1">
@@ -593,7 +836,7 @@ export function AdminPayouts() {
           </div>
         </TabsContent>
 
-        {/* TAB 2: ON HOLD PAYOUTS */}
+        {/* TAB 3: ON HOLD PAYOUTS */}
         <TabsContent value="on_hold" className="space-y-6">
           <section className="rounded-2xl border border-border bg-card shadow-card">
             <div className="px-6 pt-5 pb-2 flex items-center justify-between">
@@ -622,8 +865,8 @@ export function AdminPayouts() {
                       <TableHead>Booking / Status</TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead className="text-right">Payout Amount</TableHead>
-                      <TableHead>Dispute Deadline</TableHead>
-                      <TableHead>Dispute Status</TableHead>
+                      {/* <TableHead>Dispute Deadline</TableHead>
+                      <TableHead>Dispute Status</TableHead> */}
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -649,15 +892,15 @@ export function AdminPayouts() {
                           <TableCell className="text-right font-display text-base font-bold text-primary">
                             {usd(Number(p.amount))}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          {/* <TableCell className="text-xs text-muted-foreground">
                             {formatDate(p.booking?.dispute_deadline_at)}
                             {deadlinePassed ? (
                               <span className="block text-[10px] text-emerald-600 font-medium">Window Expired</span>
                             ) : (
                               <span className="block text-[10px] text-amber-600 font-medium">In Dispute Window</span>
                             )}
-                          </TableCell>
-                          <TableCell>
+                          </TableCell> */}
+                          {/* <TableCell>
                             {dispute ? (
                               <div className="space-y-0.5">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
@@ -672,7 +915,7 @@ export function AdminPayouts() {
                             ) : (
                               <span className="text-xs text-muted-foreground">No dispute</span>
                             )}
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <Button
@@ -734,200 +977,111 @@ export function AdminPayouts() {
             )}
           </section>
         </TabsContent>
+      </Tabs>
 
-        {/* TAB 3: PAYOUT QUEUE & HISTORY */}
-        <TabsContent value="payouts" className="space-y-6">
-          <section className="rounded-2xl border border-border bg-card shadow-card">
-            <div className="px-6 pt-5 pb-2 flex items-center justify-between">
-              <div>
-                <h2 className="font-display text-lg font-bold">Eligible Provider Payout Queue</h2>
-                <p className="text-xs text-muted-foreground">
-                  Payouts ready for release after successful job completion and dispute window expiry.
-                </p>
+      {/* WEEKLY SERVICES VIEW MODAL */}
+      {selectedPayout && (
+        <Dialog open={Boolean(selectedPayout)} onOpenChange={() => setSelectedPayout(null)}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Calendar size={18} className="text-primary" /> Provider Weekly Services &amp; Earnings
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Period: <strong>{formatDate(selectedPayout.eligible_at || selectedPayout.createdAt)}</strong> · Provider:{" "}
+                <strong>{selectedPayout.provider?.business_name || `Provider #${selectedPayout.provider_id}`}</strong>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Summary Banner */}
+              <div className="grid grid-cols-3 gap-3 rounded-xl bg-muted/40 p-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Gross Earnings</span>
+                  <span className="font-bold text-foreground text-sm">
+                    {usd(Number(selectedPayout.payment?.gross_amount ?? selectedPayout.payment?.amount ?? selectedPayout.amount))}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Service Fee</span>
+                  <span className="font-bold text-muted-foreground text-sm">
+                    −{usd(Number(selectedPayout.payment?.commission_amount || 0))}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Net Weekly Payout</span>
+                  <span className="font-bold text-primary text-sm font-display">
+                    {usd(Number(selectedPayout.amount))}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {eligiblePayouts.length === 0 ? (
-              <div className="p-8">
-                <EmptyState
-                  icon={CheckCircle2}
-                  title="Payout queue is clear"
-                  description="All eligible provider earnings have been reviewed and released."
-                />
-              </div>
-            ) : (
-              <div className="mt-2 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Payout ID</TableHead>
-                      <TableHead>Provider</TableHead>
-                      <TableHead>Bank Account</TableHead>
-                      <TableHead className="text-right">Payout Amount</TableHead>
-                      <TableHead>Eligible Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eligiblePayouts.map((p) => {
-                      const bankInfo = p.provider?.bank_name
-                        ? `${p.provider.bank_name} (${p.provider.bank_account_number || "••••"})`
-                        : "Bank on file";
-                      return (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-mono text-xs font-bold text-foreground">PO-{p.id}</TableCell>
-                          <TableCell className="font-bold text-foreground">
-                            {p.provider?.business_name || `Provider #${p.provider_id}`}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{bankInfo}</TableCell>
-                          <TableCell className="text-right font-display text-base font-bold text-primary">
-                            {usd(Number(p.amount))}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{formatDate(p.eligible_at)}</TableCell>
-                          <TableCell>
-                            <StatusPill status={p.status} />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                disabled={processingId === p.id}
-                                onClick={() => openMarkPaidModal(p)}
-                                className="text-xs gap-1 h-7"
-                              >
-                                {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                                Mark Paid
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={processingId === p.id}
-                                onClick={() => handleMarkFailed(p.id)}
-                                className="text-xs gap-1 h-7"
-                              >
-                                Mark Failed
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+              {/* Compact Services List performed */}
+              {(() => {
+                const booking = selectedPayout.booking || selectedPayout.payment?.booking;
+                const customer = booking?.customer;
+                const serviceTitle =
+                  booking?.service_type?.name ||
+                  booking?.service_category ||
+                  (booking?.booking_number ? `Booking #${booking.booking_number}` : `Booking #${selectedPayout.booking_id || selectedPayout.payment_id}`);
 
-                {/* Eligible Payout Queue Pagination Bar */}
-                {eligibleTotalPages > 1 && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      Page <strong className="text-foreground">{eligiblePage}</strong> of{" "}
-                      <strong className="text-foreground">{eligibleTotalPages}</strong> ({eligibleTotal} total eligible payouts)
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={eligiblePage <= 1}
-                        onClick={() => setEligiblePage((p) => Math.max(1, p - 1))}
-                        className="h-8 text-xs gap-1"
-                      >
-                        <ChevronLeft size={14} /> Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={eligiblePage >= eligibleTotalPages}
-                        onClick={() => setEligiblePage((p) => Math.min(eligibleTotalPages, p + 1))}
-                        className="h-8 text-xs gap-1"
-                      >
-                        Next <ChevronRight size={14} />
-                      </Button>
+                const customerName = customer
+                  ? customer.full_name || customer.email
+                  : null;
+
+                const completedDate = formatDate(
+                  booking?.delivered_at || booking?.booking_date || selectedPayout.eligible_at || selectedPayout.createdAt
+                );
+
+                const itemGrossAmount = Number(
+                  selectedPayout.payment?.gross_amount ?? selectedPayout.payment?.amount ?? selectedPayout.amount
+                );
+
+                return (
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground mb-2 flex items-center gap-1.5">
+                      <FileText size={14} className="text-muted-foreground" /> Services Performed
+                    </h4>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">
+                            {serviceTitle}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {customerName ? (
+                              <span>Customer: <strong className="text-foreground font-medium">{customerName}</strong> · </span>
+                            ) : null}
+                            <span>Completed on {completedDate}</span>
+                          </p>
+                        </div>
+                        <span className="font-bold text-foreground text-sm">{usd(itemGrossAmount)}</span>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* COMPLETED PAYOUT HISTORY */}
-          <section className="rounded-2xl border border-border bg-card shadow-card">
-            <h2 className="px-6 pt-5 font-display text-lg font-bold">Processed Payout History</h2>
-            <div className="mt-2 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payout ID</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead className="text-right">Amount Paid</TableHead>
-                    <TableHead>Transfer Ref</TableHead>
-                    <TableHead>Paid Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payoutHistory.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs font-bold text-foreground">PO-{p.id}</TableCell>
-                      <TableCell className="font-medium text-xs">{p.provider?.business_name || `Provider #${p.provider_id}`}</TableCell>
-                      <TableCell className="text-right font-semibold text-xs">{usd(Number(p.amount))}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{p.transfer_reference || "N/A"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(p.paid_at || p.updatedAt)}</TableCell>
-                      <TableCell>
-                        <StatusPill status={p.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {p.status === "failed" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={processingId === p.id}
-                            onClick={() => handleRetryPayout(p.id)}
-                            className="text-xs gap-1 h-7"
-                          >
-                            {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
-                            Retry Payout
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Processed Payout History Pagination Bar */}
-              {historyTotalPages > 1 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Page <strong className="text-foreground">{historyPage}</strong> of{" "}
-                    <strong className="text-foreground">{historyTotalPages}</strong> ({historyTotal} total processed payouts)
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={historyPage <= 1}
-                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
-                      className="h-8 text-xs gap-1"
-                    >
-                      <ChevronLeft size={14} /> Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={historyPage >= historyTotalPages}
-                      onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
-                      className="h-8 text-xs gap-1"
-                    >
-                      Next <ChevronRight size={14} />
-                    </Button>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
-          </section>
-        </TabsContent>
-      </Tabs>
+
+            <Separator className="my-2" />
+
+            <div className="flex items-center justify-between pt-1">
+              <StatusPill status={selectedPayout.status} />
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setSelectedPayout(null)}>
+                  Close
+                </Button>
+                {selectedPayout.status === "eligible" || selectedPayout.status === "pending" ? (
+                  <Button onClick={() => { setSelectedPayout(null); openMarkPaidModal(selectedPayout); }} className="gap-1.5">
+                    <CheckCircle2 size={15} /> Release Weekly Payout
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* MARK PAID MODAL */}
       {markPaidModalPayout && (

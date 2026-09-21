@@ -80,8 +80,8 @@ export const AdminCategoriesPage: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title="Category Hierarchy"
-        subtitle="Manage subcategories and services under fixed master categories."
+        title="Subcategories"
+        subtitle="Manage service subcategories under your platform categories."
         action={
           activeCategory ? (
             <Button onClick={handleOpenAddSubModal} className="gap-2 font-semibold">
