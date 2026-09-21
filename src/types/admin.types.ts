@@ -58,3 +58,56 @@ export interface DisputeItem {
   status: "open" | "resolved" | "pending";
   created_at: string;
 }
+
+export interface RevenueSeriesItem {
+  month: string;
+  revenue: number;
+  commission: number;
+}
+
+export interface ProviderGrowthItem {
+  month: string;
+  providers: number;
+  customers: number;
+}
+
+export interface PendingProviderItem {
+  id: number | string;
+  name: string;
+  category: string;
+  city: string;
+  state: string;
+  status: string;
+}
+
+export interface RecentTransactionItem {
+  id: string;
+  amount: number;
+  customer: string;
+  provider: string;
+  date: string;
+  status: string;
+}
+
+export interface AdminDashboardData {
+  gmv?: number;
+  commission?: number;
+  commissionRate?: number;
+  activeJobs?: number;
+  providersCount?: number;
+  customersCount?: number;
+  pendingPayouts?: {
+    totalAmount?: number;
+    count?: number;
+  };
+  revenueSeries?: RevenueSeriesItem[];
+  providerGrowth?: ProviderGrowthItem[];
+  pendingProviders?: PendingProviderItem[];
+  recentTransactions?: RecentTransactionItem[];
+  stats?: {
+    totalUsers?: number;
+    totalProviders?: number;
+    activeBookings?: number;
+    totalRevenue?: number;
+  };
+}
