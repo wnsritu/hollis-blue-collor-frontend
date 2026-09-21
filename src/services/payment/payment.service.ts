@@ -90,12 +90,32 @@ export const processPayoutApi = (payoutId: number | string, data?: any) => {
   return apiClient.post(`/admin/payouts/${payoutId}/process`, data);
 };
 
+export const listOnHoldPayoutsApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts/on-hold", { params });
+};
+
+export const markPayoutEligibleApi = (payoutId: number | string) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/eligible`);
+};
+
+export const markPayoutFailedApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/fail`, data);
+};
+
+export const retryPayoutApi = (payoutId: number | string, data?: any) => {
+  return apiClient.post(`/admin/payouts/${payoutId}/retry`, data);
+};
+
 export const payoutApi = {
   getCommissionRates: () =>
     http.get<ApiSuccess<CommissionSettingsData>>(ENDPOINTS.payout.commissionRates),
   listEligible: listEligiblePayoutsApi,
+  listOnHold: listOnHoldPayoutsApi,
   listHistory: listPayoutHistoryApi,
   process: processPayoutApi,
+  markEligible: markPayoutEligibleApi,
+  markFailed: markPayoutFailedApi,
+  retry: retryPayoutApi,
 };
 
 export default {
@@ -106,8 +126,12 @@ export default {
   confirmPaymentSubscription,
   listPaymentsApi,
   listEligiblePayoutsApi,
+  listOnHoldPayoutsApi,
   listPayoutHistoryApi,
   processPayoutApi,
+  markPayoutEligibleApi,
+  markPayoutFailedApi,
+  retryPayoutApi,
   subscriptionApi,
   payoutApi,
 };

@@ -139,6 +139,26 @@ export interface ProviderAppointment {
   project_title?: string;
 }
 
+export interface ProviderTransaction {
+  id: string;
+  payoutId?: number | null;
+  jobId: string;
+  customer: string;
+  amount: number;
+  commissionRate: number;
+  commissionAmount: number;
+  youReceive: number;
+  status: string;
+  payout: string;
+  date: string;
+}
+
+export interface ProviderRevenueSeries {
+  month: string;
+  revenue: number;
+  commission: number;
+}
+
 export interface ProviderPayout {
   id: number | string;
   amount: number;
@@ -152,12 +172,17 @@ export interface ProviderPayout {
 }
 
 export interface ProviderEarnings {
+  commission_rate: number;
   gross_revenue: number;
   commission_paid: number;
   net_earnings: number;
+  payable_balance: number;
+  released_payouts: number;
   settled_payouts: number;
   settled_payout_count: number;
   pending_payout: number;
+  revenue_series: ProviderRevenueSeries[];
+  transactions: ProviderTransaction[];
   recent_payouts: ProviderPayout[];
 }
 

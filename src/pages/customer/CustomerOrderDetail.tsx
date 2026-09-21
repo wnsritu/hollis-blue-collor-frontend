@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
@@ -280,6 +281,12 @@ export const CustomerOrderDetail: React.FC = () => {
     }
   };
 
+  const canReportIssue =
+    isPaid &&
+    !isCancelled &&
+    ["confirmed", "accepted", "job accepted", "en route", "en_route", "arrived", "arrived at site", "in progress", "in_progress", "completed", "finished", "delivered", "reviewed"].includes(normStatus) &&
+    (!booking.dispute_deadline_at || new Date() <= new Date(booking.dispute_deadline_at));
+
   return (
     <div className="space-y-6">
       {/* Back Link */}
@@ -337,6 +344,36 @@ export const CustomerOrderDetail: React.FC = () => {
               <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
                 <MessageSquare size={14} /> Message Pro
               </Button>
+            )}
+
+            {!isCancelled && (
+              normalized.dispute.status && !["none", "null"].includes(normalized.dispute.status) ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    ["resolved", "rejected", "closed"].includes(normalized.dispute.status)
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200"
+                      : "bg-rose-500/10 text-rose-600 border border-rose-200"
+                  }`}
+                >
+                  <AlertTriangle size={14} />
+                  {["resolved", "rejected", "closed"].includes(normalized.dispute.status)
+                    ? `Dispute ${normalized.dispute.status.charAt(0).toUpperCase() + normalized.dispute.status.slice(1)}`
+                    : `Dispute Opened (${normalized.dispute.status === "open" ? "Active" : normalized.dispute.status})`}
+                </span>
+              ) : (
+                canReportIssue && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                  >
+                    <Link to={`/report-issue/${booking.id}`}>
+                      <AlertTriangle size={14} /> Report Issue
+                    </Link>
+                  </Button>
+                )
+              )
             )}
 
             {!isPaid && !isCancelled && (

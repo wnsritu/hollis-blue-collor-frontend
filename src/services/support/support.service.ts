@@ -29,8 +29,8 @@ export const registerSupportAgentApi = (data: any) => {
   return apiClient.post("/support/register-support-agent", data);
 };
 
-export const getSupportAgentsApi = (data: any) => {
-  return apiClient.post("/support/get-support-agents", data);
+export const getSupportAgentsApi = (_params?: any) => {
+  return apiClient.get("/disputes/agents");
 };
 
 export const updateSupportAgentApi = (id: number, data: any) => {
@@ -46,7 +46,7 @@ export const registerSupportAgent = async (payload: any) => {
   return res.data;
 };
 
-export const getSupportAgents = async (params: any) => {
+export const getSupportAgents = async (params?: any) => {
   const res = await getSupportAgentsApi(params);
   return res.data;
 };
@@ -66,32 +66,38 @@ export const createDisputeApi = (data: FormData) => {
   });
 };
 
-export const getDisputesApi = (data: any) => {
-  return apiClient.post("/disputes/list", data);
+export const getDisputesApi = (params?: any) => {
+  return apiClient.get("/disputes/list", { params });
 };
 
-export const getDisputeByIdApi = (id: number) => {
-  return apiClient.get(`/disputes/${id}`);
+export const getDisputeByIdApi = (id: number | string) => {
+  return apiClient.get(`/disputes/details/${id}`);
 };
 
-export const updateDisputeApi = (id: number, data: FormData) => {
-  return apiClient.put(`/disputes/${id}`, data, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export const updateDisputeApi = (id: number | string, data: FormData) => {
+  return apiClient.put(`/disputes/update-status/${id}`, data);
 };
 
 export const getDisputeData = (data: any) => {
-  return apiClient.post("/disputes/details", data);
+  const disputeId = typeof data === "object" ? (data.id || data.dispute_id || data.booking_id) : data;
+  return apiClient.get(`/disputes/details/${disputeId}`);
 };
 
 export const assignAgent = (data: any) => {
-  return apiClient.post("/disputes/reassign-agent", data);
+  const disputeId = data.dispute_id || data.id;
+  return apiClient.put(`/disputes/update-status/${disputeId}`, {
+    agent_id: data.agent_id || data.agentId,
+  });
 };
 
 export const adminFinalDisputeDecision = (data: any) => {
-  return apiClient.post("/disputes/admin-review", data);
+  const disputeId = data.dispute_id || data.id;
+  return apiClient.put(`/disputes/update-status/${disputeId}`, {
+    status: data.status || (data.decision === "reject_dispute" ? "rejected" : "resolved"),
+    admin_decision: data.admin_decision || data.decision,
+    resolution_notes: data.resolution_notes || data.notes || data.admin_note || null,
+    refund_amount: data.refund_amount || null,
+  });
 };
 
 export const addReviewByAgent = (data: any) => {

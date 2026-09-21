@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  AlertCircle,
   Banknote,
   Calendar,
   CheckCircle2,
@@ -8,14 +9,19 @@ import {
   Eye,
   FileText,
   Loader2,
+  PauseCircle,
   Percent,
   Receipt,
+  RotateCw,
   Search,
   Wallet,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -50,8 +56,12 @@ import { usd } from "@/components/shared/cards";
 import {
   listPaymentsApi,
   listEligiblePayoutsApi,
+  listOnHoldPayoutsApi,
   listPayoutHistoryApi,
   processPayoutApi,
+  markPayoutEligibleApi,
+  markPayoutFailedApi,
+  retryPayoutApi,
 } from "@/services/payment/payment.service";
 
 export interface AdminPaymentRecord {
@@ -74,6 +84,8 @@ export interface AdminPaymentRecord {
   platform_fee_amount?: number | string;
   provider_amount?: number | string;
   payout_id?: number | null;
+  idempotency_key?: string | null;
+  failure_reason?: string | null;
   createdAt?: string;
   updatedAt?: string;
   booking?: {
@@ -120,6 +132,9 @@ export interface PayoutRecord {
   notes?: string;
   eligible_at?: string;
   paid_at?: string;
+  transfer_reference?: string;
+  createdAt?: string;
+  updatedAt?: string;
   provider?: {
     id: number;
     business_name?: string;
@@ -136,6 +151,18 @@ export interface PayoutRecord {
     commission_amount: number | string;
     provider_amount: number | string;
     status: string;
+  };
+  booking?: {
+    id: number;
+    appointment_status?: string;
+    delivered_at?: string;
+    dispute_deadline_at?: string;
+    dispute?: {
+      id: number;
+      status: string;
+      issue_type?: string;
+      admin_decision?: string;
+    };
   };
 }
 
@@ -155,19 +182,30 @@ export function AdminPayouts() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Payout Queue State (GET /admin/payouts & GET /admin/payouts/history)
+  // Payout Queue States
   const [eligiblePayouts, setEligiblePayouts] = useState<PayoutRecord[]>([]);
+  const [onHoldPayouts, setOnHoldPayouts] = useState<PayoutRecord[]>([]);
   const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>([]);
   const [selectedPayout, setSelectedPayout] = useState<PayoutRecord | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  // Payout Queue Pagination State (Default limit = 20)
+  // Mark Paid Modal State
+  const [markPaidModalPayout, setMarkPaidModalPayout] = useState<PayoutRecord | null>(null);
+  const [transferReference, setTransferReference] = useState("");
+  const [payoutNotes, setPayoutNotes] = useState("");
+  const [submittingPayout, setSubmittingPayout] = useState(false);
+
+  // Pagination States
   const [eligiblePage, setEligiblePage] = useState(1);
   const [eligibleLimit] = useState(20);
   const [eligibleTotal, setEligibleTotal] = useState(0);
   const [eligibleTotalPages, setEligibleTotalPages] = useState(1);
 
-  // Payout History Pagination State (Default limit = 20)
+  const [onHoldPage, setOnHoldPage] = useState(1);
+  const [onHoldLimit] = useState(20);
+  const [onHoldTotal, setOnHoldTotal] = useState(0);
+  const [onHoldTotalPages, setOnHoldTotalPages] = useState(1);
+
   const [historyPage, setHistoryPage] = useState(1);
   const [historyLimit] = useState(20);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -209,8 +247,9 @@ export function AdminPayouts() {
 
   const fetchPayouts = useCallback(async () => {
     try {
-      const [eligibleRes, historyRes] = await Promise.all([
+      const [eligibleRes, onHoldRes, historyRes] = await Promise.all([
         listEligiblePayoutsApi({ page: eligiblePage, limit: eligibleLimit }).catch(() => null),
+        listOnHoldPayoutsApi({ page: onHoldPage, limit: onHoldLimit }).catch(() => null),
         listPayoutHistoryApi({ page: historyPage, limit: historyLimit }).catch(() => null),
       ]);
 
@@ -219,37 +258,109 @@ export function AdminPayouts() {
       const eligiblePagination = eligiblePayload?.pagination;
       setEligiblePayouts(Array.isArray(eligibleData) ? eligibleData : []);
       setEligibleTotal(eligiblePagination?.total ?? eligibleData.length ?? 0);
-      setEligibleTotalPages(eligiblePagination?.totalPages ?? Math.max(1, Math.ceil((eligiblePagination?.total || eligibleData.length || 1) / eligibleLimit)));
+      setEligibleTotalPages(
+        eligiblePagination?.totalPages ??
+          Math.max(1, Math.ceil((eligiblePagination?.total || eligibleData.length || 1) / eligibleLimit))
+      );
+
+      const onHoldPayload = onHoldRes?.data;
+      const onHoldData = onHoldPayload?.data || (Array.isArray(onHoldPayload) ? onHoldPayload : []);
+      const onHoldPagination = onHoldPayload?.pagination;
+      setOnHoldPayouts(Array.isArray(onHoldData) ? onHoldData : []);
+      setOnHoldTotal(onHoldPagination?.total ?? onHoldData.length ?? 0);
+      setOnHoldTotalPages(
+        onHoldPagination?.totalPages ??
+          Math.max(1, Math.ceil((onHoldPagination?.total || onHoldData.length || 1) / onHoldLimit))
+      );
 
       const historyPayload = historyRes?.data;
       const historyData = historyPayload?.data || (Array.isArray(historyPayload) ? historyPayload : []);
       const historyPagination = historyPayload?.pagination;
       setPayoutHistory(Array.isArray(historyData) ? historyData : []);
       setHistoryTotal(historyPagination?.total ?? historyData.length ?? 0);
-      setHistoryTotalPages(historyPagination?.totalPages ?? Math.max(1, Math.ceil((historyPagination?.total || historyData.length || 1) / historyLimit)));
+      setHistoryTotalPages(
+        historyPagination?.totalPages ??
+          Math.max(1, Math.ceil((historyPagination?.total || historyData.length || 1) / historyLimit))
+      );
     } catch (err) {
       console.error("Failed to fetch payouts:", err);
     }
-  }, [eligiblePage, eligibleLimit, historyPage, historyLimit]);
+  }, [eligiblePage, eligibleLimit, onHoldPage, onHoldLimit, historyPage, historyLimit]);
 
   useEffect(() => {
     fetchPayments();
     fetchPayouts();
   }, [fetchPayments, fetchPayouts]);
 
-  const handleProcessPayout = async (payoutId: number) => {
-    setProcessingId(payoutId);
+  const openMarkPaidModal = (payout: PayoutRecord) => {
+    setMarkPaidModalPayout(payout);
+    setTransferReference("");
+    setPayoutNotes("External bank transfer completed by admin");
+  };
+
+  const handleConfirmMarkPaid = async () => {
+    if (!markPaidModalPayout) return;
+    if (!transferReference.trim()) {
+      toast.error("Please enter a valid bank transfer reference code");
+      return;
+    }
+
+    setSubmittingPayout(true);
     try {
-      await processPayoutApi(payoutId, {
-        transfer_reference: `TR-${Date.now()}`,
-        notes: "Payout marked paid by admin.",
+      await processPayoutApi(markPaidModalPayout.id, {
+        transfer_reference: transferReference.trim(),
+        notes: payoutNotes.trim() || undefined,
       });
-      toast.success("Payout marked as paid to provider!");
-      setSelectedPayout(null);
+      toast.success(`Payout PO-${markPaidModalPayout.id} marked as paid!`);
+      setMarkPaidModalPayout(null);
       fetchPayouts();
       fetchPayments();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to process payout.");
+      toast.error(err?.response?.data?.message || "Failed to mark payout as paid.");
+    } finally {
+      setSubmittingPayout(false);
+    }
+  };
+
+  const handleMarkFailed = async (payoutId: number) => {
+    const reason = prompt("Enter reason for marking this payout as failed (optional):");
+    if (reason === null) return;
+
+    setProcessingId(payoutId);
+    try {
+      await markPayoutFailedApi(payoutId, { notes: reason.trim() || "Marked failed by admin" });
+      toast.success(`Payout PO-${payoutId} marked as failed.`);
+      fetchPayouts();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to mark payout as failed.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleMarkEligible = async (payoutId: number) => {
+    if (!confirm(`Are you sure you want to promote Payout PO-${payoutId} to eligible?`)) return;
+
+    setProcessingId(payoutId);
+    try {
+      await markPayoutEligibleApi(payoutId);
+      toast.success(`Payout PO-${payoutId} promoted to eligible.`);
+      fetchPayouts();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to promote payout.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRetryPayout = async (payoutId: number) => {
+    setProcessingId(payoutId);
+    try {
+      await retryPayoutApi(payoutId);
+      toast.success(`Payout PO-${payoutId} reset for retry.`);
+      fetchPayouts();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to retry payout.");
     } finally {
       setProcessingId(null);
     }
@@ -325,8 +436,9 @@ export function AdminPayouts() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl">
           <TabsTrigger value="payments">Transactions Ledger</TabsTrigger>
+          <TabsTrigger value="on_hold">On Hold ({onHoldPayouts.length})</TabsTrigger>
           <TabsTrigger value="payouts">Payout Queue ({eligiblePayouts.length})</TabsTrigger>
         </TabsList>
 
@@ -481,14 +593,156 @@ export function AdminPayouts() {
           </div>
         </TabsContent>
 
-        {/* TAB 2: PAYOUT QUEUE & HISTORY */}
+        {/* TAB 2: ON HOLD PAYOUTS */}
+        <TabsContent value="on_hold" className="space-y-6">
+          <section className="rounded-2xl border border-border bg-card shadow-card">
+            <div className="px-6 pt-5 pb-2 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-bold">On-Hold Payouts</h2>
+                <p className="text-xs text-muted-foreground">
+                  Payouts waiting for job completion, dispute window expiry (24h), or admin review.
+                </p>
+              </div>
+            </div>
+
+            {onHoldPayouts.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  icon={PauseCircle}
+                  title="No on-hold payouts"
+                  description="There are currently no payouts frozen on hold."
+                />
+              </div>
+            ) : (
+              <div className="mt-2 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Payout ID</TableHead>
+                      <TableHead>Booking / Status</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead className="text-right">Payout Amount</TableHead>
+                      <TableHead>Dispute Deadline</TableHead>
+                      <TableHead>Dispute Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {onHoldPayouts.map((p) => {
+                      const dispute = p.booking?.dispute;
+                      const deadlinePassed = p.booking?.dispute_deadline_at
+                        ? new Date(p.booking.dispute_deadline_at).getTime() <= Date.now()
+                        : false;
+
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-mono text-xs font-bold text-foreground">PO-{p.id}</TableCell>
+                          <TableCell className="text-xs font-medium">
+                            {p.booking?.id ? `BK-${p.booking.id}` : "N/A"}
+                            <span className="block text-[10px] text-muted-foreground">
+                              {p.booking?.appointment_status || "Pending"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-bold text-foreground text-xs">
+                            {p.provider?.business_name || `Provider #${p.provider_id}`}
+                          </TableCell>
+                          <TableCell className="text-right font-display text-base font-bold text-primary">
+                            {usd(Number(p.amount))}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDate(p.booking?.dispute_deadline_at)}
+                            {deadlinePassed ? (
+                              <span className="block text-[10px] text-emerald-600 font-medium">Window Expired</span>
+                            ) : (
+                              <span className="block text-[10px] text-amber-600 font-medium">In Dispute Window</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {dispute ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
+                                  Dispute #{dispute.id} ({dispute.status})
+                                </span>
+                                {dispute.issue_type && (
+                                  <span className="block text-[10px] text-muted-foreground capitalize">
+                                    Issue: {dispute.issue_type.replace("_", " ")}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No dispute</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={processingId === p.id}
+                                onClick={() => handleMarkEligible(p.id)}
+                                className="text-xs gap-1 h-7"
+                              >
+                                {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                Mark Eligible
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={processingId === p.id}
+                                onClick={() => handleMarkFailed(p.id)}
+                                className="text-xs gap-1 h-7"
+                              >
+                                Mark Failed
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {onHoldTotalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Page <strong className="text-foreground">{onHoldPage}</strong> of{" "}
+                      <strong className="text-foreground">{onHoldTotalPages}</strong> ({onHoldTotal} total on-hold payouts)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={onHoldPage <= 1}
+                        onClick={() => setOnHoldPage((p) => Math.max(1, p - 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <ChevronLeft size={14} /> Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={onHoldPage >= onHoldTotalPages}
+                        onClick={() => setOnHoldPage((p) => Math.min(onHoldTotalPages, p + 1))}
+                        className="h-8 text-xs gap-1"
+                      >
+                        Next <ChevronRight size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </TabsContent>
+
+        {/* TAB 3: PAYOUT QUEUE & HISTORY */}
         <TabsContent value="payouts" className="space-y-6">
           <section className="rounded-2xl border border-border bg-card shadow-card">
             <div className="px-6 pt-5 pb-2 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-lg font-bold">Eligible Provider Payout Queue</h2>
                 <p className="text-xs text-muted-foreground">
-                  Payouts ready for release after successful job completion.
+                  Payouts ready for release after successful job completion and dispute window expiry.
                 </p>
               </div>
             </div>
@@ -498,7 +752,7 @@ export function AdminPayouts() {
                 <EmptyState
                   icon={CheckCircle2}
                   title="Payout queue is clear"
-                  description="All provider earnings have been reviewed and released."
+                  description="All eligible provider earnings have been reviewed and released."
                 />
               </div>
             ) : (
@@ -535,15 +789,26 @@ export function AdminPayouts() {
                             <StatusPill status={p.status} />
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              disabled={processingId === p.id}
-                              onClick={() => handleProcessPayout(p.id)}
-                              className="text-xs gap-1"
-                            >
-                              {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                              Mark Paid
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                disabled={processingId === p.id}
+                                onClick={() => openMarkPaidModal(p)}
+                                className="text-xs gap-1 h-7"
+                              >
+                                {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                Mark Paid
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={processingId === p.id}
+                                onClick={() => handleMarkFailed(p.id)}
+                                className="text-xs gap-1 h-7"
+                              >
+                                Mark Failed
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -594,19 +859,36 @@ export function AdminPayouts() {
                     <TableHead>Payout ID</TableHead>
                     <TableHead>Provider</TableHead>
                     <TableHead className="text-right">Amount Paid</TableHead>
+                    <TableHead>Transfer Ref</TableHead>
                     <TableHead>Paid Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payoutHistory.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs font-bold text-foreground">PO-{p.id}</TableCell>
-                      <TableCell className="font-medium">{p.provider?.business_name || `Provider #${p.provider_id}`}</TableCell>
-                      <TableCell className="text-right font-semibold">{usd(Number(p.amount))}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(p.paid_at)}</TableCell>
+                      <TableCell className="font-medium text-xs">{p.provider?.business_name || `Provider #${p.provider_id}`}</TableCell>
+                      <TableCell className="text-right font-semibold text-xs">{usd(Number(p.amount))}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{p.transfer_reference || "N/A"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatDate(p.paid_at || p.updatedAt)}</TableCell>
                       <TableCell>
                         <StatusPill status={p.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.status === "failed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={processingId === p.id}
+                            onClick={() => handleRetryPayout(p.id)}
+                            className="text-xs gap-1 h-7"
+                          >
+                            {processingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />}
+                            Retry Payout
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -646,6 +928,62 @@ export function AdminPayouts() {
           </section>
         </TabsContent>
       </Tabs>
+
+      {/* MARK PAID MODAL */}
+      {markPaidModalPayout && (
+        <Dialog open={Boolean(markPaidModalPayout)} onOpenChange={() => setMarkPaidModalPayout(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Banknote size={18} className="text-primary" /> Confirm External Bank Transfer
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Record manual wire/bank transfer for Payout <strong className="font-mono">PO-{markPaidModalPayout.id}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="rounded-xl border border-border p-3 bg-card space-y-1">
+                <p className="text-muted-foreground">Provider: <strong className="text-foreground">{markPaidModalPayout.provider?.business_name || `Provider #${markPaidModalPayout.provider_id}`}</strong></p>
+                <p className="text-muted-foreground">Bank: <strong className="text-foreground">{markPaidModalPayout.provider?.bank_name || "N/A"}</strong> ({markPaidModalPayout.provider?.bank_account_number || "••••"})</p>
+                <p className="text-muted-foreground">Amount: <strong className="text-primary font-bold text-sm">{usd(Number(markPaidModalPayout.amount))}</strong></p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="transferRef" className="text-xs font-bold">Bank Transfer Reference Code <span className="text-destructive">*</span></Label>
+                <Input
+                  id="transferRef"
+                  placeholder="e.g. WIRE-88492015 or CHASE-TX-993"
+                  value={transferReference}
+                  onChange={(e) => setTransferReference(e.target.value)}
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payoutNotes" className="text-xs font-medium">Notes (optional)</Label>
+                <Textarea
+                  id="payoutNotes"
+                  placeholder="Additional transfer notes..."
+                  value={payoutNotes}
+                  onChange={(e) => setPayoutNotes(e.target.value)}
+                  className="text-xs min-h-[60px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setMarkPaidModalPayout(null)} disabled={submittingPayout}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleConfirmMarkPaid} disabled={submittingPayout} className="gap-1">
+                {submittingPayout ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                Confirm Paid
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* PAYMENT DETAILS DIALOG MODAL */}
       {selectedPayment && (
