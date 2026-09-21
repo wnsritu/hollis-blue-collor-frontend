@@ -203,8 +203,8 @@ export const SearchProviders: React.FC = () => {
   return (
     <div>
       {/* Search Header Banner */}
-      <div className="border-b border-border bg-surface">
-        <div className="container-page py-6">
+      <div className="border-b border-border bg-surface py-6">
+        <div className="container-page">
           <h1 className="font-display text-2xl font-bold">Find a professional</h1>
           <div className="mt-4 grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
             <div className="relative min-w-0">
