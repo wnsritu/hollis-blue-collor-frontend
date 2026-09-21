@@ -168,113 +168,37 @@ export function useAppointments() {
     }
   };
 
-const FALLBACK_SEED_APPOINTMENTS: Appointment[] = [
-  {
-    id: 101,
-    booking_number: "BK-20260920-APT101",
-    booking_type: "fixed_price",
-    status: "accepted",
-    appointment_status: "Confirmed",
-    payment_status: "paid",
-    total_amount: 180,
-    booking_date: "2026-09-20",
-    customer: {
-      id: 2,
-      full_name: "Sarah Whitfield",
-      email: "sarah.w@example.com",
-      phone: "+1 305-555-0123",
-      profile_image: null,
-    },
-    provider: {
-      id: 6,
-      business_name: "Apex Electrical Solutions",
-      service_location_address: "100 Biscayne Blvd, Miami, FL",
-    },
-    items: [
-      { id: 1, name: "Recessed Can Lighting Installation", price: 180, quantity: 1 }
-    ]
-  } as any,
-  {
-    id: 102,
-    booking_number: "BK-20260921-APT102",
-    booking_type: "hourly",
-    status: "in_process",
-    appointment_status: "In Progress",
-    payment_status: "paid",
-    total_amount: 240,
-    booking_date: "2026-09-21",
-    customer: {
-      id: 3,
-      full_name: "Daniel Ortiz",
-      email: "daniel.o@example.com",
-      phone: "+1 305-555-0199",
-      profile_image: null,
-    },
-    provider: {
-      id: 3,
-      business_name: "Premier Plumbing & Drainage",
-      service_location_address: "456 Oak Ave, Miami, FL",
-    },
-    items: [
-      { id: 1, name: "Hydro Jetting & Sewer Line Inspection", price: 240, quantity: 1 }
-    ]
-  } as any,
-  {
-    id: 103,
-    booking_number: "BK-20260916-APT103",
-    booking_type: "fixed_price",
-    status: "finished",
-    appointment_status: "Completed",
-    payment_status: "paid",
-    total_amount: 155,
-    booking_date: "2026-09-16",
-    customer: {
-      id: 4,
-      full_name: "Marcus Bell",
-      email: "marcus.b@example.com",
-      phone: "+1 305-555-0288",
-      profile_image: null,
-    },
-    provider: {
-      id: 2,
-      business_name: "BrightHome Cleaning Co.",
-      service_location_address: "123 Main St, Miami, FL",
-    },
-    items: [
-      { id: 1, name: "Deep Home Clean (1,850 sq ft)", price: 155, quantity: 1 }
-    ]
-  } as any,
-  {
-    id: 104,
-    booking_number: "BK-20260915-APT104",
-    booking_type: "request_quote",
-    status: "cancelled",
-    appointment_status: "Cancelled",
-    payment_status: "refunded",
-    total_amount: 90,
-    booking_date: "2026-09-15",
-    customer: {
-      id: 5,
-      full_name: "Priya Raman",
-      email: "priya.r@example.com",
-      phone: "+1 305-555-0377",
-      profile_image: null,
-    },
-    provider: {
-      id: 4,
-      business_name: "Pro Electrical Specialists",
-      service_location_address: "789 Pine St, Miami, FL",
-    },
-    items: [
-      { id: 1, name: "Outlet Repair & Circuit Fix", price: 90, quantity: 1 }
-    ]
-  } as any
-];
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (overrideParams?: {
+    tab?: string;
+    query?: string;
+    day?: number | null;
+  }) => {
     setLoading(true);
-    setAppointments(FALLBACK_SEED_APPOINTMENTS);
-    setLoading(false);
+    try {
+      const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
+      const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
+      const dayToUse = overrideParams?.day !== undefined ? overrideParams.day : selectedDay;
+
+      let statusTab: string | undefined = undefined;
+      if (tabToUse === "Upcoming") statusTab = "upcoming";
+      else if (tabToUse === "In Progress") statusTab = "in_progress";
+      else if (tabToUse === "Completed") statusTab = "completed";
+      else if (tabToUse === "Cancelled") statusTab = "cancelled";
+
+      const params: Record<string, unknown> = {};
+      if (statusTab) params.status_tab = statusTab;
+      if (queryToUse && queryToUse.trim()) params.search = queryToUse.trim();
+      if (dayToUse !== null && dayToUse !== undefined) params.day = dayToUse;
+
+      const res = await appointmentApi.listMine(params);
+      const list = (res as any)?.data || res || [];
+      setAppointments(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to load appointments", err);
+      toast.error("Failed to load your appointments.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

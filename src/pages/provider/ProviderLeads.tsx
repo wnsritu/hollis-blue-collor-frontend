@@ -54,9 +54,9 @@ export const ProviderLeads: React.FC = () => {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl font-bold">Custom Quotes & Leads</h1>
+          <h1 className="font-display text-2xl font-bold">Matched Opportunities & Leads</h1>
           <p className="text-sm text-muted-foreground">
-            1 awaiting your quote · 2 direct quote requests.
+            Projects matched to your skills, category, and service radius by our matching engine.
           </p>
         </div>
         <Button variant="outline" onClick={fetchLeads} className="gap-2 text-xs">

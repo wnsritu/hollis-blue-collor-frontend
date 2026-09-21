@@ -257,11 +257,7 @@ export function Login() {
                 <p className="text-xs font-medium text-destructive">{fieldErrors.password}</p>
               )}
             </div>
-            {Boolean(error) && (
-              <p className="text-sm font-medium text-destructive">
-                {typeof error === "string" ? error : getErrorMessage(error, "Invalid credentials")}
-              </p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex items-center justify-between">
               <label className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium">
                 <Checkbox

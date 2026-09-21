@@ -203,18 +203,8 @@ export function useProviderOnboarding() {
 
     if (step === 2) {
       const errs: Record<string, string> = {};
-      if (!form.license.trim()) {
-        errs.license = "License number is required.";
-      } else if (form.license.trim().length < 3) {
-        errs.license = "License number must be at least 3 characters.";
-      }
-
-      if (!form.insurance.trim()) {
-        errs.insurance = "Insurance policy number is required.";
-      } else if (form.insurance.trim().length < 3) {
-        errs.insurance = "Insurance policy number must be at least 3 characters.";
-      }
-
+      if (!form.license.trim()) errs.license = "License number is required.";
+      if (!form.insurance.trim()) errs.insurance = "Insurance policy number is required.";
       if (!form.licenseDocumentPath) errs.licenseDocument = "Please upload your business license document.";
       if (!form.insuranceDocumentPath) errs.insuranceDocument = "Please upload your insurance certificate.";
 

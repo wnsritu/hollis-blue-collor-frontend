@@ -28,15 +28,14 @@ const Header = () => {
 
   const navLinks = !isLoggedIn
     ? [
-      { to: "/", label: "Home" },
-      { to: "/search", label: "Find a Professional" },
-      { to: "/how-it-works", label: "How It Works" },
-      { to: "/provider/onboarding", label: "Become a Pro" },
-    ]
+        { to: "/", label: "Home" },
+        { to: "/how-it-works", label: "How It Works" },
+        { to: "/provider/onboarding", label: "Become a Pro" },
+      ]
     : isCustomerUser
       ? [
-        { to: "/search", label: "Find a Professional" },
-      ]
+          { to: "/search", label: "Find a Professional" },
+        ]
       : [];
 
   useEffect(() => {
@@ -110,10 +109,11 @@ const Header = () => {
             <Link
               key={l.to}
               to={l.to}
-              className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground ${location.pathname === l.to.split("?")[0]
-                ? "bg-muted font-semibold text-foreground"
-                : "text-muted-foreground"
-                }`}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground ${
+                location.pathname === l.to.split("?")[0]
+                  ? "bg-muted font-semibold text-foreground"
+                  : "text-muted-foreground"
+              }`}
             >
               {l.label}
             </Link>

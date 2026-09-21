@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import {
-  Gauge,
+  LayoutDashboard,
   Users,
   BadgeCheck,
   FolderTree,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   Percent,
   Banknote,
+  Receipt,
   MessageSquare,
   ListChecks,
   BarChart3,
@@ -25,7 +26,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", to: "/admin", icon: Gauge },
+  { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Providers", to: "/admin/providers", icon: BadgeCheck },
   {
@@ -90,7 +91,7 @@ export const AdminLayout = () => {
   return (
     <DashboardShell
       nav={adminNav}
-      title="ADMIN CONSOLE"
+      title="Platform Admin"
       accountName={accountName}
       accountRole="Administrator"
       avatarUrl={avatarUrl}

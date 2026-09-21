@@ -11,180 +11,18 @@ export const orderApi = {
     http.get<ApiSuccess>(ENDPOINTS.order.details(id)),
 };
 
-const FALLBACK_SEED_ORDERS = [
-  {
-    id: 85,
-    order_id: "BK-20260916-TJMLPQA3",
-    booking_number: "BK-20260916-TJMLPQA3",
-    booking_type: "request_quote",
-    status: "finished",
-    appointment_status: "Completed",
-    payment_status: "paid",
-    total_amount: 217.55,
-    booking_date: "2026-09-16",
-    customer: {
-      id: 2,
-      first_name: "Alonzo",
-      last_name: "Raynor",
-      full_name: "Alonzo Raynor",
-      email: "alonzo.raynor@example.com",
-      phone: "3055550188",
-      profile_image: null,
-    },
-    provider: {
-      id: 6,
-      user_id: 9,
-      business_name: "Apex Electrical Solutions",
-      service_location_address: "100 Biscayne Blvd, Miami, FL",
-    },
-    provider_name: "Apex Electrical Solutions",
-    items: [
-      { id: 1, name: "Electrical Wire Inspection & Panel Setup", price: 180.00, quantity: 1 },
-      { id: 2, name: "Circuit Breaker Installation", price: 37.55, quantity: 1 }
-    ]
-  },
-  {
-    id: 86,
-    order_id: "ORD-086",
-    booking_number: "BK-20260917-ABC86",
-    booking_type: "fixed_price",
-    status: "accepted",
-    appointment_status: "Confirmed",
-    payment_status: "paid",
-    total_amount: 145.00,
-    booking_date: "2026-09-17",
-    customer: {
-      id: 3,
-      first_name: "Sarah",
-      last_name: "Jenkins",
-      full_name: "Sarah Jenkins",
-      email: "sarah.j@example.com",
-      phone: "3055550199",
-      profile_image: null,
-    },
-    provider: {
-      id: 2,
-      user_id: 5,
-      business_name: "BrightHome Cleaning Co.",
-      service_location_address: "123 Main St, Miami, FL",
-    },
-    provider_name: "BrightHome Cleaning Co.",
-    items: [
-      { id: 1, name: "Deep Home Clean (3 Bedrooms)", price: 145.00, quantity: 1 }
-    ]
-  },
-  {
-    id: 87,
-    order_id: "ORD-087",
-    booking_number: "BK-20260918-XYZ87",
-    booking_type: "hourly",
-    status: "pending",
-    appointment_status: "Requested",
-    payment_status: "pending",
-    total_amount: 95.00,
-    booking_date: "2026-09-18",
-    customer: {
-      id: 4,
-      first_name: "Marcus",
-      last_name: "Vance",
-      full_name: "Marcus Vance",
-      email: "marcus.v@example.com",
-      phone: "3055550244",
-      profile_image: null,
-    },
-    provider: {
-      id: 3,
-      user_id: 7,
-      business_name: "ABC Plumbing Solutions",
-      service_location_address: "456 Oak Ave, Miami, FL",
-    },
-    provider_name: "ABC Plumbing Solutions",
-    items: [
-      { id: 1, name: "Drain Clearing & Pipe Repair", price: 95.00, quantity: 1 }
-    ]
-  },
-  {
-    id: 88,
-    order_id: "ORD-088",
-    booking_number: "BK-20260919-DEF88",
-    booking_type: "fixed_price",
-    status: "in_process",
-    appointment_status: "In Progress",
-    payment_status: "paid",
-    total_amount: 320.00,
-    booking_date: "2026-09-19",
-    customer: {
-      id: 5,
-      first_name: "Elena",
-      last_name: "Rostova",
-      full_name: "Elena Rostova",
-      email: "elena.r@example.com",
-      phone: "3055550388",
-      profile_image: null,
-    },
-    provider: {
-      id: 4,
-      user_id: 8,
-      business_name: "Pro HVAC Specialists",
-      service_location_address: "789 Pine St, Miami, FL",
-    },
-    provider_name: "Pro HVAC Specialists",
-    items: [
-      { id: 1, name: "AC Maintenance & Duct Cleaning", price: 320.00, quantity: 1 }
-    ]
-  }
-];
-
-// Customer Orders(Booking) List - Zero Network Call Fallback for Milestone 2 Demo
-export const getOrderList = async (data?: any) => {
-  let filtered = [...FALLBACK_SEED_ORDERS];
-  if (data?.status && data.status !== "all") {
-    filtered = filtered.filter((o) => o.status.toLowerCase() === data.status.toLowerCase());
-  }
-  if (data?.search && String(data.search).trim()) {
-    const q = String(data.search).toLowerCase().trim();
-    filtered = filtered.filter(
-      (o) =>
-        o.order_id.toLowerCase().includes(q) ||
-        o.customer.full_name.toLowerCase().includes(q) ||
-        o.provider.business_name.toLowerCase().includes(q)
-    );
-  }
-  return {
-    data: {
-      success: true,
-      message: "Data fetched successfully",
-      bookings: filtered,
-      total: filtered.length,
-      total_pages: 1,
-      current_page: 1,
-    },
-  };
+// Customer Orders(Booking) List
+export const getOrderList = (data: any) => {
+  return apiClient.post("/booking/list", data);
 };
 
-// Customer Order Details - Zero Network Call Fallback
-export const getOrderDetails = async (id: any) => {
-  const found = FALLBACK_SEED_ORDERS.find((o) => String(o.id) === String(id)) || FALLBACK_SEED_ORDERS[0];
-  return {
-    data: {
-      success: true,
-      message: "Data fetched successfully",
-      data: found,
-    },
-  };
+// Customer Order Details
+export const getOrderDetails = (id: any) => {
+  return apiClient.get(`/booking/${id}`);
 };
 
-export const getRatingByBookingId = async (id: any) => {
-  return {
-    data: {
-      success: true,
-      data: {
-        rating: 5,
-        comment: "High-quality professional service! Arrived promptly on time and resolved the issue efficiently.",
-        customer: { first_name: "Alonzo", last_name: "Raynor" },
-      },
-    },
-  };
+export const getRatingByBookingId = (id: any) => {
+  return apiClient.get(`/ratings/booking-ratings/${id}`);
 };
 
 const normalizeStatus = (status?: string): string => {

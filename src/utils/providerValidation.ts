@@ -150,8 +150,8 @@ export function validateLicenseNumber(license: string): string | undefined {
   if (!license || !license.trim()) {
     return "License number is required.";
   }
-  if (license.trim().length < 3 || license.trim().length > 100) {
-    return "License number must be at least 3 characters.";
+  if (license.trim().length < 2 || license.trim().length > 100) {
+    return "License number must be between 2 and 100 characters.";
   }
   return undefined;
 }
@@ -160,8 +160,8 @@ export function validateInsurancePolicy(policy: string): string | undefined {
   if (!policy || !policy.trim()) {
     return "Insurance policy number is required.";
   }
-  if (policy.trim().length < 3 || policy.trim().length > 100) {
-    return "Insurance policy number must be at least 3 characters.";
+  if (policy.trim().length < 2 || policy.trim().length > 100) {
+    return "Insurance policy number must be between 2 and 100 characters.";
   }
   return undefined;
 }

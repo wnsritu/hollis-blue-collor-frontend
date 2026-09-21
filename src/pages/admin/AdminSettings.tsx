@@ -1,37 +1,27 @@
-import React, { useState } from "react";
-import { Eye, EyeOff, Lock, Sliders } from "lucide-react";
-import toast from "react-hot-toast";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { PageHeader } from "@/components/shared/primitives";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { changePasswordService } from "@/services/auth.service";
+import { Eye, EyeOff } from "lucide-react";
+import Spinner from "@/components/ui/spinner";
+import { getPlatformSettings, updatePlatformSettings } from "@/services/admin";
 
-const BRAND = {
-  name: "Hollis",
-  tagline: "Hollis — Blue Collar Worker",
-};
+const AdminSettings = () => {
 
-export const AdminSettings = () => {
-  const [activeTab, setActiveTab] = useState<"general" | "security">("general");
-
-  const [general, setGeneral] = useState({
-    name: BRAND.name,
-    tagline: BRAND.tagline,
-    support: "support@Hollis.com",
-    phone: "(800) 555-0142",
-    address: "600 Congress Ave, Austin, TX 78701",
+  const [passwords, setPasswords] = useState({
+    current: "",
+    new: "",
+    confirm: "",
   });
 
-  // Password Reset State
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [show, setShow] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
   const [passErrors, setPassErrors] = useState<Record<string, string>>({});
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -40,171 +30,281 @@ export const AdminSettings = () => {
     email: "support@hollis.com",
   });
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentPassword) {
-      toast.error("Please enter your current password.");
+  const [commission, setCommission] = useState("15");
+  const [platformFee, setPlatformFee] = useState("2.50");
+
+  const handleSaveSettings = () => {
+    toast.success("Settings saved successfully");
+    console.log("Platform Settings:", platform);
+  };
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await getPlatformSettings();
+        setCommission(data?.data.admin_commission.toString());
+        setPlatformFee(data?.data.platform_fee.toString());
+      } catch (err) {
+        toast.error("Failed to fetch platform settings");
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const handleSaveFees = async () => {
+    try {
+      const payload = {
+        admin_commission: parseFloat(commission),
+        platform_fee: parseFloat(platformFee),
+      };
+      await toast.promise(updatePlatformSettings(payload), {
+        loading: "Updating fees...",
+        success: "Fees updated successfully",
+        error: "Failed to update fees",
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const validatePassword = () => {
+    const errs: Record<string, string> = {};
+
+    if (!passwords.current) errs.current = "Current password is required";
+
+    if (!passwords.new) errs.new = "New password is required";
+    else if (passwords.new.length < 6)
+      errs.new = "Minimum 6 characters required";
+
+    if (!passwords.confirm) errs.confirm = "Confirm password is required";
+    else if (passwords.new !== passwords.confirm)
+      errs.confirm = "Passwords do not match";
+
+    setPassErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!validatePassword()) {
+      toast.error("Please fix password errors");
       return;
     }
-    if (!newPassword) {
-      toast.error("Please enter a new password.");
-      return;
+
+    try {
+      setPasswordLoading(true);
+
+      const payload = {
+        old_password: passwords.current,
+        new_password: passwords.new,
+      };
+
+      await toast.promise(changePasswordService(payload), {
+        loading: "Updating password...",
+        success: "Password updated successfully",
+        error: (err) =>
+          err?.response?.data?.message || "Failed to update password",
+      });
+
+      setPasswords({
+        current: "",
+        new: "",
+        confirm: "",
+      });
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setPasswordLoading(false);
     }
-    if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match.");
-      return;
-    }
-    toast.success("Password updated successfully.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Platform Settings"
-        subtitle="Global configuration and account security for Hollis Admin."
-        action={
-          activeTab === "general" ? (
-            <Button onClick={save}>Save changes</Button>
-          ) : (
-            <Button onClick={handleUpdatePassword}>Update Password</Button>
-          )
-        }
-      />
+      <h1 className="font-heading text-2xl font-bold text-foreground">
+        Settings
+      </h1>
 
-      {/* TABS NAVIGATION */}
-      <div className="mb-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => {
-            setActiveTab(v as "general" | "security");
-          }}
-        >
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="general" className="gap-2">
-              <Sliders size={16} /> General Settings
-            </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2">
-              <Lock size={16} /> Password & Security
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {activeTab === "general" && (
-        <>
-          <section className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-card sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="pname">Platform name</Label>
-              <Input id="pname" value={general.name} onChange={(e) => setGeneral({ ...general, name: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="ptag">Tagline</Label>
-              <Input id="ptag" value={general.tagline} onChange={(e) => setGeneral({ ...general, tagline: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="psup">Support email</Label>
-              <Input id="psup" value={general.support} onChange={(e) => setGeneral({ ...general, support: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="pph">Support phone</Label>
-              <Input id="pph" value={general.phone} onChange={(e) => setGeneral({ ...general, phone: e.target.value })} />
-            </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="padd">Business address</Label>
-              <Textarea id="padd" rows={2} value={general.address} onChange={(e) => setGeneral({ ...general, address: e.target.value })} />
-            </div>
-          </section>
-
-          <div className="mt-6 flex justify-end">
-            <Button onClick={save}>Save changes</Button>
-          </div>
-        </>
-      )}
-
-      {activeTab === "security" && (
-        <Card className="shadow-card max-w-2xl">
+      {/* ================= PLATFORM SETTINGS ================= */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-bold">Password Reset & Security</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Update your administrator account password to maintain strong security.
-            </p>
+            <CardTitle className="text-base">Platform Settings</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleUpdatePassword} className="space-y-5">
-              <div className="grid gap-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <div className="relative">
-                  <Input
-                    id="currentPassword"
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  >
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showNewPassword ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Platform Name</Label>
+              <Input
+                readOnly
+                value={platform.name}
+                onChange={(e) =>
+                  setPlatform({ ...platform, name: e.target.value })
+                }
+              />
+            </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label>Support Email</Label>
+              <Input
+                readOnly
+                type="email"
+                value={platform.email}
+                onChange={(e) =>
+                  setPlatform({ ...platform, email: e.target.value })
+                }
+              />
+            </div>
 
-              <div className="pt-2 flex justify-end">
-                <Button type="submit">Update Password</Button>
-              </div>
-            </form>
+            <Button onClick={handleSaveSettings}>
+              Save Settings
+            </Button>
           </CardContent>
         </Card>
-      )}
+
+        {/* ================= PASSWORD CARD (LIKE YOUR SCREENSHOT) ================= */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base" >Change Password</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {/* Current Password */}
+            <div className="space-y-2">
+              <Label>Current Password</Label>
+              <div className="relative">
+                <Input
+                  type={show.current ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwords.current}
+                  onChange={(e) => {
+                    setPasswords({ ...passwords, current: e.target.value });
+                    setPassErrors({ ...passErrors, current: "" });
+                  }}
+                  className={
+                    passErrors.current ? "border-red-500 pr-10" : "pr-10"
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setShow({ ...show, current: !show.current })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {show.current ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-xs text-red-500">{passErrors.current}</p>
+            </div>
+
+            {/* New Password */}
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <div className="relative">
+                <Input
+                  type={show.new ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwords.new}
+                  onChange={(e) => {
+                    setPasswords({ ...passwords, new: e.target.value });
+                    setPassErrors({ ...passErrors, new: "" });
+                  }}
+                  className={passErrors.new ? "border-red-500 pr-10" : "pr-10"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShow({ ...show, new: !show.new })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {show.new ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-xs text-red-500">{passErrors.new}</p>
+            </div>
+
+            {/* Confirm Password */}
+            <div className="space-y-2">
+              <Label>Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  type={show.confirm ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwords.confirm}
+                  onChange={(e) => {
+                    setPasswords({ ...passwords, confirm: e.target.value });
+                    setPassErrors({ ...passErrors, confirm: "" });
+                  }}
+                  className={
+                    passErrors.confirm ? "border-red-500 pr-10" : "pr-10"
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setShow({ ...show, confirm: !show.confirm })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {show.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-xs text-red-500">{passErrors.confirm}</p>
+            </div>
+
+            <Button onClick={handleUpdatePassword} disabled={passwordLoading}>
+              {passwordLoading ? <Spinner size={16} /> : "Update Password"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ================= SERVICE FEE MANAGEMENT ================= */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">
+          Service Fee Management
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Book professional laundry services handled with care.
+        </p>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Commission */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">% Admin Commission</CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <Label>Commission Rate (%)</Label>
+              <Input
+                value={commission}
+                onChange={(e) => setCommission(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Applied to all orders on the platform.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Platform Fee */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">$ Platform Fee</CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <Label>Platform Fee ($)</Label>
+              <Input
+                value={platformFee}
+                onChange={(e) => setPlatformFee(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Fixed fee per transaction.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Button onClick={handleSaveFees} className="mt-2">
+          Save Fees
+        </Button>
+      </div>
     </div>
   );
 };

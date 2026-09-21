@@ -3,20 +3,8 @@ import { http } from "@/lib/api/http";
 import { ENDPOINTS } from "@/constants/endpoints";
 import type { ApiListParams, ApiSuccess } from "@/types/api/common";
 
-export const getAdminDashboardApi = async () => {
-  // Comment out network API call for M3-5 admin dashboard
-  // return apiClient.get("/admin/dashboard");
-  return {
-    data: {
-      success: true,
-      data: {
-        totalUsers: 142,
-        totalProviders: 28,
-        activeBookings: 18,
-        totalRevenue: 14250.00,
-      },
-    },
-  };
+export const getAdminDashboardApi = () => {
+  return apiClient.get("/admin/dashboard");
 };
 
 export const getAdminDashboard = async () => {

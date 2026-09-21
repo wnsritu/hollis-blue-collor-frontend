@@ -307,10 +307,10 @@ export function useProviderProfileSettings() {
         provider?.service_type_id != null
           ? String(provider.service_type_id)
           : provider?.sub_category?.id != null
-            ? String(provider.sub_category.id)
-            : provider?.service_types?.[0]?.id != null
-              ? String(provider.service_types[0].id)
-              : "";
+          ? String(provider.sub_category.id)
+          : provider?.service_types?.[0]?.id != null
+          ? String(provider.service_types[0].id)
+          : "";
       setSubcategoryId(subId);
 
       let initialServices: string[] = [];
@@ -462,8 +462,8 @@ export function useProviderProfileSettings() {
     const certList = Array.isArray(certifications)
       ? certifications
       : typeof certifications === "string"
-        ? certifications.split(",").map((c) => c.trim()).filter(Boolean)
-        : [];
+      ? certifications.split(",").map((c) => c.trim()).filter(Boolean)
+      : [];
 
     return {
       business_name: businessName.trim(),
@@ -496,7 +496,7 @@ export function useProviderProfileSettings() {
 
     if (keys.length > 0) {
       setFieldErrors(errs);
-      toast.error("Please fill the required fields");
+      toast.error("Please fix the validation errors before saving.");
 
       if (activeTab !== "info") {
         setSearchParams({});
@@ -526,7 +526,7 @@ export function useProviderProfileSettings() {
           const elem = document.getElementById(id);
           if (elem) {
             elem.scrollIntoView({ behavior: "smooth", block: "center" });
-            try { elem.focus(); } catch { }
+            try { elem.focus(); } catch {}
             scrolled = true;
             break;
           }
@@ -589,7 +589,7 @@ export function useProviderProfileSettings() {
 
     if (keys.length > 0) {
       setFieldErrors(errs);
-      toast.error("Please fill the required bank details.");
+      toast.error("Please fix the bank details validation errors.");
 
       const elemIdMap: Record<string, string> = {
         bank_name: "bankname",
@@ -605,7 +605,7 @@ export function useProviderProfileSettings() {
           const elem = document.getElementById(id);
           if (elem) {
             elem.scrollIntoView({ behavior: "smooth", block: "center" });
-            try { elem.focus(); } catch { }
+            try { elem.focus(); } catch {}
             scrolled = true;
             break;
           }

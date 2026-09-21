@@ -68,25 +68,12 @@ export function useCustomerProfile() {
   };
 
   const handleMobileNumberChange = (val: string) => {
-    // Detect if alphabets were typed
-    const hasAlphabets = /[a-zA-Z]/.test(val);
-    
-    // Sanitize to only keep numeric digits and optional leading +
-    const sanitized = val.startsWith("+") 
-      ? `+${val.slice(1).replace(/\D/g, "")}` 
-      : val.replace(/\D/g, "");
-      
-    setMobileNumber(sanitized);
-
+    setMobileNumber(val);
     let err: string | undefined;
-    if (hasAlphabets) {
-      err = "Mobile number must contain numbers only (alphabets are not allowed).";
-    } else if (sanitized.trim()) {
-      const digits = sanitized.replace(/\D/g, "");
+    if (val.trim()) {
+      const digits = val.replace(/\D/g, "");
       if (digits.length < 10) {
         err = "Phone number must be at least 10 digits.";
-      } else if (digits.length > 15) {
-        err = "Phone number cannot exceed 15 digits.";
       }
     }
     setFieldErrors((prev) => ({ ...prev, mobileNumber: err }));
@@ -324,26 +311,6 @@ export function useCustomerProfile() {
     if (!fullName.trim()) {
       toast.error("Full name is required.");
       return;
-    }
-
-    if (mobileNumber.trim()) {
-      if (/[a-zA-Z]/.test(mobileNumber)) {
-        setFieldErrors((prev) => ({
-          ...prev,
-          mobileNumber: "Mobile number must contain numbers only (alphabets are not allowed).",
-        }));
-        toast.error("Mobile number cannot contain alphabets.");
-        return;
-      }
-      const digits = mobileNumber.replace(/\D/g, "");
-      if (digits.length < 10) {
-        setFieldErrors((prev) => ({
-          ...prev,
-          mobileNumber: "Phone number must be at least 10 digits.",
-        }));
-        toast.error("Please enter a valid mobile number (at least 10 digits).");
-        return;
-      }
     }
 
     if (zipCode.trim() && !isValidZip(zipCode)) {

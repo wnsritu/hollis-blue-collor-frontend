@@ -38,86 +38,12 @@ export interface BookingResponse {
   bookings: Booking[];
 }
 
-const FALLBACK_SEED_BOOKINGS: any[] = [
-  {
-    id: 1001,
-    booking_number: "BK-2026-8801",
-    status: "in_progress",
-    appointment_status: "In Progress",
-    total_amount: 350.0,
-    payment_status: "escrow_held",
-    booking_date: "2026-09-17",
-    start_time: "10:00 AM",
-    end_time: "01:00 PM",
-    service_category: "Electrical",
-    service_type: "Electrical Panel Inspection & Upgrade",
-    job_type: "fixed",
-    customer: { id: 101, first_name: "Sarah", last_name: "Whitfield", full_name: "Sarah Whitfield", phone: "(305) 555-0199", email: "sarah.whitfield@example.com" },
-    provider: { id: 201, name: "Apex Electrical Solutions", business_name: "Apex Electrical Solutions" },
-    address_line: "1420 Brickell Ave",
-    city: "Miami",
-    state: "FL",
-    zip_code: "33131",
-    notes: "Panel tripping under full load. Please inspect main breaker.",
-    items: [{ id: 1, name: "200A Main Panel Replacement & Inspection", price: 350.0 }],
-  },
-  {
-    id: 1002,
-    booking_number: "BK-2026-8802",
-    status: "confirmed",
-    appointment_status: "Confirmed",
-    total_amount: 220.0,
-    payment_status: "escrow_held",
-    booking_date: "2026-09-18",
-    start_time: "02:00 PM",
-    end_time: "04:00 PM",
-    service_category: "Plumbing",
-    service_type: "Emergency Plumbing & Water Leak Repair",
-    job_type: "quote",
-    customer: { id: 102, first_name: "Alonzo", last_name: "Raynor", full_name: "Alonzo Raynor", phone: "(916) 547-4777", email: "alonzo.raynor@example.com" },
-    provider: { id: 202, name: "Premier Plumbing & Drainage", business_name: "Premier Plumbing & Drainage" },
-    address_line: "850 Ocean Dr",
-    city: "Miami",
-    state: "FL",
-    zip_code: "33139",
-    notes: "Kitchen pipe joint leak repair.",
-    items: [{ id: 1, name: "Leak Detection & Pipe Fitting Replacement", price: 220.0 }],
-  },
-  {
-    id: 1003,
-    booking_number: "BK-2026-8803",
-    status: "completed",
-    appointment_status: "Completed",
-    total_amount: 180.0,
-    payment_status: "paid",
-    booking_date: "2026-09-15",
-    start_time: "09:00 AM",
-    end_time: "12:00 PM",
-    service_category: "Cleaning",
-    service_type: "Deep Office Cleaning & Sanitation",
-    job_type: "fixed",
-    customer: { id: 101, first_name: "Sarah", last_name: "Whitfield", full_name: "Sarah Whitfield", phone: "(305) 555-0199", email: "sarah.whitfield@example.com" },
-    provider: { id: 203, name: "BrightHome Cleaning Co.", business_name: "BrightHome Cleaning Co." },
-    address_line: "500 Biscayne Blvd",
-    city: "Miami",
-    state: "FL",
-    zip_code: "33132",
-    notes: "Deep clean carpet and windows.",
-    items: [{ id: 1, name: "Office Carpet Steam & Window Wash", price: 180.0 }],
-  },
-];
-
-export const getBookingsApi = (_data?: any) => {
-  return Promise.resolve({
-    data: {
-      success: true,
-      total: FALLBACK_SEED_BOOKINGS.length,
-      current_page: 1,
-      total_pages: 1,
-      per_page: 10,
-      bookings: FALLBACK_SEED_BOOKINGS,
-    },
-  });
+export const getBookingsApi = (data?: {
+  page?: number;
+  limit?: number;
+  service_category?: string;
+}) => {
+  return apiClient.post("/booking/list", data || {});
 };
 
 export const normalizeToAppointmentStatus = (status?: string): string => {
@@ -137,63 +63,41 @@ export const normalizeToAppointmentStatus = (status?: string): string => {
 
 export const updateBookingStatusApi = (id: number, status: string) => {
   const norm = normalizeToAppointmentStatus(status);
-  return Promise.resolve({
-    data: {
-      status: "success",
-      data: { ...FALLBACK_SEED_BOOKINGS[0], id, status: norm, appointment_status: norm },
-    },
+  return apiClient.patch(`/appointments/${id}/status`, {
+    appointment_status: norm,
+    status: norm,
   });
 };
 
 export const getDashboardApi = () => {
-  return Promise.resolve({
-    data: {
-      total_bookings: FALLBACK_SEED_BOOKINGS.length,
-      active_jobs: 1,
-      completed_jobs: 1,
-      pending_jobs: 1,
-    },
-  });
+  return apiClient.post("/booking/dashboard");
 };
 
 export const getBookingById = (bookingId: number) => {
-  const b = FALLBACK_SEED_BOOKINGS.find((x) => Number(x.id) === Number(bookingId)) || FALLBACK_SEED_BOOKINGS[0];
-  return Promise.resolve({ data: { status: "success", data: b } });
+  return apiClient.get(`/booking/${bookingId}`);
 };
 
 export const fetchBookings = async (
   page = 1,
   limit = 10,
-  _service_category?: string,
+  service_category?: string,
 ): Promise<BookingResponse> => {
-  return {
-    success: true,
-    total: FALLBACK_SEED_BOOKINGS.length,
-    current_page: page,
-    total_pages: 1,
-    per_page: limit,
-    bookings: FALLBACK_SEED_BOOKINGS,
-  };
+  const data: any = { page, limit };
+  if (service_category && service_category !== "All") {
+    data.service_category = service_category;
+  }
+  const res = await getBookingsApi(data);
+  return res.data;
 };
 
 export const updateBookingStatus = async (id: number, status: string) => {
-  const norm = normalizeToAppointmentStatus(status);
-  return { ...FALLBACK_SEED_BOOKINGS[0], id, status: norm, appointment_status: norm };
+  const res = await updateBookingStatusApi(id, status);
+  return res.data;
 };
 
 export const bookingApi = {
-  add: (payload: Record<string, unknown> | FormData) => {
-    const newB = {
-      id: Date.now(),
-      booking_number: `BK-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: "confirmed",
-      appointment_status: "Confirmed",
-      total_amount: 150.0,
-      payment_status: "escrow_held",
-      booking_date: new Date().toISOString().split("T")[0],
-    };
-    return Promise.resolve({ status: "success", data: newB } as ApiSuccess);
-  },
+  add: (payload: Record<string, unknown> | FormData) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.add, payload),
 
   calculatePrice: (payload: Record<string, unknown>) =>
     http.post<ApiSuccess>(ENDPOINTS.booking.calculatePrice, payload),
@@ -201,54 +105,33 @@ export const bookingApi = {
   list: (payload?: Record<string, unknown>) =>
     http.post<ApiSuccess>(ENDPOINTS.booking.list, payload),
 
-  getById: (id: number | string) => {
-    const b = FALLBACK_SEED_BOOKINGS.find((x) => String(x.id) === String(id)) || FALLBACK_SEED_BOOKINGS[0];
-    return Promise.resolve({ status: "success", data: b } as ApiSuccess);
-  },
+  getById: (id: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.booking.details(id)),
 
-  update: (id: number | string, payload: Record<string, unknown>) => {
-    const b = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), ...payload };
-    return Promise.resolve({ status: "success", data: b } as ApiSuccess);
-  },
+  update: (id: number | string, payload: Record<string, unknown>) =>
+    http.put<ApiSuccess>(ENDPOINTS.booking.edit(id), payload),
 
   updateStatus: (id: number | string, payload: Record<string, unknown>) => {
     const raw = (payload.appointment_status || payload.status) as string;
-    const norm = normalizeToAppointmentStatus(raw);
-    const b = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), status: norm, appointment_status: norm };
-    return Promise.resolve({ status: "success", data: b } as ApiSuccess);
+    return appointmentApi.updateStatus(id, { appointment_status: raw as any, status: raw as any });
   },
 
-  remove: (_id: number | string) =>
-    Promise.resolve({ status: "success", data: null } as ApiSuccess),
+  remove: (id: number | string) =>
+    http.delete<ApiSuccess>(ENDPOINTS.booking.delete(id)),
 
-  updatePrice: (_payload: Record<string, unknown>) =>
-    Promise.resolve({ status: "success", data: null } as ApiSuccess),
+  updatePrice: (payload: Record<string, unknown>) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.updatePrice, payload),
 
-  dashboard: (_payload?: Record<string, unknown>) =>
-    Promise.resolve({
-      status: "success",
-      data: {
-        total_bookings: 3,
-        active_jobs: 1,
-        completed_jobs: 1,
-      },
-    } as ApiSuccess),
+  dashboard: (payload?: Record<string, unknown>) =>
+    http.post<ApiSuccess>(ENDPOINTS.booking.dashboard, payload),
 };
 
 export const appointmentApi = {
-  listMine: (_params?: AppointmentListParams) =>
-    Promise.resolve({
-      status: "success",
-      data: FALLBACK_SEED_BOOKINGS as unknown as Appointment[],
-    } as ApiSuccess<Appointment[]>),
+  listMine: (params?: AppointmentListParams) =>
+    http.get<ApiSuccess<Appointment[]>>(ENDPOINTS.appointment.me, params),
 
-  getById: (id: number | string) => {
-    const apt = FALLBACK_SEED_BOOKINGS.find((x) => String(x.id) === String(id)) || FALLBACK_SEED_BOOKINGS[0];
-    return Promise.resolve({
-      status: "success",
-      data: apt as unknown as Appointment,
-    } as ApiSuccess<Appointment>);
-  },
+  getById: (id: number | string) =>
+    http.get<ApiSuccess<Appointment>>(ENDPOINTS.appointment.byId(id)),
 
   updateStatus: (id: number | string, payload: UpdateAppointmentStatusPayload) => {
     const raw = payload.appointment_status || payload.status;
@@ -261,31 +144,15 @@ export const appointmentApi = {
     });
   },
 
-  reschedule: (id: number | string, _payload: RescheduleAppointmentPayload) => {
-    const apt = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), status: "rescheduled" };
-    return Promise.resolve({
-      status: "success",
-      data: apt as unknown as Appointment,
-    } as ApiSuccess<Appointment>);
-  },
+  reschedule: (id: number | string, payload: RescheduleAppointmentPayload) =>
+    http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.reschedule(id), payload),
 
-  confirmReschedule: (id: number | string) => {
-    const apt = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), status: "confirmed" };
-    return Promise.resolve({
-      status: "success",
-      data: apt as unknown as Appointment,
-    } as ApiSuccess<Appointment>);
-  },
+  confirmReschedule: (id: number | string) =>
+    http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.confirmReschedule(id)),
 
-  rejectReschedule: (id: number | string) => {
-    const apt = { ...FALLBACK_SEED_BOOKINGS[0], id: Number(id), status: "rejected" };
-    return Promise.resolve({
-      status: "success",
-      data: apt as unknown as Appointment,
-    } as ApiSuccess<Appointment>);
-  },
+  rejectReschedule: (id: number | string) =>
+    http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.rejectReschedule(id)),
 
-  getHistory: (_id: number | string) =>
-    Promise.resolve({ status: "success", data: [] } as ApiSuccess<any[]>),
+  getHistory: (id: number | string) =>
+    http.get<ApiSuccess<any[]>>(ENDPOINTS.appointment.history(id)),
 };
-
