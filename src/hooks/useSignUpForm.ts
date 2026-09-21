@@ -70,15 +70,15 @@ export function useSignUpForm() {
 
     if (!form.name.trim()) {
       errs.name = "Full name is required.";
-    } else if (form.name.trim().length < 2) {
-      errs.name = "Full name must be at least 2 characters.";
+    } else if (form.name.trim().length < 3) {
+      errs.name = "Name must be at least 3 characters.";
     }
 
     if (role === "provider") {
       if (!form.businessName.trim()) {
         errs.businessName = "Business name is required for professionals.";
-      } else if (form.businessName.trim().length < 2) {
-        errs.businessName = "Business name must be at least 2 characters.";
+      } else if (form.businessName.trim().length < 3) {
+        errs.businessName = "Business name must be at least 3 characters.";
       }
     }
 
@@ -91,7 +91,7 @@ export function useSignUpForm() {
 
     if (!form.mobile.trim()) {
       errs.mobile = "Mobile phone number is required.";
-    } else if (form.mobile.replace(/\D/g, "").length !== 10) {
+    } else if (form.mobile.replace(/\D/g, "").length !== 10 || /[^\d]/.test(form.mobile.trim())) {
       errs.mobile = "Mobile phone number must be exactly 10 digits.";
     }
 

@@ -57,7 +57,7 @@ const AdminDashboard = () => {
   return (
     <div className="container-page py-6">
       <PageHeader
-        title="Platform Console"
+        title="Platform overview"
         subtitle="Marketplace statistics, operational queues, and revenue metrics."
         action={
           <>

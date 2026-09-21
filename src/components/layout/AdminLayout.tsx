@@ -1,24 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Users,
   BadgeCheck,
-  FolderTree,
-  Briefcase,
-  AlertTriangle,
-  Star,
-  Coins,
-  Settings,
-  ShieldCheck,
-  CreditCard,
-  Sparkles,
-  Percent,
   Banknote,
-  Receipt,
-  MessageSquare,
+  Briefcase,
+  CreditCard,
+  FolderTree,
+  Gauge,
   ListChecks,
-  BarChart3,
+  Percent,
+  Settings,
+  Sparkles,
+  Star,
+  Users,
+  // Future tabs — uncomment when ready to show client:
+  AlertTriangle,
+  MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
@@ -26,7 +24,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 
 const adminNav: NavItem[] = [
-  { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
+  { label: "Dashboard", to: "/admin", icon: Gauge },
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Providers", to: "/admin/providers", icon: BadgeCheck },
   {
@@ -43,13 +41,12 @@ const adminNav: NavItem[] = [
   { label: "Featured Plans", to: "/admin/featured-plans", icon: Sparkles },
   { label: "Featured Listings", to: "/admin/featured-listings", icon: ListChecks },
   { label: "Commission", to: "/admin/commission", icon: Percent },
-  { label: "Payouts & Transactions", to: "/admin/payouts", icon: Banknote },
-  { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
+  { label: "Payout Queue", to: "/admin/payouts", icon: Banknote },
+  // { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
   { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
-  { label: "Reviews Directory", to: "/admin/reviews", icon: Star },
-  { label: "Reports", to: "/admin/reports", icon: BarChart3 },
-  { label: "Coins Management", to: "/admin/coins", icon: Coins },
-  { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
+  { label: "Reviews", to: "/admin/reviews", icon: Star },
+  { label: "Reports", to: "/admin/reports", icon: Gauge },
+  // { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
 ];
 

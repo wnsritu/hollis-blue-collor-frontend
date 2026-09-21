@@ -458,9 +458,9 @@ const handleVerifyOtp = async (otp: string) => {
       updatedValue = value.replace(/\s/g, "");
     }
 
-    // ✅ Phone → only + and digits
+    // ✅ Phone → digits only, max 10
     else if (field === "phone") {
-      updatedValue = sanitizePhoneInput(value);
+      updatedValue = value.replace(/\D/g, "").slice(0, 10);
     }
 
     // ✅ Password → no leading space
@@ -518,21 +518,29 @@ const handleVerifyOtp = async (otp: string) => {
         errs.confirmPassword = "Passwords do not match";
       }
     } else {
-      if (!provForm.fullName) errs.fullName = "First Name is required";
-      if (!provForm.businessName) errs.businessName = "Last name is required";
+      if (!provForm.fullName?.trim()) {
+        errs.fullName = "Full name is required";
+      } else if (provForm.fullName.trim().length < 3) {
+        errs.fullName = "Name must be at least 3 characters";
+      }
 
-      if (!provForm.email) {
+      if (!provForm.businessName?.trim()) {
+        errs.businessName = "Business name is required";
+      } else if (provForm.businessName.trim().length < 3) {
+        errs.businessName = "Business name must be at least 3 characters";
+      }
+
+      if (!provForm.email?.trim()) {
         errs.email = "Email is required";
-      } else if (!isValidEmail(provForm.email)) {
-        errs.email = "Invalid email format";
+      } else if (!isValidEmail(provForm.email.trim())) {
+        errs.email = "Please enter a valid email address";
       }
 
-      if (!provForm.phone) {
-        errs.phone = "Phone Number is required";
+      if (!provForm.phone?.trim()) {
+        errs.phone = "Mobile number is required";
+      } else if (provForm.phone.replace(/\D/g, "").length !== 10) {
+        errs.phone = "Please enter a valid 10-digit mobile number";
       }
-      // else if (!/^\d{10}$/.test(provForm.phone)) {
-      //   errs.phone = "Enter valid 10 digit phone number";
-      // }
 
       if (!provForm.password) {
         errs.password = "Password is required";

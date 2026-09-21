@@ -74,7 +74,7 @@ export const AdminReviews: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reviews Directory"
+        title="Reviews"
         subtitle={`${reviews.length} customer reviews across the platform`}
       />
 
