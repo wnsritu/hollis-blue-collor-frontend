@@ -226,6 +226,7 @@ export const ENDPOINTS = {
     list: "/ratings/list",
     booking: (bookingId: number | string) => `/ratings/booking/${bookingId}`,
     provider: (providerId: number | string) => `/ratings/provider/${providerId}`,
+    reply: (id: number | string) => `/ratings/${id}/reply`,
   },
 
   booking: {
