@@ -244,6 +244,22 @@ export function useProviderOnboarding() {
         return;
       }
 
+      if (draft.name.trim().length < 3) {
+        setError("Name must be at least 3 characters.");
+        return;
+      }
+
+      if (draft.businessName.trim().length < 3) {
+        setError("Business name must be at least 3 characters.");
+        return;
+      }
+
+      const phoneDigits = draft.mobile.replace(/\D/g, "");
+      if (phoneDigits.length !== 10 || draft.mobile.trim() !== phoneDigits) {
+        setError("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+
       await authApi.register({
         full_name: draft.name,
         email: draft.email,

@@ -6,8 +6,9 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 export const isValidPhone = (phone: string): boolean => {
+  if (!phone || !phone.trim()) return false;
   const digits = phone.replace(/\D/g, "");
-  return digits.length >= 10 && digits.length <= 15;
+  return digits.length === 10 && phone.trim() === digits;
 };
 
 export const isNotEmpty = (value: string | null | undefined): boolean => {

@@ -349,6 +349,7 @@ export const CustomerOrderDetail: React.FC = () => {
               </Button>
             )}
 
+            {/* Dispute Badge & Report Issue button - commented out for now as per requirements
             {!isCancelled && (
               normalized.dispute.status && !["none", "null"].includes(normalized.dispute.status) ? (
                 <span
@@ -378,6 +379,7 @@ export const CustomerOrderDetail: React.FC = () => {
                 )
               )
             )}
+            */}
 
             {!isPaid && !isCancelled && (
               <Button
