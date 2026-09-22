@@ -35,7 +35,7 @@ const ProviderDashboard = () => {
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fetchFn, setFetchFn] = useState<() => void>(() => () => {});
+  const [fetchFn, setFetchFn] = useState<() => void>(() => () => { });
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -105,8 +105,8 @@ const ProviderDashboard = () => {
     ratingNum != null && !isNaN(ratingNum)
       ? ratingNum.toFixed(1)
       : reviewsList.length > 0
-      ? (reviewsList.reduce((acc, curr) => acc + Number(curr.rating || 5), 0) / reviewsList.length).toFixed(1)
-      : "0.0";
+        ? (reviewsList.reduce((acc, curr) => acc + Number(curr.rating || 5), 0) / reviewsList.length).toFixed(1)
+        : "0.0";
 
   const reviewCount = stats?.review_count != null ? Number(stats.review_count) : reviewsList.length;
   const reviewCountHint = `${reviewCount} reviews`;
@@ -195,11 +195,10 @@ const ProviderDashboard = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                              isFixed
-                                ? "bg-primary-soft text-primary"
-                                : "bg-accent-soft text-accent-soft-foreground font-bold"
-                            }`}
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${isFixed
+                              ? "bg-primary-soft text-primary"
+                              : "bg-accent-soft text-accent-soft-foreground font-bold"
+                              }`}
                           >
                             {isFixed ? "Fixed Service" : "Request a Quote"}
                           </span>
@@ -350,10 +349,10 @@ const ProviderDashboard = () => {
           <Panel title="Quick Actions">
             <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { to: "/provider/profile", label: "Add FAQ", icon: HelpCircle },
-                { to: "/provider/services", label: "Services & Pricing", icon: UserCog },
-                { to: "/provider/availability", label: "Availability", icon: CalendarCheck },
-                { to: "/provider/subscription", label: "Subscription", icon: CreditCard },
+                { to: "/provider/profile?tab=faqs", label: "Add FAQ", icon: HelpCircle },
+                { to: "/provider/pricing", label: "Services & Pricing", icon: UserCog },
+                { to: "#", label: "Availability", icon: CalendarCheck },
+                { to: "#", label: "Subscription", icon: CreditCard },
                 { to: "/provider/profile", label: "Business Profile", icon: UserCog },
               ].map((a) => (
                 <Button key={a.label} asChild variant="outline" className="justify-start text-xs">
