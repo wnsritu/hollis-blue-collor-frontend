@@ -274,12 +274,34 @@ export function useAdminProviderDetail() {
       return d === day.toLowerCase() || d.startsWith(day.toLowerCase().slice(0, 3));
     });
 
+    const formatTime = (timeStr: string) => {
+      if (!timeStr) return "";
+      const parts = timeStr.split(":");
+      if (parts.length < 2) return timeStr;
+      const hour = parseInt(parts[0], 10);
+      const ampm = hour >= 12 ? "PM" : "AM";
+      const formattedHour = hour % 12 || 12;
+      return `${formattedHour}:${parts[1]} ${ampm}`;
+    };
+
     const slots = dayItems.map((a: any) => {
-      if (a.slot) return String(a.slot);
-      if (a.time_slot_name) return String(a.time_slot_name);
-      if (a.time_slot?.name) return String(a.time_slot.name);
-      if (a.start_time && a.end_time) return `${a.start_time} - ${a.end_time}`;
-      if (a.start_time) return String(a.start_time);
+      const startTime = a.start_time || a.time_slot?.start_time;
+      const endTime = a.end_time || a.time_slot?.end_time;
+      const slotName =
+        a.slot_name ||
+        a.slot ||
+        a.time_slot_name ||
+        a.time_slot?.slot_name ||
+        a.time_slot?.name;
+
+      if (slotName && startTime && endTime) {
+        return `${slotName} (${formatTime(startTime)} - ${formatTime(endTime)})`;
+      }
+      if (startTime && endTime) {
+        return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+      }
+      if (slotName) return String(slotName);
+      if (startTime) return formatTime(startTime);
       const slotId = Number(a.time_slot_id || a.slot_id);
       return slotMap[slotId] || (slotId ? `Slot #${slotId}` : "Available");
     });

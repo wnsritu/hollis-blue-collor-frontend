@@ -153,6 +153,9 @@ export const adminApi = {
   getChatReportById: (id: number | string) =>
     http.get<ApiSuccess>(ENDPOINTS.admin.chatReportById(id)),
 
+  getReports: (params?: { range?: string }) =>
+    http.get<ApiSuccess<any>>(ENDPOINTS.admin.reports, params),
+
   updateChatReportStatus: (
     id: number | string,
     payload: { status?: string; action?: string }

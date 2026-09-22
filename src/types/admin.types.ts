@@ -43,9 +43,17 @@ export interface CustomerUser {
   is_active?: boolean;
   jobs_count?: number;
   total_spend?: number;
+  lifetime_spend?: number;
   total_bookings?: number;
+  bookings_count?: number;
   created_at?: string;
   createdAt?: string;
+  stats?: {
+    total_projects?: number;
+    total_reviews?: number;
+    total_bookings?: number;
+    total_spend?: number;
+  };
 }
 
 export interface DisputeItem {

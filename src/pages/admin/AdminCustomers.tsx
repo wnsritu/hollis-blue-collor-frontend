@@ -224,9 +224,9 @@ export function AdminCustomers() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{c.email}</TableCell>
                     <TableCell className="text-xs">{locationStr}</TableCell>
-                    <TableCell className="text-right font-medium">{c.jobs_count ?? 0}</TableCell>
+                    <TableCell className="text-right font-medium">{c.jobs_count ?? c.total_bookings ?? 0}</TableCell>
                     <TableCell className="text-right font-bold text-accent">
-                      {formatCurrency(c.total_spend)}
+                      {formatCurrency(c.total_spend ?? c.lifetime_spend)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {formatDate(c.created_at || c.createdAt)}
@@ -319,13 +319,13 @@ export function AdminCustomers() {
                 <div>
                   <span className="block text-[11px] text-muted-foreground">Total Bookings</span>
                   <span className="font-bold text-foreground text-sm">
-                    {selectedCustomer.jobs_count ?? 0}
+                    {selectedCustomer.jobs_count ?? selectedCustomer.total_bookings ?? 0}
                   </span>
                 </div>
                 <div>
                   <span className="block text-[11px] text-muted-foreground">Lifetime Spend</span>
                   <span className="font-bold text-accent text-sm">
-                    {formatCurrency(selectedCustomer.total_spend)}
+                    {formatCurrency(selectedCustomer.total_spend ?? selectedCustomer.lifetime_spend)}
                   </span>
                 </div>
                 <div>
