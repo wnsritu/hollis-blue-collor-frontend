@@ -119,3 +119,17 @@ export interface AdminDashboardData {
     totalRevenue?: number;
   };
 }
+
+export interface PlatformGeneralSettings {
+  name: string;
+  tagline: string;
+  support: string;
+  phone: string;
+  address: string;
+}
+
+export interface AdminProfileFormValues {
+  name: string;
+  email: string;
+}
+
