@@ -111,10 +111,10 @@ const CustomerDashboard = () => {
         const rawStats = dData.stats || dData;
 
         // Map stats: active_bookings, completed_services, pending_proposals, upcoming_appointments
-        const parsedActive      = rawStats.active_bookings    ?? rawStats.active_orders    ?? rawStats.active    ?? 0;
-        const parsedCompleted   = rawStats.completed_services ?? rawStats.completed_orders ?? rawStats.completed ?? 0;
-        const parsedProposals   = rawStats.pending_proposals  ?? 0;
-        const parsedUpcoming    = rawStats.upcoming_appointments ?? 0;
+        const parsedActive = rawStats.active_bookings ?? rawStats.active_orders ?? rawStats.active ?? 0;
+        const parsedCompleted = rawStats.completed_services ?? rawStats.completed_orders ?? rawStats.completed ?? 0;
+        const parsedProposals = rawStats.pending_proposals ?? 0;
+        const parsedUpcoming = rawStats.upcoming_appointments ?? 0;
 
         setActiveCount(parsedActive);
         setCompletedCount(parsedCompleted);
@@ -512,7 +512,7 @@ const CustomerDashboard = () => {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{name}</p>
                         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Stars rating={p.rating || 5} size={11} /> {p.rating || 5.0} · {p.location || "Within 10 miles"}
+                          <Stars rating={p.rating || 0} size={11} /> {p.rating || "0"} · {p.location || "Within 10 miles"}
                         </p>
                       </div>
                       <Button asChild size="sm" variant="outline">
