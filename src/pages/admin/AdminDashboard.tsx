@@ -20,18 +20,22 @@ const usd = (n?: number | null) =>
   }).format(n || 0);
 
 const AdminDashboard = () => {
-  const [data, setData] = useState<AdminDashboardData>({});
+  const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDashboard = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await getAdminDashboardApi();
       if (response.data?.success) {
         setData(response.data.data || {});
+      } else {
+        setError("The dashboard data could not be loaded. Please try again.");
       }
-    } catch (error) {
-      console.error("Error fetching admin dashboard:", error);
+    } catch {
+      setError("Unable to connect to the server. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -52,17 +56,17 @@ const AdminDashboard = () => {
     );
   }
 
-  const gmv = data.gmv ?? data.stats?.totalRevenue ?? 0;
-  const commissionRate = data.commissionRate ?? 10;
-  const commission = data.commission ?? Math.round((gmv * commissionRate) / 100);
-  const activeJobs = data.activeJobs ?? data.stats?.activeBookings ?? 0;
-  const providersCount = data.providersCount ?? data.stats?.totalProviders ?? 0;
-  const customersCount = data.customersCount ?? data.stats?.totalUsers ?? 0;
-  const pendingPayouts = data.pendingPayouts ?? { totalAmount: 0, count: 0 };
-  const revenueSeries = data.revenueSeries ?? [];
-  const providerGrowth = data.providerGrowth ?? [];
-  const pendingProviders = data.pendingProviders ?? [];
-  const recentTransactions = data.recentTransactions ?? [];
+  const gmv = data?.gmv ?? data?.stats?.totalRevenue ?? 0;
+  const commissionRate = data?.commissionRate ?? 10;
+  const commission = data?.commission ?? Math.round((gmv * commissionRate) / 100);
+  const activeJobs = data?.activeJobs ?? data?.stats?.activeBookings ?? 0;
+  const providersCount = data?.providersCount ?? data?.stats?.totalProviders ?? 0;
+  const customersCount = data?.customersCount ?? data?.stats?.totalUsers ?? 0;
+  const pendingPayouts = data?.pendingPayouts ?? { totalAmount: 0, count: 0 };
+  const revenueSeries = data?.revenueSeries ?? [];
+  const providerGrowth = data?.providerGrowth ?? [];
+  const pendingProviders = data?.pendingProviders ?? [];
+  const recentTransactions = data?.recentTransactions ?? [];
 
   const maxRevenue = Math.max(...(revenueSeries.map((r) => r.revenue) || []), 1);
   const maxUsers = Math.max(
@@ -77,6 +81,17 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm">
+          <span className="text-destructive">{error}</span>
+          <button
+            onClick={fetchDashboard}
+            className="shrink-0 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      )}
       <PageHeader
         title="Platform overview"
         subtitle={`${currentMonthYear} platform activity & summary`}

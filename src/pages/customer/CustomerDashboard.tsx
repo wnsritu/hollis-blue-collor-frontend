@@ -23,9 +23,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader, StatCard, StatusPill, Avatar, Stars } from "@/components/shared/primitives";
 import { getOrderDetails } from "@/services/order";
-import { getDashboardApi } from "@/services/booking";
-import {
-  getCustomerDashboardApi,
+import { getCustomerDashboardApi } from "@/services/dashboard/dashboard.service";
+import type {
   CustomerRecentBooking,
   CustomerAppointment,
   CustomerMessage,
@@ -75,6 +74,8 @@ const CustomerDashboard = () => {
   const [appointmentsList, setAppointmentsList] = useState<CustomerAppointment[]>([]);
   const [messagesList, setMessagesList] = useState<CustomerMessage[]>([]);
   const [recommendedList, setRecommendedList] = useState<RecommendedProvider[]>([]);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const trackingSteps = [
     { label: "Order Received", icon: Package, status: "pending" },
@@ -97,11 +98,13 @@ const CustomerDashboard = () => {
     } else {
       fetchDashboardData();
     }
-  }, [id]);
+  }, [id, retryKey]);
 
   const fetchDashboardData = async () => {
     try {
-      const fullDashRes: any = await getCustomerDashboardApi().catch(() => getDashboardApi());
+      setLoading(true);
+      setDashboardError(null);
+      const fullDashRes: any = await getCustomerDashboardApi();
 
       if (fullDashRes?.data?.success || fullDashRes?.data) {
         const dData = fullDashRes.data?.data || fullDashRes.data || {};
@@ -136,9 +139,11 @@ const CustomerDashboard = () => {
         if (Array.isArray(dData.recommendedProviders)) {
           setRecommendedList(dData.recommendedProviders);
         }
+      } else {
+        setDashboardError("We couldn't load your dashboard data. Please try again.");
       }
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+    } catch {
+      setDashboardError("Unable to connect. Please check your internet connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -267,7 +272,18 @@ const CustomerDashboard = () => {
 
   // Exact Customer Dashboard UI
   return (
-    <>
+    <div className="space-y-6">
+      {dashboardError && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm">
+          <span className="text-destructive">{dashboardError}</span>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="shrink-0 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      )}
       <PageHeader
         title={greetingTitle}
         subtitle={userSubtitle}
@@ -515,7 +531,7 @@ const CustomerDashboard = () => {
           </Panel>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
