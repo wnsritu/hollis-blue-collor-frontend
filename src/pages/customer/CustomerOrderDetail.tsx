@@ -231,7 +231,7 @@ export const CustomerOrderDetail: React.FC = () => {
   if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
     try {
       finSnapshot = JSON.parse(booking.notes)?.financial_snapshot || JSON.parse(booking.notes);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const paidTotalAmount = Number(
@@ -306,11 +306,10 @@ export const CustomerOrderDetail: React.FC = () => {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  isCustom
-                    ? "bg-amber-500/10 text-amber-600 border border-amber-200"
-                    : "bg-primary/10 text-primary border border-primary/20"
-                }`}
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isCustom
+                  ? "bg-amber-500/10 text-amber-600 border border-amber-200"
+                  : "bg-primary/10 text-primary border border-primary/20"
+                  }`}
               >
                 {isCustom ? <FileText size={12} /> : <Tag size={12} />}
                 {isCustom ? "Custom Quote Request" : "Direct Service"}
@@ -333,11 +332,10 @@ export const CustomerOrderDetail: React.FC = () => {
             <StatusPill status={customerStatusLabel} />
 
             <span
-              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
-                isPaid
-                  ? "bg-success-soft text-success border border-success/20"
-                  : "bg-amber-500/10 text-amber-700 border border-amber-200"
-              }`}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${isPaid
+                ? "bg-success-soft text-success border border-success/20"
+                : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                }`}
             >
               <DollarSign size={13} />
               {isPaid ? "Payment: Paid" : "Payment: Pending"}
@@ -574,11 +572,10 @@ export const CustomerOrderDetail: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">Your Feedback</span>
                   <span
-                    className={`text-xs ${
-                      reviewFormik.values.comment.length > 950
-                        ? "text-amber-500 font-semibold"
-                        : "text-muted-foreground"
-                    }`}
+                    className={`text-xs ${reviewFormik.values.comment.length > 950
+                      ? "text-amber-500 font-semibold"
+                      : "text-muted-foreground"
+                      }`}
                   >
                     {reviewFormik.values.comment.length} / 1000
                   </span>
@@ -610,7 +607,8 @@ export const CustomerOrderDetail: React.FC = () => {
               </div>
 
               <Button
-                onClick={() => reviewFormik.handleSubmit()}
+                // onClick={() => reviewFormik.handleSubmit()}
+                onClick={() => { }}
                 disabled={reviewFormik.isSubmitting}
                 className="text-xs"
               >
@@ -741,11 +739,10 @@ export const CustomerOrderDetail: React.FC = () => {
                 <CreditCard size={18} className="text-primary" /> Payment Summary
               </h2>
               <span
-                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                  isPaid
-                    ? "bg-success-soft text-success border border-success/20"
-                    : "bg-amber-500/10 text-amber-700 border border-amber-200"
-                }`}
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isPaid
+                  ? "bg-success-soft text-success border border-success/20"
+                  : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                  }`}
               >
                 {isPaid ? "Paid" : "Pending"}
               </span>
