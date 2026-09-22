@@ -19,7 +19,7 @@ export function useAdminCategories() {
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
   const [targetSubcategory, setTargetSubcategory] = useState<ServiceType | null>(null);
   const [editingServiceItem, setEditingServiceItem] = useState<{ id: number; name: string } | null>(null);
-  const [svcName, setSvcName] = useState("");
+  const [svcNames, setSvcNames] = useState<string[]>([""]);
   const [submittingSvc, setSubmittingSvc] = useState(false);
 
   // Fetch Category Tree
@@ -96,46 +96,124 @@ export function useAdminCategories() {
     }
   };
 
-  const handleDeleteSubcategory = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this subcategory and its services?")) return;
-    try {
-      await catalogApi.deleteServiceType(id);
-      toast.success("Subcategory removed successfully.");
-      fetchCatalogData();
-    } catch (err) {
-      console.error("Failed to delete subcategory", err);
-      toast.error("Failed to remove subcategory.");
-    }
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant?: "default" | "destructive";
+    loading?: boolean;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    confirmText: "Confirm",
+    onConfirm: () => {},
+  });
+
+  const handleDeleteSubcategory = (sub: ServiceType) => {
+    setConfirmModal({
+      open: true,
+      title: "Remove Subcategory",
+      description: `Are you sure you want to remove "${sub.name}" and all its listed services? This action cannot be undone.`,
+      confirmText: "Remove Subcategory",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          await catalogApi.deleteServiceType(sub.id);
+          toast.success("Subcategory removed successfully.");
+          fetchCatalogData();
+        } catch (err) {
+          console.error("Failed to delete subcategory", err);
+          toast.error("Failed to remove subcategory.");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, open: false, loading: false }));
+        }
+      },
+    });
   };
 
-  // Service Handlers
+  const handleDeleteService = (id: number, serviceName?: string) => {
+    setConfirmModal({
+      open: true,
+      title: "Remove Service",
+      description: `Are you sure you want to remove ${serviceName ? `"${serviceName}"` : "this service"}?`,
+      confirmText: "Remove Service",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          await catalogApi.deleteService(id);
+          toast.success("Service removed.");
+          fetchCatalogData();
+        } catch (err) {
+          console.error("Failed to delete service", err);
+          toast.error("Failed to remove service.");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, open: false, loading: false }));
+        }
+      },
+    });
+  };
+
+  // Service Modal Handlers
   const handleOpenAddServiceModal = (sub: ServiceType) => {
     setTargetSubcategory(sub);
     setEditingServiceItem(null);
-    setSvcName("");
+    setSvcNames([""]);
     setIsAddServiceOpen(true);
+  };
+
+  const handleOpenEditServiceModal = (sub: ServiceType, svc: { id: number; name: string }) => {
+    setTargetSubcategory(sub);
+    setEditingServiceItem(svc);
+    setSvcNames([svc.name]);
+    setIsAddServiceOpen(true);
+  };
+
+  const handleAddSvcInput = () => {
+    setSvcNames((prev) => [...prev, ""]);
+  };
+
+  const handleRemoveSvcInput = (index: number) => {
+    setSvcNames((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  };
+
+  const handleSvcNameChange = (index: number, val: string) => {
+    setSvcNames((prev) => {
+      const copy = [...prev];
+      copy[index] = val;
+      return copy;
+    });
   };
 
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!svcName.trim() || !targetSubcategory || !activeCategory) {
-      toast.error("Service name is required.");
-      return;
-    }
+    if (!targetSubcategory) return;
     setSubmittingSvc(true);
     try {
       if (editingServiceItem) {
-        await catalogApi.updateService(editingServiceItem.id, {
-          name: svcName.trim(),
-        });
+        const singleName = svcNames[0]?.trim();
+        if (!singleName) return;
+        await catalogApi.updateService(editingServiceItem.id, { name: singleName });
         toast.success("Service updated successfully.");
       } else {
-        await catalogApi.createService({
-          category_id: Number(activeCategory.id),
-          service_type_id: Number(targetSubcategory.id),
-          name: svcName.trim(),
-        });
-        toast.success(`Service added under ${targetSubcategory.name}.`);
+        const validNames = svcNames.map((s) => s.trim()).filter(Boolean);
+        if (validNames.length === 0) {
+          toast.error("Please enter at least one service name.");
+          return;
+        }
+        for (const name of validNames) {
+          await catalogApi.createService({
+            category_id: Number(activeCategory.id),
+            service_type_id: Number(targetSubcategory.id),
+            name,
+          });
+        }
+        toast.success(`${validNames.length} service${validNames.length > 1 ? "s" : ""} added under "${targetSubcategory.name}".`);
       }
       setIsAddServiceOpen(false);
       fetchCatalogData();
@@ -144,18 +222,6 @@ export function useAdminCategories() {
       toast.error("Failed to save service.");
     } finally {
       setSubmittingSvc(false);
-    }
-  };
-
-  const handleDeleteService = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this service?")) return;
-    try {
-      await catalogApi.deleteService(id);
-      toast.success("Service removed.");
-      fetchCatalogData();
-    } catch (err) {
-      console.error("Failed to delete service", err);
-      toast.error("Failed to remove service.");
     }
   };
 
@@ -179,15 +245,21 @@ export function useAdminCategories() {
     setTargetSubcategory,
     editingServiceItem,
     setEditingServiceItem,
-    svcName,
-    setSvcName,
+    svcNames,
+    setSvcNames,
     submittingSvc,
     activeCategory,
+    confirmModal,
+    setConfirmModal,
     handleOpenAddSubModal,
     handleOpenEditSubModal,
     handleSaveSubcategory,
     handleDeleteSubcategory,
     handleOpenAddServiceModal,
+    handleOpenEditServiceModal,
+    handleAddSvcInput,
+    handleRemoveSvcInput,
+    handleSvcNameChange,
     handleSaveService,
     handleDeleteService,
   };

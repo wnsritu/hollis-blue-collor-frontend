@@ -145,18 +145,31 @@ export default function BookService() {
     );
   }
 
-  const businessName = provider.business_name || provider.user?.full_name || "Service Professional";
-  const initials = businessName
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const businessName =
+    provider.business_name ||
+    provider.user?.full_name ||
+    [provider.first_name, provider.last_name].filter(Boolean).join(" ") ||
+    "Service Professional";
+
+  const initials =
+    businessName
+      .split(" ")
+      .map((n: string) => n[0])
+      .filter(Boolean)
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "SP";
 
   const providerLocation =
     [provider.city, provider.state || provider.user?.state].filter(Boolean).join(", ") ||
     provider.service_location_address ||
-    "Austin, TX";
+    provider.address ||
+    "Service Area";
+
+  const ratingValue = Number(provider.rating ?? provider.avg_rating ?? provider.rating_avg ?? 0);
+  const reviewCount = Number(
+    provider.reviews_count ?? provider.review_count ?? provider.rating_count ?? provider.total_reviews ?? 0
+  );
 
   const enteredAddress = addressFormik.values.address || details.address;
   const enteredCity = addressFormik.values.city || details.city;
@@ -200,13 +213,29 @@ export default function BookService() {
                         {(provider.verified === "verified" || provider.verified === "approved") && <VerifiedBadge compact />}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
-                        {provider.category?.name || "Services"} • {providerLocation}
+                        {provider.category?.name || provider.service_type?.name || "Services"} • {providerLocation}
                       </p>
-                      <div className="flex items-center gap-1 text-xs text-amber-500 mt-1">
-                        <Star size={13} className="fill-amber-500 text-amber-500" />
-                        <span className="font-semibold">{provider.rating || "4.9"}</span>
-                        <span className="text-muted-foreground">({provider.reviews_count || provider.review_count || 12} reviews)</span>
-                      </div>
+                      {ratingValue > 0 ? (
+                        <div className="flex items-center gap-1 text-xs text-amber-500 mt-1">
+                          <Star size={13} className="fill-amber-500 text-amber-500" />
+                          <span className="font-semibold">{ratingValue.toFixed(1)}</span>
+                          {reviewCount > 0 && (
+                            <span className="text-muted-foreground">
+                              ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <Star size={13} className="text-muted-foreground shrink-0" />
+                          <span className="font-medium">New Provider</span>
+                          {reviewCount > 0 && (
+                            <span>
+                              ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setQuoteModalOpen(true)} className="hidden sm:flex gap-1.5 text-xs">
@@ -445,7 +474,7 @@ export default function BookService() {
                         value={addressFormik.values.name}
                         onChange={addressFormik.handleChange}
                         onBlur={addressFormik.handleBlur}
-                        placeholder="John Doe"
+                        placeholder={user?.full_name || "Enter your full name"}
                         className={
                           addressFormik.touched.name && addressFormik.errors.name
                             ? "border-destructive focus-visible:ring-destructive"
@@ -468,7 +497,7 @@ export default function BookService() {
                         value={addressFormik.values.phone}
                         onChange={addressFormik.handleChange}
                         onBlur={addressFormik.handleBlur}
-                        placeholder="(512) 555-0100"
+                        placeholder={user?.phone || "Enter phone number"}
                         className={
                           addressFormik.touched.phone && addressFormik.errors.phone
                             ? "border-destructive focus-visible:ring-destructive"
@@ -526,7 +555,7 @@ export default function BookService() {
                         value={addressFormik.values.city}
                         onChange={addressFormik.handleChange}
                         onBlur={addressFormik.handleBlur}
-                        placeholder="Austin"
+                        placeholder={provider.city || "Enter city"}
                         className={
                           addressFormik.touched.city && addressFormik.errors.city
                             ? "border-destructive focus-visible:ring-destructive"
@@ -549,7 +578,7 @@ export default function BookService() {
                         value={addressFormik.values.zip}
                         onChange={addressFormik.handleChange}
                         onBlur={addressFormik.handleBlur}
-                        placeholder="78701"
+                        placeholder={provider.zip_code || provider.zip || "Enter ZIP code"}
                         className={
                           addressFormik.touched.zip && addressFormik.errors.zip
                             ? "border-destructive focus-visible:ring-destructive"
@@ -678,8 +707,8 @@ export default function BookService() {
                     const { addProviderBookApi } = await import("@/services/provider");
                     const res = await addProviderBookApi({
                       provider_id: Number(providerId),
-                      service_type_id: provider?.service_type_id || provider?.sub_category_id || provider?.category_id || 1,
-                      service_category: provider?.category?.name || "Home Services",
+                      service_type_id: Number(provider?.service_type_id || provider?.sub_category_id || provider?.category_id || 0),
+                      service_category: provider?.category?.name || provider?.service_type?.name || "Services",
                       order_type: "item_based",
                       booking_date: selectedDate,
                       time_slot_id: selectedTimeSlotId,
@@ -769,7 +798,7 @@ export default function BookService() {
                   <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Service Fee ({serviceFeeRate || 10}%)</span>
+                  <span>Service Fee {serviceFeeRate ? `(${serviceFeeRate}%)` : ""}</span>
                   <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
                 </div>
                 {taxAmount > 0 && (
