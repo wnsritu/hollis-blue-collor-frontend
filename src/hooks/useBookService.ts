@@ -113,9 +113,9 @@ export function useBookService() {
                   .map(([name, config]: [string, any], idx) => ({
                     id: `svc_${idx + 1}`,
                     name,
-                    description: (config.description as string) || `${name} performed by ${provData.business_name || "Professional"}.`,
-                    price: Number(config.price) || 100,
-                    unit: (config.unit as string) || "flat rate",
+                    description: (config.description as string) || `${name} provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                    price: Number(config.price) || Number(provData.starting_price || provData.hourly_rate || 0),
+                    unit: (config.unit as string) || (provData.hourly_rate ? "per hour" : "flat rate"),
                   }));
               }
             } catch (e) {
@@ -131,25 +131,30 @@ export function useBookService() {
               } catch {}
             }
             if (Array.isArray(rawOffered)) {
-              servicesList = rawOffered.map((name: any, idx) => ({
-                id: `svc_${idx + 1}`,
-                name: typeof name === "string" ? name : name?.name || String(name),
-                description: `Service performed by ${provData.business_name || "Professional"}.`,
-                price: 100,
-                unit: "flat rate",
-              }));
+              servicesList = rawOffered.map((item: any, idx) => {
+                const name = typeof item === "string" ? item : item?.name || String(item);
+                const price = typeof item === "object" && item?.price ? Number(item.price) : Number(provData.starting_price || provData.hourly_rate || 0);
+                return {
+                  id: `svc_${idx + 1}`,
+                  name,
+                  description: (typeof item === "object" && item?.description) || `Service provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                  price,
+                  unit: (typeof item === "object" && item?.unit) || (provData.hourly_rate ? "per hour" : "flat rate"),
+                };
+              });
             }
           }
 
           if (servicesList.length === 0) {
             const mainSvcName = provData.service_type?.name || provData.category?.name || "Professional Service";
+            const basePrice = Number(provData.starting_price || provData.hourly_rate || 0);
             servicesList = [
               {
                 id: "svc_default_1",
                 name: mainSvcName,
-                description: `Standard ${mainSvcName} provided by ${provData.business_name || "Professional"}.`,
-                price: 120,
-                unit: "flat rate",
+                description: `Standard ${mainSvcName} provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                price: basePrice,
+                unit: provData.hourly_rate ? "per hour" : "flat rate",
               },
             ];
           }
