@@ -50,6 +50,7 @@ import type { Category, ServiceType } from "@/types/api/catalog";
 import type { ServiceFlatRow } from "@/types/admin.types";
 import toast from "react-hot-toast";
 
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useAdminServices } from "@/hooks/useAdminServices";
 
 export const AdminServicesPage: React.FC = () => {
@@ -82,6 +83,8 @@ export const AdminServicesPage: React.FC = () => {
     availableSubcategories,
     modalSubcategories,
     filteredServices,
+    confirmModal,
+    setConfirmModal,
     handleOpenAddModal,
     handleSaveGlobalServices,
     handleOpenEditModal,
@@ -275,7 +278,7 @@ export const AdminServicesPage: React.FC = () => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => handleDeleteService(item.serviceId)}
+                          onClick={() => handleDeleteService(item.serviceId, item.serviceName)}
                           className="gap-2 text-destructive focus:text-destructive cursor-pointer"
                         >
                           <Trash2 size={14} /> Remove
@@ -441,6 +444,18 @@ export const AdminServicesPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Modal */}
+      <ConfirmDialog
+        open={confirmModal.open}
+        onOpenChange={(open) => setConfirmModal((prev) => ({ ...prev, open }))}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        loading={confirmModal.loading}
+        onConfirm={confirmModal.onConfirm}
+      />
     </div>
   );
 };

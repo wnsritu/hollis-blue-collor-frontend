@@ -218,24 +218,24 @@ const AdminMessages = () => {
     switch (s) {
       case "open":
         return (
-          <Badge className="bg-amber-100 text-amber-800 border border-amber-300 font-medium">
+          <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 font-medium hover:bg-amber-100 transition-colors">
             Open
           </Badge>
         );
       case "reviewed":
         return (
-          <Badge className="bg-blue-100 text-blue-800 border border-blue-300 font-medium">
+          <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 font-medium hover:bg-blue-100 transition-colors">
             Reviewed
           </Badge>
         );
       case "closed":
         return (
-          <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium">
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 font-medium hover:bg-emerald-100 transition-colors">
             Closed
           </Badge>
         );
       default:
-        return <Badge className={BADGE_DEFAULT}>{status}</Badge>;
+        return <Badge variant="outline" className={BADGE_DEFAULT}>{status}</Badge>;
     }
   };
 
@@ -398,15 +398,15 @@ const AdminMessages = () => {
                           {/* Type */}
                           <TableCell>
                             {chat.project ? (
-                              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[11px] gap-1">
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 text-[11px] gap-1 transition-colors">
                                 <Briefcase size={11} /> Project
                               </Badge>
                             ) : chat.booking ? (
-                              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] gap-1">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 text-[11px] gap-1 transition-colors">
                                 <Calendar size={11} /> Booking
                               </Badge>
                             ) : (
-                              <Badge className="bg-gray-50 text-gray-700 border border-gray-200 text-[11px]">
+                              <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 text-[11px] transition-colors">
                                 General
                               </Badge>
                             )}
@@ -436,15 +436,15 @@ const AdminMessages = () => {
                           {/* Status */}
                           <TableCell>
                             {chat.is_blocked ? (
-                              <Badge className="bg-red-100 text-red-800 border border-red-300 text-[11px]">
+                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 text-[11px] transition-colors">
                                 Blocked
                               </Badge>
                             ) : chat.is_read_only ? (
-                              <Badge className="bg-gray-100 text-gray-700 border border-gray-300 text-[11px]">
+                              <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200 text-[11px] transition-colors">
                                 Read Only
                               </Badge>
                             ) : (
-                              <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px]">
+                              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[11px] transition-colors">
                                 Active
                               </Badge>
                             )}

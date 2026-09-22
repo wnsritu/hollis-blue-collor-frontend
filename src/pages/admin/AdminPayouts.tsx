@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   Select,
   SelectContent,
@@ -227,6 +228,23 @@ export function AdminPayouts() {
   const [payoutNotes, setPayoutNotes] = useState("");
   const [submittingPayout, setSubmittingPayout] = useState(false);
 
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant?: "default" | "destructive";
+    loading?: boolean;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    confirmText: "Confirm",
+    onConfirm: () => {},
+  });
+
   // Pagination States
   const [eligiblePage, setEligiblePage] = useState(1);
   const [eligibleLimit] = useState(20);
@@ -354,42 +372,41 @@ export function AdminPayouts() {
     }
   };
 
-  const handleReleaseAll = async () => {
+  const handleReleaseAll = () => {
     if (!eligiblePayouts.length) return;
-    if (!confirm(`Are you sure you want to release all ${eligiblePayouts.length} pending payouts?`)) {
-      return;
-    }
-
-    const ref = prompt(
-      "Enter bank transfer reference code for bulk payout release:",
-      `BULK-RELEASE-${Date.now().toString().slice(-6)}`
-    );
-    if (ref === null) return;
-
-    setReleasingAll(true);
-    let successCount = 0;
-    try {
-      for (const p of eligiblePayouts) {
+    setConfirmModal({
+      open: true,
+      title: "Release All Payouts",
+      description: `Are you sure you want to release all ${eligiblePayouts.length} pending payouts?`,
+      confirmText: "Release Payouts",
+      variant: "default",
+      onConfirm: async () => {
+        const ref = `BULK-RELEASE-${Date.now().toString().slice(-6)}`;
+        setReleasingAll(true);
+        let successCount = 0;
         try {
-          await processPayoutApi(p.id, {
-            transfer_reference: ref.trim() || `BULK-${p.id}`,
-            notes: "Bulk payout release by admin",
-          });
-          successCount++;
-        } catch {
-          /* continue remaining payouts */
+          for (const p of eligiblePayouts) {
+            try {
+              await processPayoutApi(p.id, {
+                transfer_reference: ref,
+                notes: "Bulk payout release by admin",
+              });
+              successCount++;
+            } catch {
+              /* continue remaining payouts */
+            }
+          }
+          toast.success(`Released ${successCount} of ${eligiblePayouts.length} pending payouts!`);
+          fetchPayouts();
+          fetchPayments();
+        } catch (err: any) {
+          toast.error("An error occurred during bulk payout release.");
+        } finally {
+          setReleasingAll(false);
+          setConfirmModal((prev) => ({ ...prev, open: false }));
         }
-      }
-      toast.success(`Released ${successCount} of ${eligiblePayouts.length} pending payouts!`, {
-        // description: `Marked as paid to provider bank accounts.`,
-      });
-      fetchPayouts();
-      fetchPayments();
-    } catch (err: any) {
-      toast.error("An error occurred during bulk payout release.");
-    } finally {
-      setReleasingAll(false);
-    }
+      },
+    });
   };
 
   const handleMarkFailed = async (payoutId: number) => {
@@ -408,19 +425,27 @@ export function AdminPayouts() {
     }
   };
 
-  const handleMarkEligible = async (payoutId: number) => {
-    if (!confirm(`Are you sure you want to promote Payout PO-${payoutId} to eligible?`)) return;
-
-    setProcessingId(payoutId);
-    try {
-      await markPayoutEligibleApi(payoutId);
-      toast.success(`Payout PO-${payoutId} promoted to eligible.`);
-      fetchPayouts();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to promote payout.");
-    } finally {
-      setProcessingId(null);
-    }
+  const handleMarkEligible = (payoutId: number) => {
+    setConfirmModal({
+      open: true,
+      title: "Promote Payout",
+      description: `Are you sure you want to promote Payout PO-${payoutId} to eligible?`,
+      confirmText: "Promote",
+      variant: "default",
+      onConfirm: async () => {
+        setProcessingId(payoutId);
+        try {
+          await markPayoutEligibleApi(payoutId);
+          toast.success(`Payout PO-${payoutId} promoted to eligible.`);
+          fetchPayouts();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || "Failed to promote payout.");
+        } finally {
+          setProcessingId(null);
+          setConfirmModal((prev) => ({ ...prev, open: false }));
+        }
+      },
+    });
   };
 
   const handleRetryPayout = async (payoutId: number) => {
@@ -1276,6 +1301,18 @@ export function AdminPayouts() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmDialog
+        open={confirmModal.open}
+        onOpenChange={(open) => setConfirmModal((prev) => ({ ...prev, open }))}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        loading={confirmModal.loading}
+        onConfirm={confirmModal.onConfirm}
+      />
     </div>
   );
 }

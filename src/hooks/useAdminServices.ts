@@ -209,16 +209,44 @@ export function useAdminServices() {
     }
   };
 
-  const handleDeleteService = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this service?")) return;
-    try {
-      await catalogApi.deleteService(id);
-      toast.success("Service removed successfully.");
-      fetchCatalogData();
-    } catch (err) {
-      console.error("Failed to delete service", err);
-      toast.error("Failed to remove service.");
-    }
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant?: "default" | "destructive";
+    loading?: boolean;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    confirmText: "Confirm",
+    onConfirm: () => {},
+  });
+
+  const handleDeleteService = (id: number, serviceName?: string) => {
+    setConfirmModal({
+      open: true,
+      title: "Remove Service",
+      description: `Are you sure you want to remove ${serviceName ? `"${serviceName}"` : "this service"}?`,
+      confirmText: "Remove Service",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          await catalogApi.deleteService(id);
+          toast.success("Service removed successfully.");
+          fetchCatalogData();
+        } catch (err) {
+          console.error("Failed to delete service", err);
+          toast.error("Failed to remove service.");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, open: false, loading: false }));
+        }
+      },
+    });
   };
 
   const handleToggleStatus = async (item: ServiceFlatRow) => {
@@ -276,6 +304,8 @@ export function useAdminServices() {
     availableSubcategories,
     modalSubcategories,
     filteredServices,
+    confirmModal,
+    setConfirmModal,
     handleOpenAddModal,
     handleSaveGlobalServices,
     handleOpenEditModal,
