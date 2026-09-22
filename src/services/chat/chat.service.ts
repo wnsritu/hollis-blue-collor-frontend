@@ -40,15 +40,26 @@ export const uploadImageApi = (chatId: string | number, imageFile: File) => {
 };
 
 export const createChatApi = (
-  bookingId: number,
-  customerId: number,
-  providerId: number,
+  payload:
+    | {
+        provider_id?: number;
+        customer_id?: number;
+        booking_id?: number;
+        project_id?: number;
+      }
+    | number,
+  customerId?: number,
+  providerId?: number
 ) => {
-  return apiClient.post("/chats/create", {
-    booking_id: bookingId,
-    customer_id: customerId,
-    provider_id: providerId,
-  });
+  const body =
+    typeof payload === "object"
+      ? payload
+      : {
+          booking_id: payload,
+          customer_id: customerId,
+          provider_id: providerId,
+        };
+  return apiClient.post(ENDPOINTS.chat.createChat, body);
 };
 
 export const getUserChats = async () => {
@@ -102,9 +113,20 @@ export const uploadImage = async (chatId: string | number, imageFile: File) => {
   }
 };
 
-export const createChat = async (bookingId: number, customerId: number, providerId: number) => {
+export const createChat = async (
+  param1:
+    | {
+        provider_id?: number;
+        customer_id?: number;
+        booking_id?: number;
+        project_id?: number;
+      }
+    | number,
+  customerId?: number,
+  providerId?: number
+) => {
   try {
-    const response = await createChatApi(bookingId, customerId, providerId);
+    const response = await createChatApi(param1 as any, customerId, providerId);
     return response?.data || response;
   } catch (error: any) {
     console.error("Create chat error:", error);
