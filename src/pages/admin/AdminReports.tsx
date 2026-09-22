@@ -53,7 +53,7 @@ export function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<ReportData>({
     range: "7m",
-    commissionRate: 15,
+    commissionRate: 0,
     gross: 0,
     commission: 0,
     avgJobValue: 0,

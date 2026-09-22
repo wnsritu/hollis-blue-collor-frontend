@@ -34,10 +34,14 @@ const ProviderDashboard = () => {
   const [stats, setStats] = useState<ProviderDashboardStats | null>(null);
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fetchFn, setFetchFn] = useState<() => void>(() => () => {});
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const res: any = await getProviderDashboardApi();
         // http.get returns response.data directly: { success: true, data: { stats, jobs, appointments, earnings, reviews } }
         const dData = res?.data || res;
@@ -51,14 +55,16 @@ const ProviderDashboard = () => {
           if (dData.earnings) setEarnings(dData.earnings);
           if (Array.isArray(dData.reviews)) setReviewsList(dData.reviews);
         }
-      } catch (err: any) {
-        console.error("Dashboard loading error:", err);
+      } catch {
+        setError("We couldn't load your dashboard. Please check your connection and try again.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboard();
+    // Store fetch function for retry
+    setFetchFn(() => fetchDashboard);
   }, []);
 
   if (loading) {
@@ -106,7 +112,18 @@ const ProviderDashboard = () => {
   const reviewCountHint = `${reviewCount} reviews`;
 
   return (
-    <>
+    <div className="space-y-6">
+      {error && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm">
+          <span className="text-destructive">{error}</span>
+          <button
+            onClick={fetchFn}
+            className="shrink-0 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      )}
       <PageHeader
         title={`Welcome, ${businessName}`}
         subtitle={locationSubtitle}
@@ -213,7 +230,6 @@ const ProviderDashboard = () => {
             </div>
           </Panel>
 
-          {/* Panel: Monthly Earnings Trend */}
           <Panel
             title="Monthly Earnings Trend"
             action={
@@ -222,27 +238,40 @@ const ProviderDashboard = () => {
               </span>
             }
           >
-            <div className="grid h-36 grid-cols-6 items-end gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
-              {[
-                { month: "Jan", amount: `$${((earnings?.net_earnings || 0) * 0.1).toFixed(0)}`, height: `${Math.max(15, (earnings?.net_earnings ? 30 : 15))}%` },
-                { month: "Feb", amount: `$${((earnings?.net_earnings || 0) * 0.15).toFixed(0)}`, height: `${Math.max(15, (earnings?.net_earnings ? 45 : 15))}%` },
-                { month: "Mar", amount: `$${((earnings?.net_earnings || 0) * 0.12).toFixed(0)}`, height: `${Math.max(15, (earnings?.net_earnings ? 38 : 15))}%` },
-                { month: "Apr", amount: `$${((earnings?.net_earnings || 0) * 0.22).toFixed(0)}`, height: `${Math.max(15, (earnings?.net_earnings ? 65 : 15))}%` },
-                { month: "May", amount: `$${((earnings?.net_earnings || 0) * 0.18).toFixed(0)}`, height: `${Math.max(15, (earnings?.net_earnings ? 55 : 15))}%` },
-                { month: "Jun", amount: earnings ? `$${earnings.gross_revenue.toFixed(0)}` : "$0", height: `${Math.max(15, (earnings?.gross_revenue ? 90 : 15))}%` },
-              ].map((item) => (
-                <div key={item.month} className="group flex h-full flex-col items-center justify-end gap-1.5">
-                  <span className="text-[10px] font-bold text-muted-foreground opacity-70 group-hover:opacity-100">
-                    {item.amount}
-                  </span>
-                  <div
-                    className="w-full max-w-[32px] rounded-t-lg bg-primary/85 transition-all group-hover:bg-primary"
-                    style={{ height: item.height }}
-                  />
-                  <span className="text-xs font-semibold text-foreground">{item.month}</span>
+            {(() => {
+              const series = earnings?.revenue_series ?? [];
+              if (series.length === 0) {
+                return (
+                  <div className="flex h-36 items-center justify-center rounded-2xl border border-border/60 bg-muted/30">
+                    <p className="text-sm text-muted-foreground">No revenue data yet.</p>
+                  </div>
+                );
+              }
+              const maxRevenue = Math.max(...series.map((s) => s.revenue), 1);
+              return (
+                <div
+                  className={`grid h-36 items-end gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4`}
+                  style={{ gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))` }}
+                >
+                  {series.map((item) => {
+                    const heightPct = maxRevenue > 0 ? Math.max((item.revenue / maxRevenue) * 100, item.revenue > 0 ? 8 : 4) : 4;
+                    return (
+                      <div key={item.month} className="group flex h-full flex-col items-center justify-end gap-1.5">
+                        <span className="text-[10px] font-bold text-muted-foreground opacity-70 group-hover:opacity-100">
+                          ${item.revenue > 0 ? item.revenue.toFixed(0) : "0"}
+                        </span>
+                        <div
+                          className="w-full max-w-[32px] rounded-t-lg bg-primary/85 transition-all group-hover:bg-primary"
+                          style={{ height: `${heightPct}%` }}
+                          title={`${item.month}: $${item.revenue.toFixed(2)} revenue, $${item.commission.toFixed(2)} commission`}
+                        />
+                        <span className="text-xs font-semibold text-foreground">{item.month}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </Panel>
         </div>
 
@@ -337,7 +366,7 @@ const ProviderDashboard = () => {
           </Panel>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
