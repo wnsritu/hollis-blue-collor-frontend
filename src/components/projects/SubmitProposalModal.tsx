@@ -19,6 +19,7 @@ import {
   type ProposalSubmissionFormValues,
   type ProposalLineItem,
 } from "@/validations/proposal";
+import { getTodayDateString } from "@/utils/date";
 
 interface SubmitProposalModalProps {
   open: boolean;
@@ -298,6 +299,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
                 id="propDate"
                 name="proposedDate"
                 type="date"
+                min={getTodayDateString()}
                 value={formik.values.proposedDate}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}

@@ -16,6 +16,7 @@ import {
 import { Package, Sparkles, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { getTodayDateString } from "@/utils/date";
 
 const statusColors: Record<string, string> = {
   active: "bg-secondary/10 text-green-600 border-secondary/20",
@@ -179,6 +180,7 @@ const AdminSponsored = () => {
               <Label>Start Date</Label>
               <Input
                 type="date"
+                min={getTodayDateString()}
                 className="w-full block min-w-[160px]"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -190,6 +192,7 @@ const AdminSponsored = () => {
               <Label>End Date</Label>
               <Input
                 type="date"
+                min={startDate || getTodayDateString()}
                 className="w-full block min-w-[160px]"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
