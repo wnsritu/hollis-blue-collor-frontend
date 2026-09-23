@@ -23,6 +23,9 @@ const timeSlots = ["8:00 AM", "9:30 AM", "11:00 AM", "1:00 PM", "2:30 PM", "4:00
 
 export const AppointmentsPage: React.FC = () => {
   const {
+    user,
+    userIsCustomer,
+    userIsProvider,
     navigate,
     side,
     appointments,
@@ -283,49 +286,68 @@ export const AppointmentsPage: React.FC = () => {
                   </dl>
 
                   {/* Reschedule Requested Details Banner */}
-                  {isRescheduled && (
-                    <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-foreground">
-                      <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
-                        <RefreshCw size={13} className="text-amber-500" />
-                        <span>Reschedule Requested</span>
+                  {isRescheduled && (() => {
+                    const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
+                    return (
+                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-foreground">
+                        <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+                          <RefreshCw size={13} className="text-amber-500" />
+                          <span>
+                            {isRequester
+                              ? "Reschedule Requested (Pending Confirmation)"
+                              : `Reschedule Requested by ${userIsCustomer ? "Provider" : "Customer"}`}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 space-y-1 text-muted-foreground">
+                          {n.reschedule.date && (
+                            <p>
+                              <strong className="text-foreground">New Proposed Date:</strong>{" "}
+                              {formatDisplayDate(n.reschedule.date)}
+                            </p>
+                          )}
+                          {n.reschedule.reason && (
+                            <p>
+                              <strong className="text-foreground">Reason:</strong> {n.reschedule.reason}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-1.5 space-y-1 text-muted-foreground">
-                        {n.reschedule.date && (
-                          <p>
-                            <strong className="text-foreground">New Proposed Date:</strong>{" "}
-                            {formatDisplayDate(n.reschedule.date)}
-                          </p>
-                        )}
-                        {n.reschedule.reason && (
-                          <p>
-                            <strong className="text-foreground">Reason:</strong> {n.reschedule.reason}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
                     {!n.isCompleted && !n.isCancelled && (
                       <>
                         {isRescheduled ? (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-primary text-primary-foreground hover:bg-primary/90"
-                              onClick={() => handleConfirmReschedule(apt.id)}
-                            >
-                              Confirm Reschedule
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive border-destructive/20 hover:bg-destructive/10"
-                              onClick={() => handleRejectReschedule(apt.id)}
-                            >
-                              Decline Reschedule
-                            </Button>
-                          </>
+                          (() => {
+                            const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
+                            if (isRequester) {
+                              return (
+                                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 py-1">
+                                  ⏳ Reschedule requested. Awaiting confirmation from the other party.
+                                </p>
+                              );
+                            }
+                            return (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                  onClick={() => handleConfirmReschedule(apt.id)}
+                                >
+                                  Confirm Reschedule
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                                  onClick={() => handleRejectReschedule(apt.id)}
+                                >
+                                  Decline Reschedule
+                                </Button>
+                              </>
+                            );
+                          })()
                         ) : (
                           <>
                             {n.appointmentStatus === "Requested" && (
@@ -622,13 +644,30 @@ export const AppointmentsPage: React.FC = () => {
 
                 <div className="mt-6 space-y-2">
                   {isRescheduled ? (
-                    <Button
-                      size="sm"
-                      className="w-full justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 h-9"
-                      onClick={() => handleConfirmReschedule(apt.id)}
-                    >
-                      Confirm Reschedule
-                    </Button>
+                    (() => {
+                      const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
+                      if (isRequester) {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-center rounded-xl border border-border/80 bg-background text-xs font-semibold text-foreground hover:bg-muted/50 transition shadow-none h-9"
+                            onClick={() => navigate(`/customer/bookings/${apt.id}`)}
+                          >
+                            View booking (Pending)
+                          </Button>
+                        );
+                      }
+                      return (
+                        <Button
+                          size="sm"
+                          className="w-full justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 h-9"
+                          onClick={() => handleConfirmReschedule(apt.id)}
+                        >
+                          Confirm Reschedule
+                        </Button>
+                      );
+                    })()
                   ) : (
                     <Button
                       size="sm"

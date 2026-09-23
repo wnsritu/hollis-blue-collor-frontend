@@ -297,7 +297,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,
-    reason: b.reschedule?.reason ?? b.reschedule_reason ?? b.notes ?? null,
+    reason: b.reschedule?.reason ?? b.reschedule_reason ?? null,
   };
 
   // Dispute info
