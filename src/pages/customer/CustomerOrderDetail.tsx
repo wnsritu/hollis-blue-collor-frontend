@@ -607,8 +607,7 @@ export const CustomerOrderDetail: React.FC = () => {
               </div>
 
               <Button
-                // onClick={() => reviewFormik.handleSubmit()}
-                onClick={() => { }}
+                onClick={() => reviewFormik.handleSubmit()}
                 disabled={reviewFormik.isSubmitting}
                 className="text-xs"
               >

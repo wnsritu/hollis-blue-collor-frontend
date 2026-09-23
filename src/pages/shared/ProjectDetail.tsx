@@ -272,6 +272,7 @@ export const ProjectDetail: React.FC = () => {
     (p) => p.status === "accepted" || Number(p.id) === Number(project?.accepted_proposal_id)
   );
   const activeBookingId = project?.booking_id || (acceptedProp as any)?.booking_id;
+  const activeBooking = (project as any)?.booking;
   const activeBreakdown = acceptedProp ? proposalBreakdowns[acceptedProp.id] : null;
 
   const handlePayNow = () => {

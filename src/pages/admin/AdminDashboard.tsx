@@ -98,14 +98,12 @@ const AdminDashboard = () => {
         action={
           <>
             <Button asChild variant="outline">
-              {/* <Link to="/admin/commission"> */}
-              <Link to="#">
+              <Link to="/admin/commission">
                 <Percent size={16} className="mr-1.5" /> Commission
               </Link>
             </Button>
             <Button asChild>
-              {/* <Link to="/admin/payouts"> */}
-              <Link to="#">
+              <Link to="/admin/payouts">
                 <Banknote size={16} className="mr-1.5" /> Release payouts
               </Link>
             </Button>

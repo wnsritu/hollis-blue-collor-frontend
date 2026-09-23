@@ -351,8 +351,8 @@ const ProviderDashboard = () => {
               {[
                 { to: "/provider/profile?tab=faqs", label: "Add FAQ", icon: HelpCircle },
                 { to: "/provider/pricing", label: "Services & Pricing", icon: UserCog },
-                { to: "#", label: "Availability", icon: CalendarCheck },
-                { to: "#", label: "Subscription", icon: CreditCard },
+                { to: "/provider/availability", label: "Availability", icon: CalendarCheck },
+                { to: "/provider/subscription", label: "Subscription", icon: CreditCard },
                 { to: "/provider/profile", label: "Business Profile", icon: UserCog },
               ].map((a) => (
                 <Button key={a.label} asChild variant="outline" className="justify-start text-xs">
