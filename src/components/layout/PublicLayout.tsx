@@ -19,7 +19,7 @@ export function PublicLayout({ children }: { children?: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <main className={cn("flex-1 pt-20 md:pt-16 transition-all duration-300", isAtTop ? "mt-0" : "mt-5")}>
+      <main className={cn("flex-1 pt-20 md:pt-10 transition-all duration-300", isAtTop ? "mt-0" : "mt-5")}>
         {children ?? <Outlet />}
       </main>
       <SiteFooter />
