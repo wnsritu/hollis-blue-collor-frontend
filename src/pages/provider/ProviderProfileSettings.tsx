@@ -869,14 +869,14 @@ const ProviderProfileSettings = () => {
                   </div>
                 )}
 
-                {address && (
+                {/* {address && (
                   <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
                     <dt className="shrink-0 text-muted-foreground">Address</dt>
                     <dd className="text-right font-medium text-foreground">
                       {[address, city, state, zip].filter(Boolean).join(", ")}
                     </dd>
                   </div>
-                )}
+                )} */}
               </dl>
 
               <Separator />
