@@ -535,14 +535,14 @@ const CustomerProfile = () => {
                 )}
 
                 {/* Address */}
-                {address && (
+                {/* {address && (
                   <div className="flex items-start justify-between gap-2 border-t border-border pt-2">
                     <span className="shrink-0 text-muted-foreground">Address</span>
                     <span className="text-right font-medium text-foreground">
                       {[address, city, state, zipCode].filter(Boolean).join(", ")}
                     </span>
                   </div>
-                )}
+                )} */}
               </div>
             </CardContent>
           </Card>

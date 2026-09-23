@@ -71,6 +71,7 @@ export interface NormalizedBooking {
     status: string;
     created_at: string | null;
   } | null;
+  cancellationReason: string | null;
   raw: any;
 }
 
@@ -130,6 +131,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
         adminResolutionNote: null,
         deadlineAt: null,
       },
+      cancellationReason: null,
       raw: b,
     };
   }
@@ -297,7 +299,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,
-    reason: b.reschedule?.reason ?? b.reschedule_reason ?? b.notes ?? null,
+    reason: b.reschedule?.reason ?? b.reschedule_reason ?? null,
   };
 
   // Dispute info
@@ -328,6 +330,20 @@ export function normalizeBooking(b: any): NormalizedBooking {
         created_at: b.review.created_at || b.review.createdAt || null,
       }
     : null;
+
+  // Cancellation reason extraction
+  let cancellationReason: string | null = b.cancellation_reason || b.cancellationReason || null;
+  if (!cancellationReason && b.notes) {
+    if (String(b.notes).trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(b.notes);
+        cancellationReason = parsed.cancellation_reason || parsed.cancel_reason || parsed.reason || null;
+      } catch (e) {}
+    }
+  }
+  if (!cancellationReason && isCancelled && b.reason) {
+    cancellationReason = b.reason;
+  }
 
   return {
     id,
@@ -379,6 +395,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     reschedule,
     dispute,
     review,
+    cancellationReason,
     raw: b,
   };
 }
