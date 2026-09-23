@@ -357,13 +357,25 @@ export const customerNav: NavItem[] = [
     matchPaths: ["/messages"],
   },
   {
-    to: "/customer/payments",
+    to: "#",
     label: "Payments",
     icon: CreditCard,
     matchPaths: ["/customer/payments", "/payments"],
   },
+  //  {
+  //   to: "/customer/payments",
+  //   label: "Payments",
+  //   icon: CreditCard,
+  //   matchPaths: ["/customer/payments", "/payments"],
+  // },
+  // {
+  //   to: "/customer/reviews",
+  //   label: "Reviews",
+  //   icon: Star,
+  //   matchPaths: ["/customer/reviews", "/rating"],
+  // },
   {
-    to: "/customer/reviews",
+    to: "#",
     label: "Reviews",
     icon: Star,
     matchPaths: ["/customer/reviews", "/rating"],
