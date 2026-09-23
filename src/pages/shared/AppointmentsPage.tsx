@@ -488,6 +488,7 @@ export const AppointmentsPage: React.FC = () => {
         </div>
 
         {rescheduleModalMarkup}
+        {cancelModalMarkup}
       </div>
     );
   }
@@ -639,6 +640,12 @@ export const AppointmentsPage: React.FC = () => {
                     <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground w-full">
                       <MapPin size={13} className="shrink-0" /> <span className="truncate">{n.address}</span>
                     </p>
+                  )}
+
+                  {n.isCancelled && (n.cancellationReason || apt.cancellation_reason || (n.raw as any)?.cancellation_reason) && (
+                    <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 text-xs text-destructive">
+                      <strong>Cancellation Reason:</strong> {n.cancellationReason || apt.cancellation_reason || (n.raw as any)?.cancellation_reason}
+                    </div>
                   )}
                 </div>
 

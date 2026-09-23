@@ -71,6 +71,7 @@ export interface NormalizedBooking {
     status: string;
     created_at: string | null;
   } | null;
+  cancellationReason: string | null;
   raw: any;
 }
 
@@ -130,6 +131,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
         adminResolutionNote: null,
         deadlineAt: null,
       },
+      cancellationReason: null,
       raw: b,
     };
   }
@@ -329,6 +331,20 @@ export function normalizeBooking(b: any): NormalizedBooking {
       }
     : null;
 
+  // Cancellation reason extraction
+  let cancellationReason: string | null = b.cancellation_reason || b.cancellationReason || null;
+  if (!cancellationReason && b.notes) {
+    if (String(b.notes).trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(b.notes);
+        cancellationReason = parsed.cancellation_reason || parsed.cancel_reason || parsed.reason || null;
+      } catch (e) {}
+    }
+  }
+  if (!cancellationReason && isCancelled && b.reason) {
+    cancellationReason = b.reason;
+  }
+
   return {
     id,
     displayId,
@@ -379,6 +395,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     reschedule,
     dispute,
     review,
+    cancellationReason,
     raw: b,
   };
 }

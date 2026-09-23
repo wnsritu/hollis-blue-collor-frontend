@@ -395,6 +395,36 @@ export const CustomerOrderDetail: React.FC = () => {
       {/* Main Grid: Details & Sidebar */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
+          {/* Cancellation Reason & Refund Banner */}
+          {isCancelled && (
+            <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 shadow-card space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-destructive/10 text-destructive shrink-0">
+                  <XCircle size={20} />
+                </span>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-destructive text-base">
+                    Booking Cancelled
+                  </h3>
+                  {(normalized.cancellationReason || booking.cancellation_reason) && (
+                    <p className="text-xs text-foreground font-medium">
+                      <strong>Reason:</strong> {normalized.cancellationReason || booking.cancellation_reason}
+                    </p>
+                  )}
+                  {isPaid ? (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      💳 <strong>Refund Status:</strong> Payment of {usd(totalAmountNum)} was received. A full refund has been initiated to your original payment method and will appear on your statement within 3–5 business days.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      No payment was captured for this booking.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Status Informational Banners */}
           {isEnRoute && (
             <section className="rounded-2xl border border-indigo-200 bg-indigo-500/10 p-4 text-xs text-indigo-900 flex items-center gap-3">
