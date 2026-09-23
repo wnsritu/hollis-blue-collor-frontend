@@ -124,3 +124,32 @@ export function getUpcomingDays(daysCount = 14): UpcomingDay[] {
 
   return dates;
 }
+
+/**
+ * Returns today's date (or offset date) as a 'YYYY-MM-DD' string in local time,
+ * perfect for setting HTML <input type="date" min={getTodayDateString()} />.
+ */
+export function getTodayDateString(offsetDays = 0): string {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Checks if a given date (string, Date, or timestamp) is strictly before today (00:00:00).
+ */
+export function isPastDate(input: DateInput): boolean {
+  const d = toValidDate(input);
+  if (!d) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(d);
+  checkDate.setHours(0, 0, 0, 0);
+  return checkDate.getTime() < today.getTime();
+}
+

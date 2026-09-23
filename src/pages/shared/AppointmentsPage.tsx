@@ -16,6 +16,7 @@ import { PageHeader, StatusPill, EmptyState } from "@/components/shared/primitiv
 import { useAppointments } from "@/hooks/useAppointments";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
+import { getTodayDateString } from "@/utils/date";
 import { APPOINTMENT_FILTERS as FILTERS } from "@/constants/options";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +87,7 @@ export const AppointmentsPage: React.FC = () => {
             <Label className="text-xs font-medium">New Date</Label>
             <Input
               type="date"
+              min={getTodayDateString()}
               value={rescheduleDate}
               onChange={(e) => setRescheduleDate(e.target.value)}
               required
