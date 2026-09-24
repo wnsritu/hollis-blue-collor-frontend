@@ -11,6 +11,8 @@ import { ROLES } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -128,7 +130,10 @@ const Header = () => {
                 <Link to={dashboardRoute}>Dashboard</Link>
               </Button>
 
+              <NotificationBell />
+
               <div className="relative">
+
                 <button
                   type="button"
                   onClick={() => setProfileOpen(!profileOpen)}
