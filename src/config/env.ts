@@ -36,7 +36,15 @@ export const env = {
   stripePublishableKey: (import.meta.env.VITE_STRIPE_PUBLIC_KEY as string | undefined) ?? "",
   googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "",
   googleMapsApiKey: (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? "",
+
+  /** Real-time Pusher configuration */
+  pusherKey: (import.meta.env.VITE_PUSHER_KEY as string | undefined) ?? "",
+  pusherCluster: (import.meta.env.VITE_PUSHER_CLUSTER as string | undefined) ?? "ap2",
+
+  /** Web Push (VAPID) */
+  vapidPublicKey: (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? "",
 } as const;
+
 
 export type AppEnv = typeof env;
 
