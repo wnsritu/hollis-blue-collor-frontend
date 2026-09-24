@@ -20,6 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { ProviderCard, usd } from "@/components/shared/cards";
 import { EmptyState } from "@/components/shared/primitives";
 import { useSearchProviders } from "@/hooks/useSearchProviders";
@@ -27,6 +28,8 @@ import { useSearchProviders } from "@/hooks/useSearchProviders";
 export const SearchProviders: React.FC = () => {
   const {
     userCoords,
+    selectedCoords,
+    setSelectedCoords,
     query,
     setQuery,
     location,
@@ -206,7 +209,10 @@ export const SearchProviders: React.FC = () => {
       <div className="border-b border-border bg-surface py-6">
         <div className="container-page">
           <h1 className="font-display text-2xl font-bold">Find a professional</h1>
-          <div className="mt-4 grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            fetchProviders(query, location, selectedCoords);
+          }} className="mt-4 grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
             <div className="relative min-w-0">
               <SearchIcon
                 size={16}
@@ -216,47 +222,51 @@ export const SearchProviders: React.FC = () => {
                 placeholder="What service do you need?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" &&
-                  hasValidSearchCriteria &&
-                  fetchProviders(query, location)
-                }
                 className="h-11 bg-card pl-9"
               />
             </div>
             <div className="relative min-w-0">
               <MapPin
                 size={16}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10"
               />
-              <Input
-                placeholder={userCoords && !location ? "Near your location" : "ZIP Code or City"}
+              <GooglePlaceAutocomplete
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" &&
-                  hasValidSearchCriteria &&
-                  fetchProviders(query, location)
-                }
+                onChange={(val) => {
+                  setLocation(val);
+                  if (!val) {
+                    setSelectedCoords(null);
+                  }
+                }}
+                onSelect={(place) => {
+                  const addr = place.address || location;
+                  setLocation(addr);
+                  if (place.lat && place.lng) {
+                    const coords = { lat: place.lat, lng: place.lng };
+                    setSelectedCoords(coords);
+                    fetchProviders(query, addr, coords);
+                  }
+                }}
+                placeholder="Enter City, ZIP code or Address..."
                 className="h-11 bg-card pl-9 pr-10"
               />
               <button
                 type="button"
                 onClick={handleUseMyLocation}
                 title="Use my current location"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors z-10"
               >
                 <Sparkles size={16} />
               </button>
             </div>
             <Button
-              onClick={() => hasValidSearchCriteria && fetchProviders(query, location)}
-              disabled={!hasValidSearchCriteria || loading}
-              className="h-11 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              type="submit"
+              disabled={loading}
+              className="h-11 transition-all font-semibold"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : "Search"}
             </Button>
-          </div>
+          </form>
         </div>
       </div>
 

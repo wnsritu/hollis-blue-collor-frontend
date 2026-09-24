@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 const queryClient = new QueryClient();
 
@@ -17,12 +18,15 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
       <TooltipProvider>
         <Toaster position="top-right" />
         <BrowserRouter>
-          <ScrollToTop />
-          {children}
+          <NotificationProvider>
+            <ScrollToTop />
+            {children}
+          </NotificationProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
 };
+
 
 export default AppProviders;

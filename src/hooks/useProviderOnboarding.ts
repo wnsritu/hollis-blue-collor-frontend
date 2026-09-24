@@ -12,7 +12,9 @@ import {
 } from "@/pages/auth/SignUp";
 import { getErrorMessage } from "@/services";
 import toast from "react-hot-toast";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { isValidZip } from "@/validations/common/rules";
+import { validateImageFile, validateDocumentFile } from "@/validations/common/file";
 
 export const ONBOARDING_STEPS = ["Services", "Coverage", "Credentials"] as const;
 
@@ -77,6 +79,10 @@ export function useProviderOnboarding() {
     insuranceDocumentPath: "",
     licenseFileName: "",
     insuranceFileName: "",
+    licensePreviewUrl: "",
+    insurancePreviewUrl: "",
+    licenseIsImage: false,
+    insuranceIsImage: false,
   });
   const [uploadingDoc, setUploadingDoc] = useState<"license" | "insurance" | null>(null);
 
@@ -203,14 +209,28 @@ export function useProviderOnboarding() {
 
     if (step === 2) {
       const errs: Record<string, string> = {};
-      if (!form.license.trim()) errs.license = "License number is required.";
-      if (!form.insurance.trim()) errs.insurance = "Insurance policy number is required.";
+      if (!form.license.trim()) {
+        errs.license = "License number is required.";
+      } else if (form.license.trim().length < 3) {
+        errs.license = "License number must be at least 3 characters long.";
+      } else if (form.license.trim().length > 100) {
+        errs.license = "License number must be 100 characters or less.";
+      }
+
+      if (!form.insurance.trim()) {
+        errs.insurance = "Insurance policy number is required.";
+      } else if (form.insurance.trim().length < 3) {
+        errs.insurance = "Insurance policy number must be at least 3 characters long.";
+      } else if (form.insurance.trim().length > 100) {
+        errs.insurance = "Insurance policy number must be 100 characters or less.";
+      }
+
       if (!form.licenseDocumentPath) errs.licenseDocument = "Please upload your business license document.";
       if (!form.insuranceDocumentPath) errs.insuranceDocument = "Please upload your insurance certificate.";
 
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
-        setError("Please provide all required license and insurance credentials.");
+        setError("Please fix the highlighted credentials errors.");
         return;
       }
     }
@@ -281,10 +301,43 @@ export function useProviderOnboarding() {
         `/verify-email?email=${encodeURIComponent(draft.email)}&role=provider`,
         { replace: true }
       );
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = getErrorMessage(err, "Registration failed");
-      setError(msg);
-      toast.error(msg);
+      const backendErrors = err?.response?.data?.errors;
+      const mappedErrs: Record<string, string> = {};
+
+      if (Array.isArray(backendErrors)) {
+        backendErrors.forEach((e: any) => {
+          const pathArr = e?.path || [];
+          const fieldName = pathArr[pathArr.length - 1];
+          const backendMsg = e?.message || e?.msg;
+
+          if (fieldName === "license_number") {
+            mappedErrs.license = backendMsg || "License number must be at least 3 characters long.";
+          } else if (fieldName === "insurance_policy") {
+            mappedErrs.insurance = backendMsg || "Insurance policy number must be at least 3 characters long.";
+          } else if (fieldName === "business_name") {
+            mappedErrs.businessName = backendMsg || "Business name must be at least 3 characters long.";
+          } else if (fieldName === "email") {
+            mappedErrs.email = backendMsg || "Please enter a valid email address.";
+          } else if (fieldName === "phone") {
+            mappedErrs.mobile = backendMsg || "Please enter a valid 10-digit phone number.";
+          } else if (fieldName === "zip_code") {
+            mappedErrs.zip = backendMsg || "Please enter a valid ZIP code.";
+          } else if (fieldName) {
+            mappedErrs[fieldName] = backendMsg || "Invalid input.";
+          }
+        });
+      }
+
+      if (Object.keys(mappedErrs).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...mappedErrs }));
+        setError("Please fix the highlighted errors below.");
+        toast.error("Please fix the highlighted errors.");
+      } else {
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -295,16 +348,20 @@ export function useProviderOnboarding() {
     file: File | null | undefined
   ) => {
     if (!file) return;
-    const maxBytes = 25 * 1024 * 1024; // 25MB limit
-    if (file.size > maxBytes) {
-      toast.error("File size exceeds 25MB limit. Please choose a smaller file.");
-      return;
-    }
 
-    const allowedExtensions = /\.(pdf|png|jpg|jpeg|doc|docx|webp)$/i;
-    if (!allowedExtensions.test(file.name)) {
-      toast.error("Invalid file format. Please upload a PDF, PNG, JPG, or DOC file.");
-      return;
+    const isImage = file.type.startsWith("image/");
+    if (isImage) {
+      const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+      if (!validation.valid) {
+        toast.error(validation.error || "Image size must be 5MB or less.");
+        return;
+      }
+    } else {
+      const validation = validateDocumentFile(file, { maxSizeBytes: 25 * 1024 * 1024 });
+      if (!validation.valid) {
+        toast.error(validation.error || "Invalid document file.");
+        return;
+      }
     }
 
     try {
@@ -320,17 +377,23 @@ export function useProviderOnboarding() {
         "";
       if (!path) throw new Error("Upload succeeded but no file path returned");
       const normalized = path.startsWith("/") ? path : `/${path}`;
+      const localPreviewUrl = isImage ? URL.createObjectURL(file) : null;
+
       if (kind === "license") {
         setForm((f) => ({
           ...f,
           licenseDocumentPath: normalized,
           licenseFileName: file.name,
+          licensePreviewUrl: localPreviewUrl || resolveMediaUrl(normalized) || "",
+          licenseIsImage: isImage || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name),
         }));
       } else {
         setForm((f) => ({
           ...f,
           insuranceDocumentPath: normalized,
           insuranceFileName: file.name,
+          insurancePreviewUrl: localPreviewUrl || resolveMediaUrl(normalized) || "",
+          insuranceIsImage: isImage || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name),
         }));
       }
       toast.success(`${file.name} uploaded successfully.`);
@@ -338,6 +401,26 @@ export function useProviderOnboarding() {
       toast.error(getErrorMessage(err, "File upload failed"));
     } finally {
       setUploadingDoc(null);
+    }
+  };
+
+  const handleRemoveDoc = (kind: "license" | "insurance") => {
+    if (kind === "license") {
+      setForm((f) => ({
+        ...f,
+        licenseDocumentPath: "",
+        licenseFileName: "",
+        licensePreviewUrl: "",
+        licenseIsImage: false,
+      }));
+    } else {
+      setForm((f) => ({
+        ...f,
+        insuranceDocumentPath: "",
+        insuranceFileName: "",
+        insurancePreviewUrl: "",
+        insuranceIsImage: false,
+      }));
     }
   };
 
@@ -378,6 +461,7 @@ export function useProviderOnboarding() {
     set,
     uploadingDoc,
     handleDocUpload,
+    handleRemoveDoc,
     handleNext,
     handlePreviousStep,
     handleBackToHome,

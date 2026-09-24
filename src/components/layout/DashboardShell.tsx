@@ -12,7 +12,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Logo, Avatar } from "@/components/shared/primitives";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { cn } from "@/lib/utils";
+
 
 export type NavItem = {
   to: string;
@@ -287,16 +289,9 @@ export function DashboardShell({
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="relative"
-                aria-label="Notifications"
-              >
-                <Bell size={17} />
-                <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent" />
-              </Button>
+              <NotificationBell />
               <DropdownMenu>
+
                 <DropdownMenuTrigger asChild>
                   <button className="rounded-full outline-none ring-offset-background transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     {avatarUrl ? (
