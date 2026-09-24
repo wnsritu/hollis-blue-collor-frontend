@@ -10,6 +10,7 @@ import Spinner from "@/components/ui/spinner";
 import { uploadProfilePhotoService, updateProfile } from "@/services/admin";
 import { getMyProfile } from "@/services/customer";
 import { isValidEmail, isValidPhone } from "@/validations";
+import { validateImageFile } from "@/validations/common/file";
 
 const SupportSettings = () => {
   const [passwords, setPasswords] = useState({
@@ -205,13 +206,9 @@ const SupportSettings = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Max 2MB allowed");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Only image allowed");
+    const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    if (!validation.valid) {
+      toast.error(validation.error || "Image size must be 5MB or less.");
       return;
     }
 

@@ -6,6 +6,9 @@ import {
   CheckCircle2,
   FileCheck,
   ShieldCheck,
+  RefreshCw,
+  Trash2,
+  Upload,
 } from "lucide-react";
 import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -15,6 +18,7 @@ import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { parseGooglePlace } from "@/utils/googlePlaces";
+import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { CATEGORY_ICONS, CATEGORY_FALLBACK_DESC } from "@/constants";
 import { useProviderOnboarding } from "@/hooks/useProviderOnboarding";
 
@@ -52,6 +56,7 @@ export default function ProviderOnboarding() {
     set,
     uploadingDoc,
     handleDocUpload,
+    handleRemoveDoc,
     handleNext,
     handlePreviousStep,
     handleBackToHome,
@@ -403,6 +408,7 @@ export default function ProviderOnboarding() {
                     if (fieldErrors.license) setFieldErrors({ ...fieldErrors, license: undefined });
                   }}
                   error={fieldErrors.license}
+                  maxLength={100}
                   required
                 />
                 <Field
@@ -413,72 +419,181 @@ export default function ProviderOnboarding() {
                     if (fieldErrors.insurance) setFieldErrors({ ...fieldErrors, insurance: undefined });
                   }}
                   error={fieldErrors.insurance}
+                  maxLength={100}
                   required
                 />
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* License Document Field */}
                   <div>
-                    <label
-                      className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
-                        fieldErrors.licenseDocument
-                          ? "border-destructive bg-destructive/5"
-                          : "border-border bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                        className="hidden"
-                        disabled={uploadingDoc === "license"}
-                        onChange={(e) => {
-                          if (fieldErrors.licenseDocument)
-                            setFieldErrors({ ...fieldErrors, licenseDocument: undefined });
-                          void handleDocUpload("license", e.target.files?.[0]);
-                        }}
-                      />
-                      <FileCheck size={24} className="mb-1 text-primary" />
-                      <span className="text-xs font-semibold text-foreground">
-                        {uploadingDoc === "license"
-                          ? "Uploading..."
-                          : form.licenseFileName || "Upload License Document *"}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        PDF, PNG, or JPG (max 25MB)
-                      </span>
-                    </label>
+                    <Label className="mb-1.5 block text-xs font-semibold text-foreground">
+                      Business License Document <span className="text-destructive">*</span>
+                    </Label>
+                    {form.licenseDocumentPath ? (
+                      <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
+                        <div className="flex items-center gap-3">
+                          {form.licenseIsImage || /\.(png|jpg|jpeg|webp|gif)$/i.test(form.licenseFileName || form.licenseDocumentPath) ? (
+                            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted border border-border/80">
+                              <img
+                                src={form.licensePreviewUrl || resolveMediaUrl(form.licenseDocumentPath) || ""}
+                                alt="License preview"
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary border border-primary/20">
+                              <FileCheck size={22} />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-foreground">
+                              {form.licenseFileName || "License Document"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Uploaded &amp; Ready</p>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <label className="cursor-pointer">
+                                <input
+                                  type="file"
+                                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.webp"
+                                  className="hidden"
+                                  disabled={uploadingDoc === "license"}
+                                  onChange={(e) => {
+                                    if (fieldErrors.licenseDocument)
+                                      setFieldErrors({ ...fieldErrors, licenseDocument: undefined });
+                                    void handleDocUpload("license", e.target.files?.[0]);
+                                  }}
+                                />
+                                <span className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted transition-colors">
+                                  <RefreshCw size={11} /> Change
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDoc("license")}
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-destructive hover:bg-destructive-soft transition-colors"
+                              >
+                                <Trash2 size={11} /> Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        className={`grid h-28 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-all ${
+                          fieldErrors.licenseDocument
+                            ? "border-destructive bg-destructive-soft/20"
+                            : "border-border bg-card hover:border-primary/50 hover:bg-primary-soft/20"
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.webp"
+                          className="hidden"
+                          disabled={uploadingDoc === "license"}
+                          onChange={(e) => {
+                            if (fieldErrors.licenseDocument)
+                              setFieldErrors({ ...fieldErrors, licenseDocument: undefined });
+                            void handleDocUpload("license", e.target.files?.[0]);
+                          }}
+                        />
+                        <Upload size={20} className="text-primary" />
+                        <span className="text-xs font-semibold text-foreground">
+                          {uploadingDoc === "license" ? "Uploading..." : "Upload License Document"}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          PDF, PNG, JPG or WEBP (max 5MB for images)
+                        </span>
+                      </label>
+                    )}
                     {fieldErrors.licenseDocument && (
                       <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.licenseDocument}</p>
                     )}
                   </div>
 
+                  {/* Insurance Certificate Field */}
                   <div>
-                    <label
-                      className={`grid h-32 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
-                        fieldErrors.insuranceDocument
-                          ? "border-destructive bg-destructive/5"
-                          : "border-border bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                        className="hidden"
-                        disabled={uploadingDoc === "insurance"}
-                        onChange={(e) => {
-                          if (fieldErrors.insuranceDocument)
-                            setFieldErrors({ ...fieldErrors, insuranceDocument: undefined });
-                          void handleDocUpload("insurance", e.target.files?.[0]);
-                        }}
-                      />
-                      <FileCheck size={24} className="mb-1 text-primary" />
-                      <span className="text-xs font-semibold text-foreground">
-                        {uploadingDoc === "insurance"
-                          ? "Uploading..."
-                          : form.insuranceFileName || "Upload Insurance Certificate *"}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        PDF, PNG, or JPG (max 25MB)
-                      </span>
-                    </label>
+                    <Label className="mb-1.5 block text-xs font-semibold text-foreground">
+                      Insurance Certificate <span className="text-destructive">*</span>
+                    </Label>
+                    {form.insuranceDocumentPath ? (
+                      <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
+                        <div className="flex items-center gap-3">
+                          {form.insuranceIsImage || /\.(png|jpg|jpeg|webp|gif)$/i.test(form.insuranceFileName || form.insuranceDocumentPath) ? (
+                            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted border border-border/80">
+                              <img
+                                src={form.insurancePreviewUrl || resolveMediaUrl(form.insuranceDocumentPath) || ""}
+                                alt="Insurance preview"
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary border border-primary/20">
+                              <FileCheck size={22} />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-foreground">
+                              {form.insuranceFileName || "Insurance Certificate"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">Uploaded &amp; Ready</p>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <label className="cursor-pointer">
+                                <input
+                                  type="file"
+                                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.webp"
+                                  className="hidden"
+                                  disabled={uploadingDoc === "insurance"}
+                                  onChange={(e) => {
+                                    if (fieldErrors.insuranceDocument)
+                                      setFieldErrors({ ...fieldErrors, insuranceDocument: undefined });
+                                    void handleDocUpload("insurance", e.target.files?.[0]);
+                                  }}
+                                />
+                                <span className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted transition-colors">
+                                  <RefreshCw size={11} /> Change
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDoc("insurance")}
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-destructive hover:bg-destructive-soft transition-colors"
+                              >
+                                <Trash2 size={11} /> Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        className={`grid h-28 cursor-pointer place-items-center rounded-2xl border-2 border-dashed p-4 text-center transition-all ${
+                          fieldErrors.insuranceDocument
+                            ? "border-destructive bg-destructive-soft/20"
+                            : "border-border bg-card hover:border-primary/50 hover:bg-primary-soft/20"
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.webp"
+                          className="hidden"
+                          disabled={uploadingDoc === "insurance"}
+                          onChange={(e) => {
+                            if (fieldErrors.insuranceDocument)
+                              setFieldErrors({ ...fieldErrors, insuranceDocument: undefined });
+                            void handleDocUpload("insurance", e.target.files?.[0]);
+                          }}
+                        />
+                        <Upload size={20} className="text-primary" />
+                        <span className="text-xs font-semibold text-foreground">
+                          {uploadingDoc === "insurance" ? "Uploading..." : "Upload Insurance Certificate"}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          PDF, PNG, JPG or WEBP (max 5MB for images)
+                        </span>
+                      </label>
+                    )}
                     {fieldErrors.insuranceDocument && (
                       <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.insuranceDocument}</p>
                     )}
@@ -522,12 +637,14 @@ function Field({
   onChange,
   error,
   required,
+  maxLength,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   error?: string;
   required?: boolean;
+  maxLength?: number;
 }) {
   return (
     <div className="grid gap-2">
@@ -537,6 +654,7 @@ function Field({
       <Input
         id={label}
         value={value}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         className={error ? "border-destructive focus-visible:ring-destructive" : ""}
       />
