@@ -159,7 +159,7 @@ export function Index() {
                   <Input
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="ZIP Code or City"
+                    placeholder="Enter City, ZIP code or Address..."
                     className="h-12 border-0 bg-muted/50 pl-9 text-base shadow-none focus-visible:bg-background"
                   />
                 </div>
