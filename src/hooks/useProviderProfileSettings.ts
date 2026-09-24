@@ -13,6 +13,7 @@ import type { Category } from "@/types/api/catalog";
 import type { BankAccountType } from "@/types/api/provider";
 import type { ProviderProfileTab, FAQItem, BankForm } from "@/types/provider.types";
 import { isValidZip } from "@/validations/common/rules";
+import { validateImageFile } from "@/validations/common/file";
 import {
   validateFullName,
   validatePhone,
@@ -659,8 +660,9 @@ export function useProviderProfileSettings() {
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Logo must be under 5MB.");
+    const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    if (!validation.valid) {
+      toast.error(validation.error || "Logo must be under 5MB.");
       return;
     }
 

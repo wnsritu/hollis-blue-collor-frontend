@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Home, Save, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export default function ProviderPricing() {
 
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
   const [pricingState, setPricingState] = useState<Record<string, ProviderServiceConfig>>({});
+  const [priceErrors, setPriceErrors] = useState<Record<string, string>>({});
 
   const toggleAccordion = (subId: string) => {
     setOpenAccordions((prev) => ({
@@ -176,6 +178,8 @@ export default function ProviderPricing() {
       // Collect all service names where offered === true and map service_pricing object
       const offeredServiceNames: string[] = [];
       const servicePricingObj: Record<string, ProviderServiceConfig> = {};
+      const errors: Record<string, string> = {};
+      let hasError = false;
 
       selectedSubcategories.forEach((sub) => {
         const activeServices = (sub.services || []).filter((svc: any) => svc.is_active !== false);
@@ -188,9 +192,20 @@ export default function ProviderPricing() {
 
           if (cfg.offered) {
             offeredServiceNames.push(svc.name);
+            if (!cfg.price || Number(cfg.price) <= 0 || isNaN(Number(cfg.price))) {
+              errors[svcKey] = "Price must be greater than 0";
+              errors[svc.name] = "Price must be greater than 0";
+              hasError = true;
+            }
           }
         });
       });
+
+      if (hasError) {
+        setPriceErrors(errors);
+        toast.error("Price must be greater than 0 for all provided services.");
+        return;
+      }
 
       await providerApi.updateMyMarketplaceProfile({
         offered_services: offeredServiceNames,
@@ -198,6 +213,7 @@ export default function ProviderPricing() {
         service_pricing: servicePricingObj,
       });
 
+      setPriceErrors({});
       toast.success("Services & Pricing saved successfully!");
     } catch (err) {
       console.error("Failed to save pricing", err);
@@ -317,9 +333,19 @@ export default function ProviderPricing() {
                               <div className="flex items-center gap-2">
                                 <Switch
                                   checked={config.offered}
-                                  onCheckedChange={(checked) =>
-                                    updateServiceConfig(svcKey, { offered: checked })
-                                  }
+                                  onCheckedChange={(checked) => {
+                                    const currentPrice = config.price;
+                                    const newPrice = checked && currentPrice <= 0 ? 50 : currentPrice;
+                                    updateServiceConfig(svcKey, { offered: checked, price: newPrice });
+                                    if (priceErrors[svcKey] || priceErrors[svc.name]) {
+                                      setPriceErrors((prev) => {
+                                        const next = { ...prev };
+                                        delete next[svcKey];
+                                        delete next[svc.name];
+                                        return next;
+                                      });
+                                    }
+                                  }}
                                   aria-label={`Toggle ${svc.name}`}
                                 />
                                 <span className="text-xs font-medium text-muted-foreground">
@@ -328,43 +354,69 @@ export default function ProviderPricing() {
                               </div>
 
                               {config.offered && (
-                                <div className="flex items-center gap-2">
-                                  <div className="relative w-28">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                                      $
-                                    </span>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="5"
-                                      value={config.price}
-                                      onChange={(e) =>
-                                        updateServiceConfig(svcKey, {
-                                          price: parseFloat(e.target.value) || 0,
-                                        })
-                                      }
-                                      className="pl-7 h-9 text-xs font-bold"
-                                    />
+                                <div className="flex flex-col items-end gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative w-28">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                                        $
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        step="5"
+                                        value={config.price === 0 ? "" : config.price}
+                                        onChange={(e) => {
+                                          const valStr = e.target.value;
+                                          const parsed = parseFloat(valStr);
+                                          const newPrice = isNaN(parsed) ? 0 : parsed;
+                                          updateServiceConfig(svcKey, { price: newPrice });
+                                          if (newPrice > 0) {
+                                            setPriceErrors((prev) => {
+                                              const next = { ...prev };
+                                              delete next[svcKey];
+                                              delete next[svc.name];
+                                              return next;
+                                            });
+                                          } else {
+                                            setPriceErrors((prev) => ({
+                                              ...prev,
+                                              [svcKey]: "Price must be greater than $0",
+                                              [svc.name]: "Price must be greater than $0",
+                                            }));
+                                          }
+                                        }}
+                                        className={cn(
+                                          "pl-7 h-9 text-xs font-bold",
+                                          (priceErrors[svcKey] || priceErrors[svc.name]) &&
+                                            "border-destructive focus-visible:ring-destructive ring-1 ring-destructive"
+                                        )}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs text-muted-foreground font-medium">/</span>
+                                      <Select
+                                        value={config.unit || "flat rate"}
+                                        onValueChange={(val) =>
+                                          updateServiceConfig(svcKey, { unit: val })
+                                        }
+                                      >
+                                        <SelectTrigger className="h-9 w-28 text-xs font-semibold">
+                                          <SelectValue placeholder="Unit" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="flat rate">flat rate</SelectItem>
+                                          <SelectItem value="per job">per job</SelectItem>
+                                          <SelectItem value="per hour">per hour</SelectItem>
+                                          <SelectItem value="per sq ft">per sq ft</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs text-muted-foreground font-medium">/</span>
-                                    <Select
-                                      value={config.unit || "flat rate"}
-                                      onValueChange={(val) =>
-                                        updateServiceConfig(svcKey, { unit: val })
-                                      }
-                                    >
-                                      <SelectTrigger className="h-9 w-28 text-xs font-semibold">
-                                        <SelectValue placeholder="Unit" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="flat rate">flat rate</SelectItem>
-                                        <SelectItem value="per job">per job</SelectItem>
-                                        <SelectItem value="per hour">per hour</SelectItem>
-                                        <SelectItem value="per sq ft">per sq ft</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                  {(priceErrors[svcKey] || priceErrors[svc.name]) && (
+                                    <p className="text-[10px] font-semibold text-destructive mt-0.5">
+                                      {priceErrors[svcKey] || priceErrors[svc.name]}
+                                    </p>
+                                  )}
                                 </div>
                               )}
                             </div>
