@@ -13,3 +13,5 @@ export * from "./sheet";
 export * from "./avatar";
 export * from "./checkbox";
 export * from "./table";
+export * from "./FormField";
+export * from "./ImageUpload";

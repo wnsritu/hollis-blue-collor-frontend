@@ -9,6 +9,7 @@ import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { CustomerProfileTab } from "@/types/customer.types";
 import { isValidZip } from "@/validations/common/rules";
+import { validateImageFile } from "@/validations/common/file";
 
 function unwrapData<T = unknown>(res: unknown): T {
   if (res && typeof res === "object" && "data" in (res as object)) {
@@ -233,8 +234,9 @@ export function useCustomerProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size exceeds 5MB limit.");
+    const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    if (!validation.valid) {
+      toast.error(validation.error || "File size exceeds 5MB limit.");
       return;
     }
 
