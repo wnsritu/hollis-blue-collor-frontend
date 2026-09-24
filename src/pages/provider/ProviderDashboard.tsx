@@ -214,7 +214,9 @@ const ProviderDashboard = () => {
                       <div className="flex items-center gap-2">
                         <StatusPill status={j.appointment_status || j.status || "Confirmed"} />
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                          <Link to={`/provider/order/${j.id}`}>Review</Link>
+                          {/* <Link to={`/provider/order/${j.id}`}>Review</Link> */}
+                          <Link to="#">Review</Link>
+
                         </Button>
                       </div>
                     </div>
