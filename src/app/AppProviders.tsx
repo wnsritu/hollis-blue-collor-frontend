@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
+import PageTitleUpdater from "@/components/PageTitleUpdater";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
         <Toaster position="top-right" />
         <BrowserRouter>
           <ScrollToTop />
+          <PageTitleUpdater />
           {children}
         </BrowserRouter>
       </TooltipProvider>
