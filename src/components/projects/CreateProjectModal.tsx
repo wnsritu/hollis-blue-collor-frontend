@@ -31,6 +31,7 @@ import {
   URGENCY_OPTIONS,
 } from "@/constants/project.constants";
 import { createProjectValidationSchema } from "@/validations/project";
+import { getTodayDateString } from "@/utils/date";
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   open,
@@ -457,6 +458,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               <Input
                 id="prefDate"
                 type="date"
+                min={getTodayDateString()}
                 name="preferred_date"
                 value={formik.values.preferred_date}
                 onChange={formik.handleChange}

@@ -700,7 +700,7 @@ export const ProjectDetail: React.FC = () => {
               </div>
             )}
 
-            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && project.status !== "cancelled" && (activeBooking?.appointment_status as string)?.toLowerCase() !== "cancelled" && (
+            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && project.status !== "cancelled" && effectiveStatus?.toLowerCase() !== "cancelled" && (
               <Button
                 className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 onClick={handlePayNow}

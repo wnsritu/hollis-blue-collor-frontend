@@ -7,6 +7,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
+import { isPastDate, getTodayDateString } from "@/utils/date";
 
 export function useAppointments() {
   const navigate = useNavigate();
@@ -103,7 +104,8 @@ export function useAppointments() {
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
     setSelectedAppointment(apt);
-    setRescheduleDate(normalized.date || "");
+    const initialDate = normalized.date && !isPastDate(normalized.date) ? normalized.date : getTodayDateString();
+    setRescheduleDate(initialDate);
     setRescheduleReason("");
     setSelectedSlot("9:30 AM");
     setRescheduleModalOpen(true);
@@ -113,6 +115,10 @@ export function useAppointments() {
     if (e) e.preventDefault();
     if (!selectedAppointment || !rescheduleDate) {
       toast.error("Please select a new date.");
+      return;
+    }
+    if (isPastDate(rescheduleDate)) {
+      toast.error("Reschedule date cannot be in the past. Please select today or a future date.");
       return;
     }
     setRescheduling(true);

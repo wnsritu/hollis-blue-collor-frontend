@@ -295,7 +295,9 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-lg font-bold">Recent transactions</h2>
             <Button asChild size="sm" variant="ghost">
-              <Link to="/admin/transactions">View all</Link>
+              {/* <Link to="/admin/transactions">View all</Link> */}
+              <Link to="#">View all</Link>
+
             </Button>
           </div>
           <div className="mt-4 space-y-3">

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Building2,
   HelpCircle,
@@ -150,6 +151,16 @@ const ProviderProfileSettings = () => {
     handleInsurancePolicyChange,
     handleBankFieldChange,
   } = useProviderProfileSettings();
+
+  const startingPrice = useMemo(() => {
+    if (availableServiceItems && availableServiceItems.length > 0) {
+      const prices = availableServiceItems
+        .map((s: any) => Number(s.base_price || s.price || s.hourly_rate))
+        .filter((p: number) => !isNaN(p) && p > 0);
+      if (prices.length > 0) return Math.min(...prices);
+    }
+    return 120;
+  }, [availableServiceItems]);
 
   if (loading) {
     return (
@@ -751,87 +762,131 @@ const ProviderProfileSettings = () => {
           )}
         </div>
 
-        {/* ── Sidebar Summary Card ── */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-2 text-center">
-              <div className="mx-auto mb-3 flex justify-center">
-                <div className="relative">
-                  {logoPreview ? (
-                    <img
-                      src={logoPreview}
-                      alt={businessName || "Provider Logo"}
-                      className="size-20 rounded-full border-2 border-primary/20 object-cover"
-                    />
-                  ) : (
-                    <div className="grid size-20 place-items-center rounded-full bg-primary/10 font-heading text-xl font-bold text-primary">
-                      {initialsFrom(businessName || ownerName)}
-                    </div>
-                  )}
-                  <label
-                    htmlFor="logo-upload-input"
-                    className="absolute bottom-0 right-0 grid size-7 cursor-pointer place-items-center rounded-full bg-primary text-white shadow-md transition-transform hover:scale-110"
-                    title="Upload Business Logo"
-                  >
-                    <Upload size={14} />
-                    <input
-                      id="logo-upload-input"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <CardTitle className="text-base">
-                {businessName.trim() || savedBusinessName.trim() || ownerName.trim() || savedOwnerName.trim() || "Your Business"}
+        {/* ── Sidebar Summary Cards ── */}
+        <aside className="space-y-6">
+          {/* LOGO IMAGE UPLOADER CARD */}
+          <Card className="shadow-card">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Upload size={18} className="text-primary" /> Business Logo Uploader
               </CardTitle>
-              <p className="text-xs text-muted-foreground">{categoryName || "Provider"}</p>
-
-              {verified === "verified" && (
-                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
-                  <CheckCircle2 size={13} /> Verified Business
-                </div>
-              )}
             </CardHeader>
-
-            <CardContent className="space-y-3 pt-2 text-xs">
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Rating</span>
-                <span className="font-bold text-foreground">
-                  {rating != null ? `${rating.toFixed(1)} ★` : "New Provider"}
-                </span>
+            <CardContent className="p-6 text-center space-y-4">
+              <div className="mx-auto flex size-24 items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 overflow-hidden relative shadow-sm">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt={businessName || "Business Logo"}
+                    className="h-full w-full object-contain p-1"
+                  />
+                ) : (
+                  <div className="grid size-full place-items-center bg-primary/10 font-heading text-2xl font-bold text-primary">
+                    {initialsFrom(businessName || ownerName)}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Experience</span>
-                <span className="font-semibold text-foreground">
-                  {years ? `${years} years` : "Not specified"}
-                </span>
+              <div>
+                <label
+                  htmlFor="logo-upload-input-sidebar"
+                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Upload size={14} /> Upload New Logo
+                  <input
+                    id="logo-upload-input-sidebar"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                  />
+                </label>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  PNG, JPG or SVG logo image (Max 5MB)
+                </p>
               </div>
-
-              {planName && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Subscription</span>
-                  <span className="font-semibold text-primary">{planName}</span>
-                </div>
-              )}
-
-              {address && (
-                <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
-                  <span className="shrink-0 text-muted-foreground">Address</span>
-                  <span className="text-right font-medium text-foreground">
-                    {[address, city, state, zip].filter(Boolean).join(", ")}
-                  </span>
-                </div>
-              )}
             </CardContent>
           </Card>
-        </div>
+
+          {/* BUSINESS QUICK OVERVIEW CARD */}
+          <Card className="shadow-card">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt={businessName || "Logo"}
+                    className="size-12 rounded-xl object-cover border border-border shrink-0"
+                  />
+                ) : (
+                  <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 font-heading text-sm font-bold text-primary">
+                    {initialsFrom(businessName || ownerName)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-foreground text-sm">
+                    {businessName.trim() || savedBusinessName.trim() || ownerName.trim() || savedOwnerName.trim() || "Your Business"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {categoryName || "Provider"}
+                  </p>
+                </div>
+              </div>
+
+              {verified === "verified" && (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 border border-emerald-500/20">
+                  <CheckCircle2 size={14} /> Verified Business
+                </div>
+              )}
+
+              <Separator />
+
+              <dl className="space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <dt className="text-muted-foreground">Rating</dt>
+                  <dd className="font-bold text-foreground">
+                    {rating != null ? `${rating.toFixed(1)} ★` : "0.0 ★"}
+                  </dd>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <dt className="text-muted-foreground">Years in Business</dt>
+                  <dd className="font-semibold text-foreground">
+                    {years ? `${years} Years` : "0 years"}
+                  </dd>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <dt className="text-muted-foreground">Starting Price</dt>
+                  <dd className="font-bold text-primary text-sm">
+                    ${startingPrice}
+                  </dd>
+                </div>
+
+                {planName && (
+                  <div className="flex justify-between items-center">
+                    <dt className="text-muted-foreground">Subscription</dt>
+                    <dd className="font-semibold text-primary">{planName}</dd>
+                  </div>
+                )}
+
+                {/* {address && (
+                  <div className="flex items-start justify-between gap-2 pt-1 border-t border-border">
+                    <dt className="shrink-0 text-muted-foreground">Address</dt>
+                    <dd className="text-right font-medium text-foreground">
+                      {[address, city, state, zip].filter(Boolean).join(", ")}
+                    </dd>
+                  </div>
+                )} */}
+              </dl>
+
+              <Separator />
+
+              <Button onClick={(e) => saveProfile(e)} disabled={saving} className="w-full font-bold">
+                {saving ? "Saving Changes…" : "Save All Changes"}
+              </Button>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
 
       {/* ── FAQ Modal ── */}
