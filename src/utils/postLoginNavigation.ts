@@ -62,20 +62,21 @@ export function resolvePostLoginPath(user: NavUser | null | undefined): string {
     status === PROVIDER_ONBOARDING_STATUS.PROFILE_COMPLETED ||
     status === PROVIDER_ONBOARDING_STATUS.ADMIN_APPROVED_PROFILE_INCOMPLETE;
 
-  if (isVerified) {
-    if (status === PROVIDER_ONBOARDING_STATUS.ADMIN_APPROVED_PROFILE_INCOMPLETE) {
-      return "/provider/profile";
-    }
-    return "/provider/dashboard";
+  // Provider must complete profile first before doing anything else
+  if (!profileDone) {
+    return "/provider/profile";
   }
 
-  // Waiting for admin approval → pending portal (submitted screen)
   return "/provider/dashboard";
 }
 
 export function getLoggedInHomeRedirect(user: NavUser | null | undefined): string {
   const roleId = Number(user?.role_id ?? tokenStorage.getRoleId());
-  if (roleId === ROLES.PROVIDER) return "/provider/dashboard";
+  if (roleId === ROLES.PROVIDER) {
+    const profileDone =
+      user?.is_profile_setup === true || user?.is_profile_setup === 1;
+    return profileDone ? "/provider/dashboard" : "/provider/profile";
+  }
   if (roleId === ROLES.CUSTOMER) return "/dashboard";
   if (roleId === ROLES.ADMIN) return "/admin";
   if (roleId === ROLES.SUPPORT) return "/support-dashboard";
