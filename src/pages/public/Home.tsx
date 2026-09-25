@@ -124,7 +124,7 @@ export function Index() {
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border bg-surface">
         <div className="absolute inset-0 grid-dots opacity-60" aria-hidden />
-        <div className="container-page relative grid gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
+        <div className="container-page relative grid gap-10 pt-8 pb-14 sm:pt-10 sm:pb-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pt-12 lg:pb-20">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground">
               <span className="size-1.5 rounded-full bg-success" /> 6,015 homeowners hired a pro this month
