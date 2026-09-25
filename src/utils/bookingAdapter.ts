@@ -25,7 +25,10 @@ export interface NormalizedBooking {
   formattedTime: string;
   timeSlotName: string;
   subtotal: number;
+  lineItemsSubtotal?: number;
+  discountAmount?: number;
   serviceFee: number;
+  platformFee?: number;
   totalAmount: number;
   currency: string;
   isPaid: boolean;
@@ -268,10 +271,29 @@ export function normalizeBooking(b: any): NormalizedBooking {
         totalAmount
       );
 
+  const discountAmount = Number(
+    b.pricing?.discount_amount ??
+    b.proposal?.discount_amount ??
+    b.discount_amount ??
+    0
+  );
+
+  const platformFee = Number(
+    b.pricing?.platform_fee ??
+    b.payment?.platform_fee_amount ??
+    b.platform_fee ??
+    0
+  );
+
+  const lineItemsSubtotal = Number(
+    b.pricing?.line_items_subtotal ??
+    (discountAmount > 0 ? subtotal + discountAmount : subtotal)
+  );
+
   const serviceFee = Number(
     b.pricing?.service_fee && b.pricing?.service_fee > 0
       ? b.pricing.service_fee
-      : Math.max(0, Math.round((totalAmount - subtotal) * 100) / 100)
+      : Math.max(0, Math.round((totalAmount - subtotal - platformFee) * 100) / 100)
   );
 
   const currency = b.pricing?.currency || b.payment?.currency || "USD";
@@ -368,7 +390,10 @@ export function normalizeBooking(b: any): NormalizedBooking {
     formattedTime,
     timeSlotName,
     subtotal,
+    lineItemsSubtotal,
+    discountAmount,
     serviceFee,
+    platformFee,
     totalAmount,
     currency,
     isPaid,

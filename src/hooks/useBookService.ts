@@ -383,7 +383,8 @@ export function useBookService() {
   const subtotal = priceBreakdown?.subtotal ?? rawSubtotal;
   const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 10;
   const serviceFee = priceBreakdown?.service_fee ?? Math.round(rawSubtotal * 0.1);
-  const grandTotal = priceBreakdown?.total ?? (subtotal + serviceFee);
+  const platformFee = priceBreakdown?.platform_fee ?? 0;
+  const grandTotal = priceBreakdown?.total ?? (subtotal + serviceFee + platformFee);
   const taxAmount = priceBreakdown?.tax_amount ?? 0;
   const formattedPrices = priceBreakdown?.formatted || null;
 
@@ -502,6 +503,7 @@ export function useBookService() {
     subtotal,
     serviceFee,
     serviceFeeRate,
+    platformFee,
     taxAmount,
     grandTotal,
     formattedPrices,
