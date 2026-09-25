@@ -48,6 +48,7 @@ import { usd } from "@/components/shared/cards";
 import PaginationController from "@/components/ui/PaginationController";
 import { getOrderDetails, getOrderList } from "@/services/order.service";
 import { formatDate } from "@/utils/date";
+import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
 const STATUS_OPTIONS = [
@@ -81,13 +82,14 @@ export const AdminOrders: React.FC = () => {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [searchFilter, setSearchFilter] = useState("");
+  const debouncedSearch = useDebounce(searchFilter, 350);
   const [statusFilter, setStatusFilter] = useState("all");
 
   // Fetch orders with server-side filters
   const fetchOrderList = async (
-    page = 1,
+    page = currentPage,
     status = statusFilter,
-    search = searchFilter
+    search = debouncedSearch
   ) => {
     try {
       setLoading(true);
@@ -102,7 +104,7 @@ export const AdminOrders: React.FC = () => {
       if (status && status !== "all") {
         reqData.status = status;
       }
-      if (search.trim()) {
+      if (search && search.trim()) {
         reqData.search = search.trim();
       }
 
@@ -111,9 +113,11 @@ export const AdminOrders: React.FC = () => {
       if (response?.data?.success) {
         const ordersData = response.data.bookings || [];
         setOrders(ordersData);
-        setTotalPages(response.data.total_pages || response.data.pagination?.totalPages || 1);
-        setCurrentPage(response.data.current_page || response.data.pagination?.page || page);
-        setTotalBookingsCount(response.data.total || response.data.count || ordersData.length);
+        const total = response.data.total ?? response.data.count ?? ordersData.length;
+        const totalP = response.data.pagination?.totalPages || response.data.total_pages || Math.ceil(total / 10) || 1;
+        setTotalPages(totalP);
+        setCurrentPage(response.data.pagination?.page || response.data.current_page || page);
+        setTotalBookingsCount(total);
       } else {
         setOrders([]);
         setTotalPages(1);
@@ -131,12 +135,10 @@ export const AdminOrders: React.FC = () => {
 
   useEffect(() => {
     if (!id) {
-      const timer = setTimeout(() => {
-        fetchOrderList(1, statusFilter, searchFilter);
-      }, 350);
-      return () => clearTimeout(timer);
+      setCurrentPage(1);
+      fetchOrderList(1, statusFilter, debouncedSearch);
     }
-  }, [id, statusFilter, searchFilter]);
+  }, [id, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     if (id) {
@@ -146,13 +148,14 @@ export const AdminOrders: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchOrderList(page, statusFilter, searchFilter);
+    fetchOrderList(page, statusFilter, debouncedSearch);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleResetFilters = () => {
     setSearchFilter("");
     setStatusFilter("all");
+    setCurrentPage(1);
   };
 
   const isFiltered = Boolean(searchFilter.trim()) || statusFilter !== "all";
