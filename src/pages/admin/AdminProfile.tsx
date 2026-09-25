@@ -12,6 +12,7 @@ import { updateProfile } from "@/services/admin";
 import Spinner from "@/components/ui/spinner";
 import { uploadProfilePhotoService } from "@/services/admin.service";
 import toast from "react-hot-toast";
+import { validateImageFile } from "@/validations/common/file";
 import type { AdminProfileFormValues } from "@/types/admin.types";
 import { adminProfileSchema } from "@/validations";
 
@@ -111,13 +112,9 @@ export const AdminProfile = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Max 2MB allowed");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Only image allowed");
+    const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    if (!validation.valid) {
+      toast.error(validation.error || "Image size must be 5MB or less.");
       return;
     }
 

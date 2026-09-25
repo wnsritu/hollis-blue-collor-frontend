@@ -145,16 +145,27 @@ export const ProjectDetail: React.FC = () => {
         const amountNum = Number(prop.amount) || 0;
         if (amountNum <= 0) continue;
         try {
+          const propDiscount = Number((prop as any).discount_amount) || Number((prop as any).discount) || 0;
+          const lineItemsList = Array.isArray((prop as any).line_items) ? (prop as any).line_items : [];
+          const grossItemsSum = lineItemsList.reduce((sum: number, li: any) => {
+            const q = Number(li.quantity ?? 1);
+            const u = Number(li.unit_price ?? li.price ?? 0);
+            return sum + (li.line_total !== undefined ? Number(li.line_total) : q * u);
+          }, 0);
+
+          const grossSubtotal = grossItemsSum > amountNum ? grossItemsSum : (amountNum + propDiscount);
+          const finalDiscount = propDiscount || (grossSubtotal > amountNum ? grossSubtotal - amountNum : 0);
+
           const res: any = await bookingApi.calculatePrice({
             proposal_id: prop.id,
-            subtotal: amountNum,
-            total_amount: amountNum,
-            discount: 0,
+            subtotal: grossSubtotal,
+            total_amount: grossSubtotal,
+            discount: finalDiscount,
           });
           const data = res?.data?.data || res?.data?.breakdown || res?.data;
           if (data) {
-            const lineItemsSubtotal = Number(data.line_items_subtotal) || amountNum;
-            const discountAmount = Number(data.discount_amount) || 0;
+            const lineItemsSubtotal = Number(data.line_items_subtotal) || grossSubtotal;
+            const discountAmount = Number(data.discount_amount) || finalDiscount;
             const proposalTotal = Number(data.proposal_total ?? data.subtotal) || amountNum;
             const serviceFeeRate = Number(data.service_fee_rate) || 5;
             const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(proposalTotal * 0.05 * 100) / 100;

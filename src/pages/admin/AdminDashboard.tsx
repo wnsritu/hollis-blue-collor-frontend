@@ -99,7 +99,7 @@ const AdminDashboard = () => {
           <>
             <Button asChild variant="outline">
               <Link to="/admin/commission">
-                <Percent size={16} className="mr-1.5" /> Commission
+                <Percent size={16} className="mr-1.5" /> Commission Settings
               </Link>
             </Button>
             <Button asChild>
@@ -120,9 +120,9 @@ const AdminDashboard = () => {
           icon={Receipt}
         />
         <StatCard
-          label="Commission revenue"
+          label="Platform revenue"
           value={usd(commission)}
-          hint={`${commissionRate}% take rate`}
+          hint="Commission & platform fees"
           icon={Percent}
           tone="accent"
         />

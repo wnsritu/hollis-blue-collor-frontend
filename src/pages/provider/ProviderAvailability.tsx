@@ -10,6 +10,7 @@ import {
 } from "@/services/provider.service";
 import toast from "react-hot-toast";
 import { DAYS, DEFAULT_SLOTS, DEFAULT_SCHEDULE as defaultSchedule } from "@/constants";
+import { providerCompletionStore } from "@/store/providerCompletionStore";
 
 const ProviderAvailability = () => {
   const [schedule, setSchedule] = useState<Record<string, number[]>>(defaultSchedule);
@@ -42,6 +43,9 @@ const ProviderAvailability = () => {
         schedule,
         availability: availabilityPayload,
       });
+
+      // Refresh global completion progress
+      providerCompletionStore.refresh();
 
       toast.success(
         <div>

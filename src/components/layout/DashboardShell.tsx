@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bell, ChevronDown, ChevronRight, LogOut, Menu, User } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Lock, LogOut, Menu, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Logo, Avatar } from "@/components/shared/primitives";
+import { ProviderAvatarWithStoryRing } from "@/components/provider/ProviderAvatarWithStoryRing";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
@@ -94,6 +95,8 @@ export function DashboardShell({
   accountInitials,
   profileLink = "/profile",
   onSignOut,
+  storyRing,
+  onRestrictedNavClick,
   children,
 }: {
   nav: NavItem[];
@@ -105,6 +108,11 @@ export function DashboardShell({
   accountInitials?: string;
   profileLink?: string;
   onSignOut?: () => void;
+  storyRing?: {
+    percentage: number;
+    isComplete: boolean;
+  };
+  onRestrictedNavClick?: (item: NavItem) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -131,6 +139,26 @@ export function DashboardShell({
       {nav.map((item, index) => {
         const hasChildren = Boolean(item.children && item.children.length > 0);
         const active = isItemActive(index);
+
+        if (item.restricted) {
+          return (
+            <button
+              key={`${item.to}-${item.label}`}
+              type="button"
+              onClick={() => {
+                if (onNavigate) onNavigate();
+                if (onRestrictedNavClick) onRestrictedNavClick(item);
+              }}
+              className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors text-muted-foreground/75 hover:bg-muted hover:text-foreground text-left group"
+            >
+              <div className="flex items-center gap-3 truncate">
+                <item.icon size={17} className="shrink-0 text-muted-foreground/60 group-hover:text-foreground" />
+                <span className="truncate">{item.label}</span>
+              </div>
+              <Lock size={13} className="shrink-0 text-muted-foreground/50 ml-1.5" />
+            </button>
+          );
+        }
 
         if (hasChildren) {
           return (
@@ -182,7 +210,15 @@ export function DashboardShell({
         </div>
         <div className="mt-4 rounded-2xl border border-sidebar-border bg-card p-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            {avatarUrl ? (
+            {storyRing ? (
+              <ProviderAvatarWithStoryRing
+                avatarUrl={avatarUrl}
+                initials={userInitials}
+                percentage={storyRing.percentage}
+                isComplete={storyRing.isComplete}
+                size="sm"
+              />
+            ) : avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={accountName}
@@ -247,7 +283,15 @@ export function DashboardShell({
 
                   <div className="mt-4 rounded-2xl border border-sidebar-border bg-card p-3">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      {avatarUrl ? (
+                      {storyRing ? (
+                        <ProviderAvatarWithStoryRing
+                          avatarUrl={avatarUrl}
+                          initials={userInitials}
+                          percentage={storyRing.percentage}
+                          isComplete={storyRing.isComplete}
+                          size="sm"
+                        />
+                      ) : avatarUrl ? (
                         <img
                           src={avatarUrl}
                           alt={accountName}
@@ -299,7 +343,15 @@ export function DashboardShell({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="rounded-full outline-none ring-offset-background transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    {avatarUrl ? (
+                    {storyRing ? (
+                      <ProviderAvatarWithStoryRing
+                        avatarUrl={avatarUrl}
+                        initials={userInitials}
+                        percentage={storyRing.percentage}
+                        isComplete={storyRing.isComplete}
+                        size="md"
+                      />
+                    ) : avatarUrl ? (
                       <img
                         src={avatarUrl}
                         alt={accountName}

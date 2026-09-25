@@ -48,6 +48,7 @@ import { usd } from "@/components/shared/cards";
 import PaginationController from "@/components/ui/PaginationController";
 import { getOrderDetails, getOrderList } from "@/services/order.service";
 import { formatDate } from "@/utils/date";
+import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
 const STATUS_OPTIONS = [
@@ -81,13 +82,14 @@ export const AdminOrders: React.FC = () => {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [searchFilter, setSearchFilter] = useState("");
+  const debouncedSearch = useDebounce(searchFilter, 350);
   const [statusFilter, setStatusFilter] = useState("all");
 
   // Fetch orders with server-side filters
   const fetchOrderList = async (
-    page = 1,
+    page = currentPage,
     status = statusFilter,
-    search = searchFilter
+    search = debouncedSearch
   ) => {
     try {
       setLoading(true);
@@ -102,7 +104,7 @@ export const AdminOrders: React.FC = () => {
       if (status && status !== "all") {
         reqData.status = status;
       }
-      if (search.trim()) {
+      if (search && search.trim()) {
         reqData.search = search.trim();
       }
 
@@ -111,9 +113,11 @@ export const AdminOrders: React.FC = () => {
       if (response?.data?.success) {
         const ordersData = response.data.bookings || [];
         setOrders(ordersData);
-        setTotalPages(response.data.total_pages || response.data.pagination?.totalPages || 1);
-        setCurrentPage(response.data.current_page || response.data.pagination?.page || page);
-        setTotalBookingsCount(response.data.total || response.data.count || ordersData.length);
+        const total = response.data.total ?? response.data.count ?? ordersData.length;
+        const totalP = response.data.pagination?.totalPages || response.data.total_pages || Math.ceil(total / 10) || 1;
+        setTotalPages(totalP);
+        setCurrentPage(response.data.pagination?.page || response.data.current_page || page);
+        setTotalBookingsCount(total);
       } else {
         setOrders([]);
         setTotalPages(1);
@@ -131,12 +135,10 @@ export const AdminOrders: React.FC = () => {
 
   useEffect(() => {
     if (!id) {
-      const timer = setTimeout(() => {
-        fetchOrderList(1, statusFilter, searchFilter);
-      }, 350);
-      return () => clearTimeout(timer);
+      setCurrentPage(1);
+      fetchOrderList(1, statusFilter, debouncedSearch);
     }
-  }, [id, statusFilter, searchFilter]);
+  }, [id, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     if (id) {
@@ -146,13 +148,14 @@ export const AdminOrders: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchOrderList(page, statusFilter, searchFilter);
+    fetchOrderList(page, statusFilter, debouncedSearch);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleResetFilters = () => {
     setSearchFilter("");
     setStatusFilter("all");
+    setCurrentPage(1);
   };
 
   const isFiltered = Boolean(searchFilter.trim()) || statusFilter !== "all";
@@ -383,7 +386,24 @@ export const AdminOrders: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 pt-1 border-t border-border/60 text-muted-foreground">
+                {/* Line Items List */}
+                {Array.isArray(selected.services) && selected.services.length > 0 && (
+                  <div className="pt-2 border-t border-border/60 space-y-1.5">
+                    {selected.services.map((svc: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-xs">
+                        <span className="text-foreground font-medium">
+                          {svc.name || svc.service_name || "Service Item"}{" "}
+                          <span className="text-muted-foreground font-normal">(x{svc.quantity || 1})</span>
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {usd(Number(svc.total) || (Number(svc.unit_price || svc.price || 0) * Number(svc.quantity || 1)))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-2 pt-2 border-t border-border/60 text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <CalendarDays size={14} className="text-primary" />
                     <span>
@@ -450,7 +470,7 @@ export const AdminOrders: React.FC = () => {
                       {selected.provider.service_location_address}
                     </p>
                   )}
-                  {selected.provider?.rating && (
+                  {selected.provider?.rating !== undefined && selected.provider?.rating !== null && (
                     <div className="flex items-center gap-1 pt-0.5">
                       <Stars rating={Number(selected.provider.rating)} size={12} />
                       <span className="font-bold text-[11px] text-foreground">
@@ -470,43 +490,93 @@ export const AdminOrders: React.FC = () => {
                   <Badge
                     variant="outline"
                     className={
-                      selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded"
+                      selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success"
                         ? "bg-success-soft text-success border-success/20 font-bold"
                         : "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
                     }
                   >
-                    {selected.payment_status === "paid" || selected.payment_status === "success" ? "Paid" : "Pending Payment"}
+                    {selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment?.payment_status === "success" ? "Paid" : "Pending Payment"}
                   </Badge>
                 </div>
 
                 <div className="space-y-1.5 pt-1 text-muted-foreground">
+                  {/* Line Items Subtotal if discount exists */}
+                  {Number(selected.pricing?.discount_amount) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Gross Line Items Subtotal</span>
+                      <span className="font-semibold text-foreground">
+                        {usd(selected.pricing?.line_items_subtotal || selected.pricing?.subtotal || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Discount Applied */}
+                  {Number(selected.pricing?.discount_amount) > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span>Discount Applied</span>
+                      <span>-{usd(selected.pricing.discount_amount)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
-                    <span>Subtotal (Services)</span>
+                    <span>{Number(selected.pricing?.discount_amount) > 0 ? "Net Services Quote" : "Subtotal (Services)"}</span>
                     <span className="font-semibold text-foreground">
                       {usd(selected.pricing?.subtotal || selected.total_amount || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Service &amp; Platform Fee</span>
-                    <span className="font-semibold text-foreground">
-                      +{usd(selected.pricing?.service_fee || 0)}
-                    </span>
-                  </div>
+
+                  {/* Service Fee */}
+                  {(() => {
+                    const subtotalVal = Number(selected.pricing?.subtotal || selected.total_amount || 0);
+                    const serviceFeeVal = Number(selected.pricing?.service_fee || 0);
+                    const feeRate = Number(selected.pricing?.service_fee_rate) || (subtotalVal > 0 && serviceFeeVal > 0 ? Math.round((serviceFeeVal / subtotalVal) * 100) : 0);
+                    return (
+                      <div className="flex justify-between">
+                        <span>Platform Service Fee{feeRate > 0 ? ` (${feeRate}%)` : ""}</span>
+                        <span className="font-semibold text-foreground">
+                          +{usd(serviceFeeVal)}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Platform Flat Fee */}
+                  {Number(selected.pricing?.platform_fee) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Platform Flat Fee</span>
+                      <span className="font-semibold text-foreground">
+                        +{usd(selected.pricing.platform_fee)}
+                      </span>
+                    </div>
+                  )}
+
                   <Separator className="my-1.5" />
                   <div className="flex items-center justify-between text-sm font-bold text-foreground pt-0.5">
                     <span>Total Customer Amount</span>
                     <span className="text-primary font-extrabold text-base">
-                      {usd(selected.pricing?.total || selected.total_amount || 0)}
+                      {usd(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0)}
                     </span>
                   </div>
                 </div>
 
-                {selected.payment?.payment_date && (
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
-                    <span>Payment Date:</span>
-                    <span className="font-semibold text-foreground">
-                      {formatDate(selected.payment.payment_date, "MMM d, yyyy h:mm a")}
-                    </span>
+                {selected.payment && (selected.payment.payment_date || selected.payment.payment_method_type) && (
+                  <div className="pt-2 border-t border-border/80 space-y-1 text-[11px] text-muted-foreground">
+                    {selected.payment.payment_method_type && (
+                      <div className="flex items-center justify-between">
+                        <span>Payment Method:</span>
+                        <span className="font-semibold text-foreground capitalize">
+                          {selected.payment.payment_method_type}
+                        </span>
+                      </div>
+                    )}
+                    {selected.payment.payment_date && (
+                      <div className="flex items-center justify-between">
+                        <span>Payment Date:</span>
+                        <span className="font-semibold text-foreground">
+                          {formatDate(selected.payment.payment_date, "MMM d, yyyy h:mm a")}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

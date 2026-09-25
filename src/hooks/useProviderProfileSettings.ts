@@ -9,10 +9,12 @@ import { subscriptionApi } from "@/services/payment";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { getErrorMessage } from "@/lib/api/errors";
 import { useAuthSession } from "@/hooks/useAuth";
+import { providerCompletionStore } from "@/store/providerCompletionStore";
 import type { Category } from "@/types/api/catalog";
 import type { BankAccountType } from "@/types/api/provider";
 import type { ProviderProfileTab, FAQItem, BankForm } from "@/types/provider.types";
 import { isValidZip } from "@/validations/common/rules";
+import { validateImageFile } from "@/validations/common/file";
 import {
   validateFullName,
   validatePhone,
@@ -378,6 +380,10 @@ export function useProviderProfileSettings() {
       const planData = unwrapData<any>(planMaybe);
       const sub = planData?.subscription || planData;
       setPlanName(sub?.plan?.name || sub?.plan_name || sub?.name || null);
+
+      if (provider) {
+        providerCompletionStore.updateFromData(provider, user);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load profile."));
     } finally {
@@ -562,6 +568,7 @@ export function useProviderProfileSettings() {
       setSavedBusinessName(businessName.trim());
       toast.success("Profile saved successfully.");
       await loadAll();
+      providerCompletionStore.refresh();
     } catch (err: any) {
       const apiErrs = extractApiFieldErrors(err);
       if (Object.keys(apiErrs).length > 0) {
@@ -630,6 +637,7 @@ export function useProviderProfileSettings() {
       setFieldErrors({});
       toast.success("Bank details saved successfully.");
       await loadAll();
+      providerCompletionStore.refresh();
     } catch (err: any) {
       const apiErrs = extractApiFieldErrors(err);
       if (Object.keys(apiErrs).length > 0) {
@@ -649,6 +657,7 @@ export function useProviderProfileSettings() {
       });
       toast.success("FAQs saved.");
       await loadAll();
+      providerCompletionStore.refresh();
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to save FAQs."));
     } finally {
@@ -659,8 +668,9 @@ export function useProviderProfileSettings() {
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Logo must be under 5MB.");
+    const validation = validateImageFile(file, { maxSizeBytes: 5 * 1024 * 1024 });
+    if (!validation.valid) {
+      toast.error(validation.error || "Logo must be under 5MB.");
       return;
     }
 

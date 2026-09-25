@@ -50,12 +50,14 @@ export interface CustomBookingPaymentFormProps {
   formattedPrices?: {
     subtotal?: string;
     service_fee?: string;
+    platform_fee?: string;
     tax_amount?: string;
     total?: string;
   };
   subtotal: number;
   serviceFee?: number;
   serviceFeeRate?: number;
+  platformFee?: number;
   taxAmount?: number;
   businessName?: string;
   submitting?: boolean;
@@ -83,6 +85,7 @@ export default function CustomBookingPaymentForm({
   subtotal,
   serviceFee = 0,
   serviceFeeRate = 10,
+  platformFee = 0,
   taxAmount = 0,
   businessName = "Service Provider",
   submitting = false,
@@ -353,6 +356,12 @@ export default function CustomBookingPaymentForm({
   const displayServiceFee =
     formattedPrices?.service_fee ||
     (typeof serviceFee === "number" ? `$${serviceFee.toFixed(2)}` : `$${serviceFee}`);
+
+  const platformFeeVal = platformFee || 0;
+
+  const displayPlatformFee =
+    formattedPrices?.platform_fee ||
+    (typeof platformFeeVal === "number" ? `$${platformFeeVal.toFixed(2)}` : `$${platformFeeVal}`);
 
   const displayTax =
     formattedPrices?.tax_amount ||
@@ -650,6 +659,16 @@ export default function CustomBookingPaymentForm({
                     </dt>
                     <dd className="text-muted-foreground font-medium">
                       {displayServiceFee}
+                    </dd>
+                  </div>
+                )}
+                {(platformFeeVal > 0 || formattedPrices?.platform_fee) && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      Platform Fee
+                    </dt>
+                    <dd className="text-muted-foreground font-medium">
+                      {displayPlatformFee}
                     </dd>
                   </div>
                 )}

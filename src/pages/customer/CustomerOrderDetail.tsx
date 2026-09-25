@@ -223,6 +223,10 @@ export const CustomerOrderDetail: React.FC = () => {
   const totalAmountNum = normalized.totalAmount;
   const subtotalNum = normalized.subtotal;
   const serviceFeeNum = normalized.serviceFee;
+  const discountAmountNum = normalized.discountAmount || 0;
+  const platformFeeNum = normalized.platformFee || 0;
+  const lineItemsSubtotalNum = normalized.lineItemsSubtotal || (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum);
+  const serviceFeeRateNum = Number((booking as any)?.pricing?.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
 
   const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
   const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
@@ -778,19 +782,31 @@ export const CustomerOrderDetail: React.FC = () => {
             </div>
 
             <dl className="space-y-2.5 text-xs">
+              {discountAmountNum > 0 && lineItemsSubtotalNum > subtotalNum && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Gross Line Items Subtotal</span>
+                  <span className="font-semibold text-foreground">{usd(lineItemsSubtotalNum)}</span>
+                </div>
+              )}
+              {discountAmountNum > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span>Discount Applied</span>
+                  <span>-{usd(discountAmountNum)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal (Services)</span>
+                <span>{discountAmountNum > 0 ? "Net Services Quote" : "Subtotal (Services)"}</span>
                 <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidSubtotal : subtotalNum)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Service &amp; Platform Fee</span>
-                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : serviceFeeNum)}</span>
+                <span>Platform Service Fee{serviceFeeRateNum > 0 ? ` (${serviceFeeRateNum}%)` : ""}</span>
+                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : (serviceFeeNum + platformFeeNum))}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between text-sm pt-1">
                 <span className="font-bold text-foreground">{isPaid && isPriceUpdated ? "Total Paid Amount" : "Total Amount"}</span>
                 <span className="font-extrabold text-primary text-base">
-                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum))}
+                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum + platformFeeNum))}
                 </span>
               </div>
             </dl>

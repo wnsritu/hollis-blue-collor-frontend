@@ -24,4 +24,5 @@ export * from "./useAdminCategories";
 export * from "./useAppointments";
 export * from "./useSignUpForm";
 export * from "./useProviderOnboarding";
+export * from "./useProviderCompletion";
 export * from "./api";

@@ -51,6 +51,7 @@ import {
   customQuoteValidationSchema,
   calculateQuoteSplit,
   calculateQuoteTotal,
+  calculateGrossQuoteAmount,
 } from "@/validations";
 
 export const ProviderCustomRequestDetail: React.FC = () => {
@@ -78,8 +79,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
     initialValues: DEFAULT_CUSTOM_QUOTE_VALUES,
     validationSchema: customQuoteValidationSchema,
     onSubmit: async (values, { setSubmitting }) => {
-      const totalAmount = calculateQuoteTotal(values);
-      if (totalAmount <= 0) {
+      const netQuoteAmount = calculateQuoteTotal(values);
+      if (netQuoteAmount <= 0) {
         toast.error("Total quote amount must be greater than $0.");
         return;
       }
@@ -124,7 +125,9 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           : values.workDescription.trim();
 
         const payload: CustomQuoteSubmitPayload = {
-          amount: totalAmount,
+          amount: netQuoteAmount,
+          discount: discountNum,
+          discount_amount: discountNum,
           currency: "usd",
           message: noteWithDiscount,
           valid_until: validUntilDate.toISOString(),
@@ -169,7 +172,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
   const discountNum = Number(formik.values.discount) || 0;
   const taxNum = Number(formik.values.tax) || 0;
 
-  const grossQuoteAmount = calculateQuoteTotal(formik.values);
+  const grossQuoteAmount = calculateGrossQuoteAmount(formik.values);
+  const netQuoteAmount = calculateQuoteTotal(formik.values);
   const subtotalBeforeTax = Math.max(0, laborNum + materialsNum + feesNum);
 
   useEffect(() => {
@@ -211,12 +215,12 @@ export const ProviderCustomRequestDetail: React.FC = () => {
         if (isMounted && data) {
           setPriceBreakdown({
             service_fee_rate: Number(data.service_fee_rate) || PLATFORM_COMMISSION_PERCENT,
-            service_fee: Number(data.service_fee) || Number(data.commission_amount) || Math.round(grossQuoteAmount * 0.15 * 100) / 100,
+            service_fee: Number(data.service_fee) || Number(data.commission_amount) || Math.round(netQuoteAmount * 0.05 * 100) / 100,
             platform_fee: Number(data.platform_fee) || Number(data.platform_fee_amount) || 0,
             tax_rate: Number(data.tax_rate) || 0,
             tax_amount: Number(data.tax_amount) || 0,
-            subtotal: Number(data.subtotal) || grossQuoteAmount,
-            total: Number(data.total) || grossQuoteAmount,
+            subtotal: Number(data.subtotal ?? data.proposal_total) || netQuoteAmount,
+            total: Number(data.total ?? data.customer_total) || netQuoteAmount,
           });
         }
       } catch (err) {
@@ -236,11 +240,11 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount]);
+  }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount, netQuoteAmount]);
 
   const commissionRate = priceBreakdown?.service_fee_rate ?? PLATFORM_COMMISSION_PERCENT;
   const flatPlatformFee = priceBreakdown?.platform_fee ?? 0;
-  const split = calculateQuoteSplit(grossQuoteAmount, commissionRate, flatPlatformFee);
+  const split = calculateQuoteSplit(netQuoteAmount, commissionRate, flatPlatformFee);
 
   if (loading) {
     return (
@@ -687,7 +691,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
               {/* Line items & Customer Price */}
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Gross Quote Subtotal (Labor + Materials + Fees + Tax)</span>
+                  <span>Gross Quote Subtotal</span>
                   <span className="font-medium text-foreground">{usd(grossQuoteAmount)}</span>
                 </div>
 
@@ -695,6 +699,13 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Discount Applied</span>
                     <span className="font-medium">-{usd(discountNum)}</span>
+                  </div>
+                )}
+
+                {discountNum > 0 && (
+                  <div className="flex justify-between text-muted-foreground font-medium">
+                    <span>Net Service Quote</span>
+                    <span className="text-foreground">{usd(netQuoteAmount)}</span>
                   </div>
                 )}
 
@@ -713,7 +724,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                 <div className="flex justify-between font-semibold text-foreground text-sm pt-2 border-t border-border/60">
                   <span>Total Customer Payment</span>
                   <span className="font-display text-base text-primary">
-                    {usd(priceBreakdown?.total || (grossQuoteAmount + split.totalFees))}
+                    {usd(priceBreakdown?.total || (netQuoteAmount + split.totalFees))}
                   </span>
                 </div>
               </div>
@@ -723,19 +734,14 @@ export const ProviderCustomRequestDetail: React.FC = () => {
               {/* Provider Net Earnings */}
               <div className="rounded-lg bg-primary/5 p-3 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Submitted Proposal Amount</span>
-                  <span className="font-semibold text-foreground">{usd(grossQuoteAmount)}</span>
-                </div>
-
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Total Platform Fee Deductions ({commissionRate}% {split.flatFee > 0 ? `+ ${usd(split.flatFee)}` : ""})</span>
-                  <span className="font-medium text-destructive">-{usd(split.totalFees)}</span>
+                  <span>Submitted Proposal Amount (Net Service Quote)</span>
+                  <span className="font-semibold text-foreground">{usd(netQuoteAmount)}</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t border-primary/20 font-bold text-sm text-foreground">
-                  <span>You receive (Net Payout)</span>
+                  <span>Provider Net Quote Amount</span>
                   <span className="font-display text-lg text-emerald-600 dark:text-emerald-400">
-                    {usd(split.payable)}
+                    {usd(netQuoteAmount)}
                   </span>
                 </div>
               </div>
