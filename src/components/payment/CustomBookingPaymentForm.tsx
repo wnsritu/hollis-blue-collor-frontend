@@ -50,12 +50,14 @@ export interface CustomBookingPaymentFormProps {
   formattedPrices?: {
     subtotal?: string;
     service_fee?: string;
+    platform_fee?: string;
     tax_amount?: string;
     total?: string;
   };
   subtotal: number;
   serviceFee?: number;
   serviceFeeRate?: number;
+  platformFee?: number;
   taxAmount?: number;
   businessName?: string;
   submitting?: boolean;
@@ -83,6 +85,7 @@ export default function CustomBookingPaymentForm({
   subtotal,
   serviceFee = 0,
   serviceFeeRate = 10,
+  platformFee = 0,
   taxAmount = 0,
   businessName = "Service Provider",
   submitting = false,
@@ -354,10 +357,7 @@ export default function CustomBookingPaymentForm({
     formattedPrices?.service_fee ||
     (typeof serviceFee === "number" ? `$${serviceFee.toFixed(2)}` : `$${serviceFee}`);
 
-  const platformFeeVal =
-    priceBreakdown?.platform_fee ||
-    Number((norm as any)?.platformFee) ||
-    0;
+  const platformFeeVal = platformFee || 0;
 
   const displayPlatformFee =
     formattedPrices?.platform_fee ||
