@@ -13,6 +13,7 @@ import { providerApi } from "@/services/provider";
 import { userApi } from "@/services/customer";
 import type { Category } from "@/types/api/catalog";
 import type { ProviderServiceConfig } from "@/types";
+import { providerCompletionStore } from "@/store/providerCompletionStore";
 
 function unwrapData<T>(res: any): T {
   if (!res) return res;
@@ -215,6 +216,7 @@ export default function ProviderPricing() {
 
       setPriceErrors({});
       toast.success("Services & Pricing saved successfully!");
+      providerCompletionStore.refresh();
     } catch (err) {
       console.error("Failed to save pricing", err);
       toast.error("Failed to save Services & Pricing.");

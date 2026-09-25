@@ -20,14 +20,16 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate, Outlet } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import {
   DashboardShell,
   type NavItem,
 } from "@/components/layout/DashboardShell";
+import { useProviderCompletion } from "@/hooks/useProviderCompletion";
+import { ProfileCompletionModal } from "@/components/provider/ProfileCompletionModal";
 import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -447,17 +449,36 @@ function initialsFrom(name: string) {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
+const ALLOWED_INCOMPLETE_PROVIDER_PATHS = [
+  "/provider/profile",
+  "/provider/profile-settings",
+  "/provider/pricing",
+  "/provider/services-pricing",
+  "/provider/availability",
+];
+
 /**
  * Provider portal shell — sidebar + top bar.
  */
 export function ProviderPortal({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     user,
     logout,
     fetchMe,
   } = useAuthSession();
+
+  const {
+    completion,
+    isComplete,
+    percentage,
+    showModal,
+    openModal,
+    closeModal,
+    updateFromData,
+  } = useProviderCompletion();
 
   const [accountName, setAccountName] =
     useState(
@@ -501,6 +522,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
 
       if (profile) {
         setProviderProfile(profile);
+        updateFromData(profile, user);
 
         const name =
           profile.business_name ||
@@ -508,7 +530,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
           user?.full_name ||
           "Provider";
 
-        const location = [
+        const locationStr = [
           profile.city,
           profile.state,
         ]
@@ -518,8 +540,8 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         setAccountName(name);
 
         setAccountRole(
-          location
-            ? `Professional · ${location}`
+          locationStr
+            ? `Professional · ${locationStr}`
             : "Professional"
         );
 
@@ -580,6 +602,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   ]);
 
   const handleSignOut = async () => {
+    closeModal();
     await logout();
 
     navigate("/login", {
@@ -587,19 +610,32 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     });
   };
 
-  const isVerified =
-    checkIsVerified(
-      providerProfile?.verified ||
-      user?.provider?.verified,
-      providerProfile?.onboarding_status ||
-      user?.onboarding_status
-    );
+  const dbVerified = String(
+    providerProfile?.verified || user?.provider?.verified || ""
+  )
+    .toLowerCase()
+    .trim();
+  const isRejected = dbVerified === "rejected";
 
   /**
-   * Do not render provider dashboard
-   * until the account is verified.
+   * Check if current route is allowed when profile is incomplete
    */
-  if (!loading && !isVerified) {
+  const isAllowedPath = ALLOWED_INCOMPLETE_PROVIDER_PATHS.some((p) =>
+    location.pathname.startsWith(p)
+  );
+
+  // If provider profile is incomplete, restrict access and redirect to profile
+  useEffect(() => {
+    if (!loading && !isComplete && !isAllowedPath && !isRejected) {
+      navigate("/provider/profile", { replace: true });
+      openModal(location.pathname);
+    }
+  }, [loading, isComplete, isAllowedPath, isRejected, navigate, openModal, location.pathname]);
+
+  /**
+   * Only block completely with restricted screen if rejected by admin
+   */
+  if (!loading && isRejected) {
     return (
       <ProviderRestrictedState
         profile={providerProfile}
@@ -621,10 +657,27 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     resolveMediaUrl(userPhoto) ||
     fetchedAvatarUrl;
 
+  // Mark non-completion items as restricted when profile is incomplete
+  const computedNav = providerNav.map((item) => {
+    const isItemAllowed = ALLOWED_INCOMPLETE_PROVIDER_PATHS.some(
+      (p) =>
+        item.to.startsWith(p) ||
+        (item.matchPaths && item.matchPaths.some((mp) => p.startsWith(mp)))
+    );
+    return {
+      ...item,
+      restricted: !isComplete && !isItemAllowed,
+    };
+  });
+
+  const handleRestrictedNavClick = (item: NavItem) => {
+    openModal(item.to);
+  };
+
   return (
     <DashboardShell
-      nav={providerNav}
-      bottomNav={pick(providerNav, [
+      nav={computedNav}
+      bottomNav={pick(computedNav, [
         "Dashboard",
         "Custom Requests",
         "Active Jobs",
@@ -640,7 +693,14 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
       accountInitials={initialsFrom(
         accountName
       )}
+      storyRing={{ percentage, isComplete }}
+      onRestrictedNavClick={handleRestrictedNavClick}
     >
+      <ProfileCompletionModal
+        open={showModal}
+        onOpenChange={(val) => !val && closeModal()}
+        canDismiss={isAllowedPath}
+      />
       {children ?? <Outlet />}
     </DashboardShell>
   );

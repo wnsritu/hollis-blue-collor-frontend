@@ -1,31 +1,88 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { MockNotice, PageHeader } from "@/components/shared/primitives";
+import { PageHeader } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
+import { getPlatformSettings, updatePlatformSettings } from "@/services/admin/admin.service";
 
-export function splitAmount(amount: number, rate: number = 15) {
-  const commission = Math.round((amount * rate) / 100);
-  const payable = amount - commission;
+export function splitAmount(amount: number, rate: number = 5) {
+  const commission = Math.round((amount * rate) / 100 * 100) / 100;
+  const payable = Math.max(0, amount - commission);
   return { commission, payable };
 }
 
 export function AdminCommission() {
-  const [commissionRate, setCommissionRate] = useState(15);
-  const [rate, setRate] = useState([15]);
-  const [minFee, setMinFee] = useState("5");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [commissionRate, setCommissionRate] = useState(5);
+  const [rate, setRate] = useState([5]);
+  const [platformFee, setPlatformFee] = useState("10");
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const res: any = await getPlatformSettings();
+      const data = res?.data?.settings || res?.data || res?.settings || res;
+      if (data) {
+        const comm = Number(data.admin_commission) || 5;
+        const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "10";
+        setCommissionRate(comm);
+        setRate([comm]);
+        setPlatformFee(fee);
+      }
+    } catch (err) {
+      console.error("Failed to load platform settings:", err);
+      toast.error("Failed to load platform commission settings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        admin_commission: rate[0],
+        platform_fee: Number(platformFee) || 0,
+      };
+      await updatePlatformSettings(payload);
+      setCommissionRate(rate[0]);
+      toast.success(`Platform settings saved successfully!`, {
+        description: `Commission set to ${rate[0]}% and platform fee set to ${usd(Number(platformFee) || 0)}.`,
+      });
+    } catch (err: any) {
+      console.error("Failed to save settings:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update platform settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const mockGrossVolume = 14500;
-  const projected = (mockGrossVolume * rate[0]) / 100;
+  const projected = Math.round(((mockGrossVolume * rate[0]) / 100) * 100) / 100;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center">
+        <Loader2 size={36} className="animate-spin text-primary mb-3" />
+        <p className="text-sm text-muted-foreground">Loading commission settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Commission"
+        title="Commission & Platform Fees"
         subtitle="Applies to every completed job across the marketplace."
       />
 
@@ -52,12 +109,12 @@ export function AdminCommission() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="min">Minimum Service Fee ($)</Label>
+              <Label htmlFor="platformFee">Platform Flat Fee ($)</Label>
               <Input
-                id="min"
+                id="platformFee"
                 type="number"
-                value={minFee}
-                onChange={(e) => setMinFee(e.target.value)}
+                value={platformFee}
+                onChange={(e) => setPlatformFee(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -73,21 +130,21 @@ export function AdminCommission() {
           </div>
 
           <Button
-            className="mt-6"
-            onClick={() => {
-              setCommissionRate(rate[0]);
-              toast.success(`Commission set to ${rate[0]}%`, {
-                description: "All new and existing transaction splits are recalculated.",
-              });
-            }}
+            className="mt-6 gap-2"
+            disabled={saving}
+            onClick={handleSave}
           >
-            Save Commission Rate
+            {saving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Saving Settings…
+              </>
+            ) : (
+              "Save Commission Rate"
+            )}
           </Button>
 
-          <div className="mt-6">
-            <MockNotice>
-              Changing the rate instantly recalculates active payout figures across the platform.
-            </MockNotice>
+          <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
+            Changing the commission rate or platform fee updates active calculations across the marketplace.
           </div>
         </section>
 
@@ -99,6 +156,7 @@ export function AdminCommission() {
                 ["Processed Monthly Volume", usd(mockGrossVolume)],
                 ["Current Active Rate", `${commissionRate}%`],
                 ["New Proposed Rate", `${rate[0]}%`],
+                ["Platform Flat Fee", usd(Number(platformFee) || 0)],
                 ["Projected Commission", usd(projected)],
                 ["Paid to Providers", usd(mockGrossVolume - projected)],
               ].map(([k, v]) => (
@@ -115,12 +173,20 @@ export function AdminCommission() {
             <p className="mt-2 text-sm text-muted-foreground">On a {usd(1000)} job:</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li className="flex justify-between">
-                <span className="text-muted-foreground">Platform Take</span>
+                <span className="text-muted-foreground">Platform Commission ({rate[0]}%)</span>
                 <span className="font-semibold text-primary">
                   {usd(splitAmount(1000, rate[0]).commission)}
                 </span>
               </li>
-              <li className="flex justify-between">
+              {Number(platformFee) > 0 && (
+                <li className="flex justify-between">
+                  <span className="text-muted-foreground">Platform Flat Fee</span>
+                  <span className="font-semibold text-primary">
+                    {usd(Number(platformFee))}
+                  </span>
+                </li>
+              )}
+              <li className="flex justify-between pt-1 border-t border-border">
                 <span className="text-muted-foreground">Provider Pay</span>
                 <span className="font-semibold text-green-600">
                   {usd(splitAmount(1000, rate[0]).payable)}

@@ -206,7 +206,7 @@ export const SearchProviders: React.FC = () => {
   return (
     <div>
       {/* Search Header Banner */}
-      <div className="border-b border-border bg-surface py-6">
+      <div className="border-b border-border bg-surface pt-8 pb-6 sm:pt-10">
         <div className="container-page">
           <h1 className="font-display text-2xl font-bold">Find a professional</h1>
           <form onSubmit={(e) => {

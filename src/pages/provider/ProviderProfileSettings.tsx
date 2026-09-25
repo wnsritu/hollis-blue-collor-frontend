@@ -48,6 +48,7 @@ import { parseGooglePlace } from "@/utils/googlePlaces";
 import Spinner from "@/components/ui/spinner";
 import { BANK_TYPE_OPTIONS } from "@/constants";
 import { useProviderProfileSettings } from "@/hooks/useProviderProfileSettings";
+import { ProfileCompletionBanner } from "@/components/provider/ProfileCompletionBanner";
 import type { ProviderProfileTab } from "@/types/provider.types";
 import type { BankAccountType } from "@/types/api/provider";
 
@@ -185,6 +186,13 @@ const ProviderProfileSettings = () => {
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
+
+      {/* Profile Completion Progress Banner */}
+      <ProfileCompletionBanner
+        currentTab={activeTab}
+        onSelectTab={(t) => setTab(t)}
+        className="mb-6"
+      />
 
       <div className="mb-6">
         <Tabs value={activeTab} onValueChange={(v) => setTab(v as ProviderProfileTab)}>

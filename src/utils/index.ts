@@ -9,3 +9,4 @@ export * from "./bookingAdapter";
 export * from "./bookingState";
 export * from "./bookingValidation";
 export * from "./date";
+export * from "./providerProfileCompletion";
