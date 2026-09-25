@@ -85,6 +85,7 @@ export default function BookService() {
     subtotal,
     serviceFee,
     serviceFeeRate,
+    platformFee,
     taxAmount,
     grandTotal,
     formattedPrices,
@@ -801,6 +802,12 @@ export default function BookService() {
                   <span>Service Fee {serviceFeeRate ? `(${serviceFeeRate}%)` : ""}</span>
                   <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
                 </div>
+                {(platformFee > 0 || formattedPrices?.platform_fee) && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Platform Fee</span>
+                    <span className="font-semibold text-foreground">{formattedPrices?.platform_fee || `$${platformFee}`}</span>
+                  </div>
+                )}
                 {taxAmount > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Taxes</span>

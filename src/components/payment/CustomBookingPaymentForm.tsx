@@ -354,6 +354,15 @@ export default function CustomBookingPaymentForm({
     formattedPrices?.service_fee ||
     (typeof serviceFee === "number" ? `$${serviceFee.toFixed(2)}` : `$${serviceFee}`);
 
+  const platformFeeVal =
+    priceBreakdown?.platform_fee ||
+    Number((norm as any)?.platformFee) ||
+    0;
+
+  const displayPlatformFee =
+    formattedPrices?.platform_fee ||
+    (typeof platformFeeVal === "number" ? `$${platformFeeVal.toFixed(2)}` : `$${platformFeeVal}`);
+
   const displayTax =
     formattedPrices?.tax_amount ||
     (typeof taxAmount === "number" ? `$${taxAmount.toFixed(2)}` : `$${taxAmount}`);
@@ -650,6 +659,16 @@ export default function CustomBookingPaymentForm({
                     </dt>
                     <dd className="text-muted-foreground font-medium">
                       {displayServiceFee}
+                    </dd>
+                  </div>
+                )}
+                {(platformFeeVal > 0 || formattedPrices?.platform_fee) && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      Platform Fee
+                    </dt>
+                    <dd className="text-muted-foreground font-medium">
+                      {displayPlatformFee}
                     </dd>
                   </div>
                 )}

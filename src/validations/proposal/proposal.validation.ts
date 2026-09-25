@@ -114,14 +114,21 @@ export const calculateQuoteSplit = (
   };
 };
 
-export const calculateQuoteTotal = (
+export const calculateGrossQuoteAmount = (
   form: Partial<CustomQuoteFormValues>
 ): number => {
-  const base =
+  return (
     (Number(form.labor) || 0) +
     (Number(form.materials) || 0) +
     (Number(form.fees) || 0) +
-    (Number(form.tax) || 0);
+    (Number(form.tax) || 0)
+  );
+};
+
+export const calculateQuoteTotal = (
+  form: Partial<CustomQuoteFormValues>
+): number => {
+  const base = calculateGrossQuoteAmount(form);
   const discount = Number(form.discount) || 0;
   return Math.max(0, base - discount);
 };
