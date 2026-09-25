@@ -169,7 +169,14 @@ export function ProviderCard({
           </div>
           <div className="min-w-0">
             <dt className="text-xs text-muted-foreground">Availability</dt>
-            <dd className={`truncate font-medium mt-0.5 ${provider.availability ? "text-success" : "text-muted-foreground"}`}>
+            <dd
+              className={`truncate font-medium mt-0.5 ${
+                provider.availability &&
+                provider.availability.toLowerCase().includes("today")
+                  ? "text-success font-semibold"
+                  : "text-muted-foreground"
+              }`}
+            >
               {provider.availability || "Check schedule"}
             </dd>
           </div>

@@ -227,7 +227,14 @@ export function useSearchProviders() {
             service_location_address: p.service_location_address || "",
             years: yearsVal > 0 ? yearsVal : undefined,
             startingPrice: price && price > 0 ? price : undefined,
-            availability: p.availability ? "Available today" : undefined,
+            availability:
+              p.availability_text ||
+              (p.is_available_today || p.available_today
+                ? "Available today"
+                : p.next_available_day
+                ? `Available ${p.next_available_day}`
+                : undefined),
+            isAvailableToday: Boolean(p.is_available_today ?? p.available_today),
           };
         });
 
