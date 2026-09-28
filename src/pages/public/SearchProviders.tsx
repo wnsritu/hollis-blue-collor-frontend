@@ -261,8 +261,8 @@ export const SearchProviders: React.FC = () => {
             </div>
             <Button
               type="submit"
-              disabled={loading}
-              className="h-11 transition-all font-semibold"
+              disabled={loading || (!query.trim() && !location.trim())}
+              className="h-11 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : "Search"}
             </Button>

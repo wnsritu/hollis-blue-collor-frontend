@@ -75,6 +75,7 @@ export const ROUTES = {
   ADMIN_PROFILE: "/admin/profile",
   ADMIN_SUPPORT_AGENTS: "/admin/support-agents",
   ADMIN_SETTINGS: "/admin/settings",
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
 
 
   // Support Protected

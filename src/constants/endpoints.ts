@@ -267,6 +267,8 @@ export const ENDPOINTS = {
     chatReportById: (id: number | string) => `/admin/chat-reports/${id}`,
     updateChatReportStatus: (id: number | string) => `/admin/chat-reports/${id}/status`,
     reports: "/admin/reports",
+    auditLogs: "/admin/audit-logs",
+    auditLogById: (id: number | string) => `/admin/audit-logs/${id}`,
   },
 
   timeSlot: {

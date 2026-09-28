@@ -32,6 +32,8 @@ export interface CustomQuoteSubmitPayload {
   amount: number;
   currency: string;
   message: string;
+  discount?: number;
+  discount_amount?: number;
   estimated_duration_hours?: number;
   valid_until?: string;
   line_items: CustomQuoteLineItem[];

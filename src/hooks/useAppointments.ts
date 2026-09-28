@@ -103,6 +103,13 @@ export function useAppointments() {
 
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
+    const rawSt = String(apt.appointment_status || apt.status || normalized.status || "").toLowerCase();
+    const isInProgressOrArrived = ["in_process", "in_progress", "in process", "in progress", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || normalized.appointmentStatus === "In Progress" || normalized.appointmentStatus === "Arrived";
+
+    if (normalized.isCompleted || normalized.isCancelled || isInProgressOrArrived) {
+      toast.error("Reschedule is not allowed once service is in progress or completed.");
+      return;
+    }
     setSelectedAppointment(apt);
     const initialDate = normalized.date && !isPastDate(normalized.date) ? normalized.date : getTodayDateString();
     setRescheduleDate(initialDate);

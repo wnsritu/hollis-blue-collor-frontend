@@ -262,6 +262,10 @@ export const AppointmentsPage: React.FC = () => {
             filteredAppointments.map((apt) => {
               const n = normalizeBooking(apt);
               const isRescheduled = n.reschedule.requested || n.appointmentStatus === "Rescheduled";
+              const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
+              const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
+              const canReschedule = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived && !isRescheduled;
+              const canCancel = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived;
 
               return (
                 <div key={apt.id} className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -277,10 +281,10 @@ export const AppointmentsPage: React.FC = () => {
 
                   <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
-                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date TBD"}
+                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date Pending"}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Clock size={14} /> {n.formattedTime || n.time || "Time TBD"}
+                      <Clock size={14} /> {(!n.formattedTime || n.formattedTime === "TBD" || n.formattedTime === "Time TBD") ? "Not Available" : n.formattedTime}
                     </span>
                     <span className="flex min-w-0 items-center gap-1.5">
                       <MapPin size={14} /> <span className="truncate">{n.address}</span>
@@ -421,20 +425,24 @@ export const AppointmentsPage: React.FC = () => {
                             )}
                           </>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenReschedule(apt)}
-                        >
-                          Reschedule
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenCancelModal(apt)}
-                        >
-                          Cancel
-                        </Button>
+                        {canReschedule && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenReschedule(apt)}
+                          >
+                            Reschedule
+                          </Button>
+                        )}
+                        {canCancel && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleOpenCancelModal(apt)}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </>
                     )}
                     {n.isCompleted && (
@@ -560,6 +568,10 @@ export const AppointmentsPage: React.FC = () => {
             const displayPrice = n.totalAmount;
             const isTerminal = n.isCancelled || n.isCompleted || n.isRejected;
             const isRescheduled = !isTerminal && (n.reschedule.requested || n.appointmentStatus === "Rescheduled");
+            const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
+            const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
+            const canReschedule = !isTerminal && !isInProgressOrArrived && !isRescheduled;
+            const canCancel = !isTerminal && !isInProgressOrArrived;
 
             return (
               <div
@@ -688,24 +700,28 @@ export const AppointmentsPage: React.FC = () => {
                     </Button>
                   )}
 
-                  {!n.isCompleted && !n.isCancelled && (
+                  {(canReschedule || canCancel) && (
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs h-8"
-                        onClick={() => handleOpenReschedule(apt)}
-                      >
-                        Reschedule
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleOpenCancelModal(apt)}
-                      >
-                        Cancel
-                      </Button>
+                      {canReschedule && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs h-8"
+                          onClick={() => handleOpenReschedule(apt)}
+                        >
+                          Reschedule
+                        </Button>
+                      )}
+                      {canCancel && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleOpenCancelModal(apt)}
+                        >
+                          Cancel
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
