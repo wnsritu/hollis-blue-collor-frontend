@@ -60,13 +60,13 @@ export default function ProviderOnboarding() {
     handleNext,
     handlePreviousStep,
     handleBackToHome,
+    handleSignOut,
   } = useProviderOnboarding();
 
   if (submitted) {
     return (
-      <>
-        <OnboardingHeader />
-        <main className="mx-auto max-w-lg px-4 py-20 text-center">
+      <div className="flex min-h-screen flex-col bg-background">
+        <main className="mx-auto max-w-lg flex-1 px-4 py-20 text-center">
           <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-success-soft text-success shadow-card">
             <CheckCircle2 size={34} />
           </span>
@@ -102,20 +102,23 @@ export default function ProviderOnboarding() {
           </div>
 
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button asChild className="w-full sm:w-auto">
-              <Link to="/login?role=provider">Go to Log in</Link>
-            </Button>
             <Button
-              variant="outline"
               className="w-full sm:w-auto"
               onClick={() => void handleBackToHome()}
             >
               Back to Home
             </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => void handleSignOut()}
+            >
+              Sign Out
+            </Button>
           </div>
         </main>
         <SiteFooter />
-      </>
+      </div>
     );
   }
 
