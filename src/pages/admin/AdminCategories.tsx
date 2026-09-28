@@ -211,7 +211,9 @@ export const AdminCategoriesPage: React.FC = () => {
             </TableHeader>
             <TableBody>
               {(activeCategory?.service_types || []).map((sub) => {
-                const servicesList = sub.services || [];
+                const servicesList = Array.from(
+                  new Map((sub.services || []).map((s) => [s.name.trim().toLowerCase(), s])).values()
+                );
                 return (
                   <TableRow key={sub.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-semibold text-foreground">
@@ -405,7 +407,7 @@ export const AdminCategoriesPage: React.FC = () => {
                 <Label className="text-xs font-bold text-foreground">
                   {editingServiceItem
                     ? "Service Name *"
-                    : "Service Names * (Enter one per field or paste comma-separated)"}
+                    : 'Service Names * (Type comma "," or press Enter to separate)'}
                 </Label>
                 {!editingServiceItem && (
                   <span className="text-[11px] text-muted-foreground font-semibold">
@@ -440,8 +442,23 @@ export const AdminCategoriesPage: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <div className="relative flex-1">
                             <Input
-                              placeholder={`Service #${index + 1} (e.g. Tap Repair, Pipe Fixing)`}
+                              placeholder={`Service #${index + 1} (e.g. Tap Repair)`}
                               value={name}
+                              onKeyDown={(e) => {
+                                if (e.key === "," || e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (name.trim()) {
+                                    handleSvcNameChange(index, name + ",");
+                                  }
+                                }
+                              }}
+                              onPaste={(e) => {
+                                const pastedText = e.clipboardData.getData("text");
+                                if (pastedText && (pastedText.includes(",") || pastedText.includes("\n"))) {
+                                  e.preventDefault();
+                                  handleSvcNameChange(index, pastedText);
+                                }
+                              }}
                               onChange={(e) => handleSvcNameChange(index, e.target.value)}
                               className={`h-10 text-xs font-medium w-full transition-colors ${
                                 isAlreadyInDb
@@ -507,7 +524,7 @@ export const AdminCategoriesPage: React.FC = () => {
                       )}
                     </div>
                     <span className="text-[11px] text-muted-foreground italic">
-                      Tip: You can paste comma-separated names
+                      Tip: Type comma (,) or press Enter to separate items
                     </span>
                   </div>
                 </div>
@@ -552,7 +569,7 @@ export const AdminCategoriesPage: React.FC = () => {
                 {editingServiceItem
                   ? "Update Service"
                   : newUniqueServicesToCreate.length > 1
-                  ? `Create ${newUniqueServicesToCreate.length} Unique Services`
+                  ? `Create ${newUniqueServicesToCreate.length} Services`
                   : newUniqueServicesToCreate.length === 1
                   ? `Create Service "${newUniqueServicesToCreate[0]}"`
                   : "No New Services"}

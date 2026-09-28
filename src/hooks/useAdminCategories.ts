@@ -183,11 +183,22 @@ export function useAdminCategories() {
   };
 
   const handleSvcNameChange = (index: number, val: string) => {
-    setSvcNames((prev) => {
-      const copy = [...prev];
-      copy[index] = val;
-      return copy;
-    });
+    if (!editingServiceItem && (val.includes(",") || val.includes("\n"))) {
+      const parts = val.split(/,|\n/);
+      setSvcNames((prev) => {
+        const copy = [...prev];
+        copy[index] = parts[0];
+        const rest = parts.slice(1);
+        copy.splice(index + 1, 0, ...rest);
+        return copy;
+      });
+    } else {
+      setSvcNames((prev) => {
+        const copy = [...prev];
+        copy[index] = val;
+        return copy;
+      });
+    }
   };
 
   const handleSaveService = async (e: React.FormEvent) => {
@@ -198,22 +209,53 @@ export function useAdminCategories() {
       if (editingServiceItem) {
         const singleName = svcNames[0]?.trim();
         if (!singleName) return;
+        const isDuplicate = (targetSubcategory.services || []).some(
+          (s) => s.id !== editingServiceItem.id && s.name.trim().toLowerCase() === singleName.toLowerCase()
+        );
+        if (isDuplicate) {
+          toast.error(`Service "${singleName}" already exists under "${targetSubcategory.name}".`);
+          setSubmittingSvc(false);
+          return;
+        }
         await catalogApi.updateService(editingServiceItem.id, { name: singleName });
         toast.success("Service updated successfully.");
       } else {
-        const validNames = svcNames.map((s) => s.trim()).filter(Boolean);
+        const validNames: string[] = [];
+        const seenLower = new Set<string>();
+
+        svcNames.forEach((item) => {
+          item.split(/,|\n/).forEach((part) => {
+            const trimmed = part.trim();
+            if (!trimmed) return;
+            const lower = trimmed.toLowerCase();
+            if (!seenLower.has(lower)) {
+              seenLower.add(lower);
+              validNames.push(trimmed);
+            }
+          });
+        });
+
         if (validNames.length === 0) {
           toast.error("Please enter at least one service name.");
           return;
         }
-        for (const name of validNames) {
+
+        const existingLower = (targetSubcategory.services || []).map((s) => s.name.trim().toLowerCase());
+        const toCreate = validNames.filter((n) => !existingLower.includes(n.toLowerCase()));
+
+        if (toCreate.length === 0) {
+          toast.error("All entered services already exist under this subcategory.");
+          return;
+        }
+
+        for (const name of toCreate) {
           await catalogApi.createService({
             category_id: Number(activeCategory.id),
             service_type_id: Number(targetSubcategory.id),
             name,
           });
         }
-        toast.success(`${validNames.length} service${validNames.length > 1 ? "s" : ""} added under "${targetSubcategory.name}".`);
+        toast.success(`${toCreate.length} service${toCreate.length > 1 ? "s" : ""} added under "${targetSubcategory.name}".`);
       }
       setIsAddServiceOpen(false);
       fetchCatalogData();
