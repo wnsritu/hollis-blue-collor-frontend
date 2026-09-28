@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProviderCard } from "@/components/shared/cards";
+import { ProviderCard, mapProviderToGeneric, type GenericProvider } from "@/components/shared/cards";
+import { providerApi } from "@/services/provider";
 import { SectionHeading, Stars } from "@/components/shared/primitives";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -60,12 +61,7 @@ function WindIcon(props: any) {
   );
 }
 
-const mockProviders = [
-  { id: "1", name: "ABC Plumbing Co.", initials: "AP", category: "Plumbing", rating: 4.9, reviews: 128, startingPrice: 125, featured: true, verified: true, city: "Austin", state: "TX", years: 12, availability: "Available Today" },
-  { id: "2", name: "Sparkle Clean Co.", initials: "SC", category: "House Cleaning", rating: 4.8, reviews: 94, startingPrice: 49, featured: true, verified: true, city: "Round Rock", state: "TX", years: 8, availability: "Available Tomorrow" },
-  { id: "3", name: "Grand Park Electricians", initials: "GE", category: "Electrical", rating: 4.95, reviews: 156, startingPrice: 95, featured: true, verified: true, city: "Cedar Park", state: "TX", years: 15, availability: "Available Today" },
-  { id: "4", name: "Comfort Air HVAC", initials: "CA", category: "HVAC", rating: 4.85, reviews: 82, startingPrice: 85, featured: true, verified: true, city: "Phoenix", state: "AZ", years: 10, availability: "Available Today" },
-];
+
 
 const popularServicesGrid = [
   { top: "LAUNDRY SERVICES", name: "Wash & Fold", description: "Seamless pickup & delivery for household laundry and linens." },
@@ -94,6 +90,46 @@ export function Index() {
   const navigate = useNavigate();
   const [service, setService] = useState("");
   const [location, setLocation] = useState(() => getStoredLocation()?.city || "");
+  const [providers, setProviders] = useState<GenericProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTopRatedPros = async () => {
+      try {
+        setLoadingProviders(true);
+        const res = await providerApi.getTopRated({ limit: 4 });
+        const raw = (res as any)?.data || res || [];
+        const items = Array.isArray(raw) ? raw : raw.data || [];
+        if (isMounted) {
+          setProviders(items.map(mapProviderToGeneric).slice(0, 4));
+        }
+      } catch (err) {
+        console.error("Failed to load featured/top-rated providers:", err);
+        try {
+          const fallbackRes = await providerApi.search({ limit: 4, sort: "featured" as any });
+          const raw = (fallbackRes as any)?.data || fallbackRes || [];
+          const items = Array.isArray(raw) ? raw : raw.data || [];
+          if (isMounted) {
+            setProviders(items.map(mapProviderToGeneric).slice(0, 4));
+          }
+        } catch {
+          if (isMounted) {
+            setProviders([]);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingProviders(false);
+        }
+      }
+    };
+
+    fetchTopRatedPros();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     detectAndStoreUserLocation().then((loc) => {
@@ -213,7 +249,7 @@ export function Index() {
 
               <FlowCard step="Matches" icon={BadgeCheck} title="Nearby professionals" meta="Within 30 miles">
                 <div className="space-y-2">
-                  {mockProviders.slice(0, 3).map((p) => (
+                  {(providers.length > 0 ? providers.slice(0, 3) : []).map((p) => (
                     <div key={p.id} className="flex min-w-0 items-center gap-3 rounded-xl bg-muted/50 px-3 py-2">
                       <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-xs font-bold text-primary">
                         {p.initials}
@@ -221,10 +257,15 @@ export function Index() {
                       <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
                       <span className="flex shrink-0 items-center gap-1 text-xs font-semibold">
                         <Star size={12} className="fill-accent text-accent" />
-                        {p.rating}
+                        {Number(p.rating || 5).toFixed(1)}
                       </span>
                     </div>
                   ))}
+                  {providers.length === 0 && !loadingProviders && (
+                    <div className="text-xs text-muted-foreground py-2 text-center">
+                      Verified pros matched by location
+                    </div>
+                  )}
                 </div>
               </FlowCard>
 
@@ -340,11 +381,42 @@ export function Index() {
               </Button>
             }
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {mockProviders.map((p) => (
-              <ProviderCard key={p.id} provider={p} compact />
-            ))}
-          </div>
+          {loadingProviders ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className="flex h-72 animate-pulse flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-card"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="size-12 rounded-2xl bg-muted" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-3/4 rounded bg-muted" />
+                      <div className="h-3 w-1/2 rounded bg-muted" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 py-4">
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-2/3 rounded bg-muted" />
+                  </div>
+                  <div className="h-10 w-full rounded-xl bg-muted" />
+                </div>
+              ))}
+            </div>
+          ) : providers.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {providers.map((p) => (
+                <ProviderCard key={p.id} provider={p} compact />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+              <p className="text-muted-foreground">No professionals currently listed.</p>
+              <Button asChild variant="outline" className="mt-4">
+                <Link to="/search">Browse All Services</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

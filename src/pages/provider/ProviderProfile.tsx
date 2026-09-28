@@ -30,15 +30,59 @@ import { providerApi } from "@/services/provider";
 import { ratingApi } from "@/services/rating";
 import { formatDate } from "@/utils/date";
 import toast from "react-hot-toast";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 export const ProviderProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
 
   const [provider, setProvider] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [fetchedReviews, setFetchedReviews] = useState<any[]>([]);
+
+  const handleBookService = (serviceName?: string) => {
+    const bookingPath = serviceName
+      ? `/book/${provider?.id || id}?serviceId=${encodeURIComponent(serviceName)}`
+      : `/book/${provider?.id || id}`;
+
+    if (!isLoggedIn) {
+      toast.error("Please log in to book services with this professional.");
+      navigate(`/login?redirect=${encodeURIComponent(bookingPath)}`, {
+        state: { from: bookingPath },
+      });
+      return;
+    }
+    navigate(bookingPath);
+  };
+
+  const handleRequestQuote = () => {
+    if (!isLoggedIn) {
+      const currentPath = `/provider/${provider?.id || id}`;
+      toast.error("Please log in to request a quote.");
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`, {
+        state: { from: currentPath },
+      });
+      return;
+    }
+    setQuoteModalOpen(true);
+  };
+
+  const handleMessage = () => {
+    if (!isLoggedIn) {
+      const currentPath = `/provider/${provider?.id || id}`;
+      toast.error("Please log in to message this professional.");
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`, {
+        state: { from: currentPath },
+      });
+      return;
+    }
+    toast("Direct messaging is enabled upon quote or booking.");
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -289,7 +333,7 @@ export const ProviderProfile: React.FC = () => {
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="lg" className="gap-2">
+                    <Button variant="outline" size="lg" className="gap-2" onClick={handleMessage}>
                       <MessageSquare size={16} /> Message
                     </Button>
                   </TooltipTrigger>
@@ -299,7 +343,7 @@ export const ProviderProfile: React.FC = () => {
                 </Tooltip>
               </TooltipProvider>
 
-              <Button size="lg" onClick={() => navigate(`/book/${provider.id}`)} className="gap-2 shadow-sm">
+              <Button size="lg" onClick={() => handleBookService()} className="gap-2 shadow-sm">
                 Book Services
               </Button>
             </div>
@@ -355,7 +399,7 @@ export const ProviderProfile: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => navigate(`/book/${provider.id}?serviceId=${encodeURIComponent(s.name)}`)}
+                        onClick={() => handleBookService(s.name)}
                         className="text-xs h-8 px-2.5"
                       >
                         Book
@@ -499,7 +543,7 @@ export const ProviderProfile: React.FC = () => {
             </p>
 
             <div className="mt-5">
-              <Button size="lg" className="w-full shadow-sm" onClick={() => setQuoteModalOpen(true)}>
+              <Button size="lg" className="w-full shadow-sm" onClick={handleRequestQuote}>
                 Request a Quote
               </Button>
             </div>
