@@ -281,10 +281,10 @@ export const AppointmentsPage: React.FC = () => {
 
                   <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
-                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date TBD"}
+                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date Pending"}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Clock size={14} /> {n.formattedTime || n.time || "Time TBD"}
+                      <Clock size={14} /> {(!n.formattedTime || n.formattedTime === "TBD" || n.formattedTime === "Time TBD") ? "Not Available" : n.formattedTime}
                     </span>
                     <span className="flex min-w-0 items-center gap-1.5">
                       <MapPin size={14} /> <span className="truncate">{n.address}</span>

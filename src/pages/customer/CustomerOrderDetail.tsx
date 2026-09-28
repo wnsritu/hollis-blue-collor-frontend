@@ -218,7 +218,7 @@ export const CustomerOrderDetail: React.FC = () => {
   const formattedDate = normalized.formattedDate !== "Date to be confirmed" ? normalized.formattedDate : (booking.schedule?.date || normalized.date || "Date Pending");
   const formattedTime = normalized.timeSlotName
     ? `${normalized.timeSlotName} ${normalized.time ? `(${normalized.time})` : ""}`
-    : normalized.formattedTime;
+    : (normalized.formattedTime && !["TBD", "Time TBD", "Time to be confirmed"].includes(normalized.formattedTime) ? normalized.formattedTime : "Not Available");
   const formattedAddress = normalized.address;
 
   let finSnapshot: any = null;

@@ -289,7 +289,7 @@ const ProviderDashboard = () => {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{a.project_title || a.service_category}</p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {a.booking_date} · {a.time_slot || "Time TBD"} · {a.customer?.full_name || "Customer"}
+                        {a.booking_date} · {(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot} · {a.customer?.full_name || "Customer"}
                       </p>
                     </div>
                     <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
