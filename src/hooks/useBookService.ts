@@ -381,11 +381,11 @@ export function useBookService() {
 
   const rawSubtotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0);
   const subtotal = priceBreakdown?.subtotal ?? rawSubtotal;
-  const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 10;
-  const serviceFee = priceBreakdown?.service_fee ?? Math.round(rawSubtotal * 0.1);
+  const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 0;
+  const serviceFee = priceBreakdown?.service_fee ?? 0;
   const platformFee = priceBreakdown?.platform_fee ?? 0;
-  const grandTotal = priceBreakdown?.total ?? (subtotal + serviceFee + platformFee);
   const taxAmount = priceBreakdown?.tax_amount ?? 0;
+  const grandTotal = priceBreakdown?.customer_payment_amount ?? priceBreakdown?.total ?? Math.round((subtotal + taxAmount) * 100) / 100;
   const formattedPrices = priceBreakdown?.formatted || null;
 
   const selectedDateObj = dates.find((d) => d.iso === selectedDate);

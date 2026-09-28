@@ -9,6 +9,7 @@ import {
   DollarSign,
   Edit3,
   FileText,
+  Info,
   MapPin,
   MessageSquare,
   Navigation,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -377,10 +379,11 @@ export function ProviderJobs() {
           {filteredBookings.map((b: any) => {
             const n = normalizeBooking(b);
             const isFixed = !n.isCustom;
-            const price = Number(n.totalAmount ?? b.pricing?.total ?? b.total_amount ?? 0);
-            const serviceFee = Number(b.pricing?.service_fee ?? (n.serviceFee > 0 ? n.serviceFee : Math.round(price * 0.1)));
-            const providerPayable = Math.max(0, price - serviceFee);
-            const commissionRate = price > 0 ? Math.round((serviceFee / price) * 100) : 10;
+            const price = Number(n.totalAmount ?? b.pricing?.customer_total ?? b.pricing?.total ?? b.total_amount ?? 0);
+            const commissionRate = Number(b.payment?.commission_rate ?? b.pricing?.commission_rate ?? b.pricing?.service_fee_rate ?? 5);
+            const serviceFee = Number(b.payment?.commission_amount ?? b.pricing?.commission_amount ?? (b.pricing?.service_fee && b.pricing.service_fee > 0 ? b.pricing.service_fee : Math.round(((price * commissionRate) / 100) * 100) / 100));
+            const platformFee = Number(b.payment?.platform_fee_amount ?? b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? 10);
+            const providerPayable = Number(b.payment?.provider_amount ?? b.pricing?.provider_amount ?? Math.max(0, price - serviceFee - platformFee));
 
             const aptStatus = n.appointmentStatus;
             const isPriceUpdated = n.isPriceUpdated;
@@ -646,11 +649,23 @@ export function ProviderJobs() {
                     </div>
 
                     <div className="rounded-xl bg-muted/40 p-3">
-                      <span className="text-muted-foreground block text-[11px]">
-                        Service Fee ({commissionRate}%)
+                      <span className="text-muted-foreground block text-[11px] inline-flex items-center gap-1">
+                        Platform Deductions
+                        <TooltipProvider>
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info size={12} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[220px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                              Includes {commissionRate}% Commission ({usd(serviceFee)}) + Platform Flat Fee ({usd(platformFee)}).
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </span>
-                      <span className="font-semibold text-foreground text-xs">
-                        {usd(serviceFee)}
+                      <span className="font-semibold text-foreground text-xs block mt-0.5">
+                        {usd(serviceFee + platformFee)}
                       </span>
                     </div>
 

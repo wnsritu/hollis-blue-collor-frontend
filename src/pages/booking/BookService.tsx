@@ -792,31 +792,21 @@ export default function BookService() {
                 </div>
               </div>
 
-              {/* Price Calculation Breakdown */}
+              {/* Price Calculation Breakdown (Customer Payment: Subtotal + Taxes = Total) */}
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal.toFixed(2)}`}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Service Fee {serviceFeeRate ? `(${serviceFeeRate}%)` : ""}</span>
-                  <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
-                </div>
-                {(platformFee > 0 || formattedPrices?.platform_fee) && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Platform Fee</span>
-                    <span className="font-semibold text-foreground">{formattedPrices?.platform_fee || `$${platformFee}`}</span>
-                  </div>
-                )}
                 {taxAmount > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Taxes</span>
-                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount}`}</span>
+                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount.toFixed(2)}`}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border/60">
                   <span>Total</span>
-                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal}`}</span>
+                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal.toFixed(2)}`}</span>
                 </div>
               </div>
             </CardContent>

@@ -429,7 +429,7 @@ const CustomerDashboard = () => {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{a.service_category || "Service Appointment"}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {a.provider?.business_name || "Provider"} · {a.time_slot || "Time TBD"}
+                          {a.provider?.business_name || "Provider"} · {(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot}
                         </p>
                       </div>
                       <StatusPill status={a.appointment_status || a.status || "Confirmed"} />

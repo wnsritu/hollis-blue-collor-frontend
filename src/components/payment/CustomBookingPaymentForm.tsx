@@ -652,26 +652,6 @@ export default function CustomBookingPaymentForm({
                     {displaySubtotal}
                   </dd>
                 </div>
-                {serviceFee > 0 && (
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">
-                      Service Fee ({serviceFeeRate}%)
-                    </dt>
-                    <dd className="text-muted-foreground font-medium">
-                      {displayServiceFee}
-                    </dd>
-                  </div>
-                )}
-                {(platformFeeVal > 0 || formattedPrices?.platform_fee) && (
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">
-                      Platform Fee
-                    </dt>
-                    <dd className="text-muted-foreground font-medium">
-                      {displayPlatformFee}
-                    </dd>
-                  </div>
-                )}
                 {taxAmount > 0 && (
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">Taxes</dt>

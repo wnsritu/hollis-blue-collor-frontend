@@ -13,6 +13,7 @@ import {
   Sparkles,
   Star,
   Users,
+  ClipboardList,
   // Future tabs — uncomment when ready to show client:
   AlertTriangle,
   MessageSquare,
@@ -48,6 +49,7 @@ const adminNav: NavItem[] = [
   { label: "Reports", to: "/admin/reports", icon: Gauge },
   { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
+  { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
 ];
 
 

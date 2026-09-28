@@ -160,6 +160,12 @@ export const adminApi = {
     id: number | string,
     payload: { status?: string; action?: string }
   ) => http.put<ApiSuccess>(ENDPOINTS.admin.updateChatReportStatus(id), payload),
+
+  getAuditLogs: (params?: Record<string, any>) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.auditLogs, params),
+
+  getAuditLogById: (id: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.auditLogById(id)),
 };
 
 export const availabilityApi = {
