@@ -225,6 +225,12 @@ export const providerApi = {
       params
     ),
 
+  getTopRated: (params?: { limit?: number }) =>
+    http.get<ProviderSearchResult | ApiSuccess<MarketplaceProvider[]>>(
+      ENDPOINTS.marketplaceProvider.topRated,
+      params
+    ),
+
   listMarketplace: (params?: ProviderSearchParams) =>
     http.get<ProviderSearchResult | ApiSuccess<MarketplaceProvider[]>>(
       ENDPOINTS.marketplaceProvider.root,

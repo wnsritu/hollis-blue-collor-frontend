@@ -89,6 +89,7 @@ export const ENDPOINTS = {
   marketplaceProvider: {
     root: "/providers",
     search: "/providers/search",
+    topRated: "/providers/top-rated",
     byId: (id: number | string) => `/providers/${id}`,
     profile: "/providers/me/profile",
     leads: "/providers/me/leads",
