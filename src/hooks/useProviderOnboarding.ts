@@ -435,6 +435,11 @@ export function useProviderOnboarding() {
     navigate("/");
   };
 
+  const handleSignOut = async () => {
+    if (isAuthenticated) await logout();
+    navigate("/login?role=provider");
+  };
+
   const businessName = searchParams.get("businessName") || draft?.businessName;
   const fullName = searchParams.get("fullName") || draft?.name;
 
@@ -465,6 +470,7 @@ export function useProviderOnboarding() {
     handleNext,
     handlePreviousStep,
     handleBackToHome,
+    handleSignOut,
     isAuthenticated,
   };
 }
