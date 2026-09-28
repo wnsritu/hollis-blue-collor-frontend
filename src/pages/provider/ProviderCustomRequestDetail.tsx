@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Calculator,
   Info,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitiv
 import { usd } from "@/components/shared/cards";
 import { projectApi, proposalApi } from "@/services/project";
 import { bookingApi } from "@/services/booking";
+import { chatApi } from "@/services/chat";
 import { formatDate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -41,7 +43,6 @@ import type {
 } from "@/types";
 import {
   DEFAULT_CUSTOM_QUOTE_VALUES,
-  PLATFORM_COMMISSION_PERCENT,
   CUSTOM_QUOTE_FORM_STYLES,
   REQUEST_TIMELINE_STEPS,
   mapProjectStatusToTimelineStep,
@@ -162,6 +163,17 @@ export const ProviderCustomRequestDetail: React.FC = () => {
     }
   };
 
+  const handleOpenChat = async () => {
+    if (!project) return;
+    try {
+      const res = await chatApi.createChat({ project_id: Number(project.id) });
+      const chat = (res as any)?.data || res;
+      navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Could not open chat room.");
+    }
+  };
+
   useEffect(() => {
     fetchProject();
   }, [projectId]);
@@ -214,17 +226,22 @@ export const ProviderCustomRequestDetail: React.FC = () => {
 
         if (isMounted && data) {
           setPriceBreakdown({
-            service_fee_rate: Number(data.service_fee_rate) || PLATFORM_COMMISSION_PERCENT,
-            service_fee: Number(data.service_fee) || Number(data.commission_amount) || Math.round(netQuoteAmount * 0.05 * 100) / 100,
-            platform_fee: Number(data.platform_fee) || Number(data.platform_fee_amount) || 0,
+            service_fee_rate: Number(data.service_fee_rate ?? data.commission_rate) || 0,
+            service_fee: Number(data.service_fee ?? data.commission_amount) || 0,
+            platform_fee: Number(data.platform_fee ?? data.platform_fee_amount) || 0,
             tax_rate: Number(data.tax_rate) || 0,
             tax_amount: Number(data.tax_amount) || 0,
             subtotal: Number(data.subtotal ?? data.proposal_total) || netQuoteAmount,
-            total: Number(data.total ?? data.customer_total) || netQuoteAmount,
+            total: Number(data.total ?? data.customer_total ?? data.customer_payment_amount) || netQuoteAmount,
           });
+        } else if (isMounted) {
+          // API returned no data — clear breakdown so UI shows error state
+          setPriceBreakdown(null);
         }
       } catch (err) {
         console.error("Backend price calculation error:", err);
+        // P-07: Do NOT set a fallback — show unavailable state instead
+        if (isMounted) setPriceBreakdown(null);
       } finally {
         if (isMounted) {
           setCalculatingPrice(false);
@@ -242,9 +259,11 @@ export const ProviderCustomRequestDetail: React.FC = () => {
     };
   }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount, netQuoteAmount]);
 
-  const commissionRate = priceBreakdown?.service_fee_rate ?? PLATFORM_COMMISSION_PERCENT;
+  const commissionRate = priceBreakdown?.service_fee_rate ?? 0;
   const flatPlatformFee = priceBreakdown?.platform_fee ?? 0;
   const split = calculateQuoteSplit(netQuoteAmount, commissionRate, flatPlatformFee);
+  // calculationAvailable: true only when backend returned real data
+  const calculationAvailable = priceBreakdown !== null && grossQuoteAmount > 0;
 
   if (loading) {
     return (
@@ -311,7 +330,19 @@ export const ProviderCustomRequestDetail: React.FC = () => {
         subtitle={`CSR-${project.id} · ${customerName} · submitted ${
           project.created_at ? formatDate(project.created_at) : "recently"
         }`}
-        action={<StatusPill status={project.status || "Quote Pending"} />}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusPill status={project.status || "Quote Pending"} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenChat}
+              className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <MessageSquare size={16} /> Message Customer
+            </Button>
+          </div>
+        }
       />
 
       {/* 2-Column Layout matching Image 3 & service-connect */}
@@ -709,41 +740,66 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Platform Service Fee ({commissionRate}%)</span>
-                  <span className="font-medium text-foreground">+{usd(priceBreakdown?.service_fee ?? split.commission)}</span>
-                </div>
+                {calculationAvailable ? (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Platform Service Fee ({priceBreakdown!.service_fee_rate}%)</span>
+                      <span className="font-medium text-foreground">+{usd(priceBreakdown!.service_fee)}</span>
+                    </div>
 
-                {split.flatFee > 0 && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Platform Flat Fee</span>
-                    <span className="font-medium text-foreground">+{usd(split.flatFee)}</span>
+                    {priceBreakdown!.platform_fee > 0 && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Platform Flat Fee</span>
+                        <span className="font-medium text-foreground">+{usd(priceBreakdown!.platform_fee)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between font-semibold text-foreground text-sm pt-2 border-t border-border/60">
+                      <span>Total Customer Payment</span>
+                      <span className="font-display text-base text-primary">
+                        {usd(priceBreakdown!.total)}
+                      </span>
+                    </div>
+                  </>
+                ) : grossQuoteAmount > 0 ? (
+                  <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+                    Unable to calculate current pricing. Please try again.
                   </div>
-                )}
-
-                <div className="flex justify-between font-semibold text-foreground text-sm pt-2 border-t border-border/60">
-                  <span>Total Customer Payment</span>
-                  <span className="font-display text-base text-primary">
-                    {usd(priceBreakdown?.total || (netQuoteAmount + split.totalFees))}
-                  </span>
-                </div>
+                ) : null}
               </div>
 
               <Separator className="my-2" />
 
-              {/* Provider Net Earnings */}
+              {/* Provider Net Earnings — shows actual payable from backend or split calc */}
               <div className="rounded-lg bg-primary/5 p-3 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Submitted Proposal Amount (Net Service Quote)</span>
+                  {/* P-08: renamed to "Quote Amount" — this is the submitted amount, not post-commission payable */}
+                  <span>Quote Amount (Submitted)</span>
                   <span className="font-semibold text-foreground">{usd(netQuoteAmount)}</span>
                 </div>
 
+                {calculationAvailable && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Less: Platform Fees</span>
+                    <span className="font-medium text-destructive">
+                      -{usd(priceBreakdown!.service_fee + priceBreakdown!.platform_fee)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center pt-2 border-t border-primary/20 font-bold text-sm text-foreground">
-                  <span>Provider Net Quote Amount</span>
+                  {/* P-08: "Provider Earnings" = actual payable after platform deductions */}
+                  <span>Your Estimated Earnings</span>
                   <span className="font-display text-lg text-emerald-600 dark:text-emerald-400">
-                    {usd(netQuoteAmount)}
+                    {calculationAvailable
+                      ? usd(Math.max(0, priceBreakdown!.total - priceBreakdown!.service_fee - priceBreakdown!.platform_fee - (priceBreakdown!.tax_amount || 0)))
+                      : grossQuoteAmount > 0 ? "—" : usd(0)}
                   </span>
                 </div>
+
+                {!calculationAvailable && grossQuoteAmount > 0 && (
+                  <p className="text-xs text-muted-foreground italic">Actual earnings visible after pricing loads.</p>
+                )}
               </div>
             </div>
 

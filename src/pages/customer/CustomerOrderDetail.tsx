@@ -10,6 +10,7 @@ import {
   CreditCard,
   DollarSign,
   FileText,
+  Info,
   Loader2,
   MapPin,
   MessageSquare,
@@ -25,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Timeline } from "@/components/shared/Timeline";
 import { EmptyState, PageHeader, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
@@ -219,24 +221,25 @@ export const CustomerOrderDetail: React.FC = () => {
     : normalized.formattedTime;
   const formattedAddress = normalized.address;
 
-  // Pricing calculations
-  const totalAmountNum = normalized.totalAmount;
-  const subtotalNum = normalized.subtotal;
-  const serviceFeeNum = normalized.serviceFee;
-  const discountAmountNum = normalized.discountAmount || 0;
-  const platformFeeNum = normalized.platformFee || 0;
-  const lineItemsSubtotalNum = normalized.lineItemsSubtotal || (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum);
-  const serviceFeeRateNum = Number((booking as any)?.pricing?.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
-
-  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
-  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
-
   let finSnapshot: any = null;
   if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
     try {
       finSnapshot = JSON.parse(booking.notes)?.financial_snapshot || JSON.parse(booking.notes);
     } catch (e) { }
   }
+
+  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
+  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
+
+  // Pricing calculations
+  const pricingData = (booking as any)?.pricing || finSnapshot || {};
+  const totalAmountNum = Number(pricingData.customer_total ?? pricingData.total ?? normalized.totalAmount ?? 0);
+  const subtotalNum = Number(pricingData.subtotal ?? pricingData.proposal_total ?? normalized.subtotal ?? 0);
+  const serviceFeeNum = Number(pricingData.service_fee ?? normalized.serviceFee ?? 0);
+  const platformFeeNum = Number(pricingData.platform_fee ?? normalized.platformFee ?? 0);
+  const discountAmountNum = Number(pricingData.discount_amount ?? normalized.discountAmount ?? 0);
+  const lineItemsSubtotalNum = Number(pricingData.line_items_subtotal ?? normalized.lineItemsSubtotal ?? (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum));
+  const serviceFeeRateNum = Number(pricingData.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
 
   const paidTotalAmount = Number(
     booking?.payment?.amount ||
@@ -799,15 +802,18 @@ export const CustomerOrderDetail: React.FC = () => {
                 <span>{discountAmountNum > 0 ? "Net Services Quote" : "Subtotal (Services)"}</span>
                 <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidSubtotal : subtotalNum)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Platform Service Fee{serviceFeeRateNum > 0 ? ` (${serviceFeeRateNum}%)` : ""}</span>
-                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : (serviceFeeNum + platformFeeNum))}</span>
-              </div>
+              {/* Taxes (if applicable) */}
+              {Number(pricingData.tax_amount || 0) > 0 && (
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Taxes</span>
+                  <span className="font-semibold text-foreground">{usd(Number(pricingData.tax_amount))}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex items-center justify-between text-sm pt-1">
                 <span className="font-bold text-foreground">{isPaid && isPriceUpdated ? "Total Paid Amount" : "Total Amount"}</span>
                 <span className="font-extrabold text-primary text-base">
-                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum + platformFeeNum))}
+                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum))}
                 </span>
               </div>
             </dl>

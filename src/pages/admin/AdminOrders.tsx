@@ -525,28 +525,10 @@ export const AdminOrders: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Service Fee */}
-                  {(() => {
-                    const subtotalVal = Number(selected.pricing?.subtotal || selected.total_amount || 0);
-                    const serviceFeeVal = Number(selected.pricing?.service_fee || 0);
-                    const feeRate = Number(selected.pricing?.service_fee_rate) || (subtotalVal > 0 && serviceFeeVal > 0 ? Math.round((serviceFeeVal / subtotalVal) * 100) : 0);
-                    return (
-                      <div className="flex justify-between">
-                        <span>Platform Service Fee{feeRate > 0 ? ` (${feeRate}%)` : ""}</span>
-                        <span className="font-semibold text-foreground">
-                          +{usd(serviceFeeVal)}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Platform Flat Fee */}
-                  {Number(selected.pricing?.platform_fee) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Platform Flat Fee</span>
-                      <span className="font-semibold text-foreground">
-                        +{usd(selected.pricing.platform_fee)}
-                      </span>
+                  {Number(selected.pricing?.tax_amount) > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Taxes</span>
+                      <span className="font-medium text-foreground">+{usd(selected.pricing.tax_amount)}</span>
                     </div>
                   )}
 
@@ -557,6 +539,42 @@ export const AdminOrders: React.FC = () => {
                       {usd(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0)}
                     </span>
                   </div>
+
+                  {/* Admin Platform Revenue & Provider Distribution Section */}
+                  {(() => {
+                    const custTotal = Number(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0);
+                    const commRate = Number(selected.payment?.commission_rate ?? selected.pricing?.commission_rate ?? selected.pricing?.service_fee_rate ?? 5);
+                    const commAmt = Number(selected.payment?.commission_amount ?? selected.pricing?.commission_amount ?? selected.pricing?.service_fee ?? Math.round(((custTotal * commRate) / 100) * 100) / 100);
+                    const platFee = Number(selected.payment?.platform_fee_amount ?? selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? 10);
+                    const provAmt = Number(selected.payment?.provider_amount ?? selected.pricing?.provider_amount ?? Math.max(0, custTotal - commAmt - platFee));
+
+                    return (
+                      <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2 text-xs">
+                        <div className="font-bold text-foreground text-xs pb-1 border-b border-primary/20 flex items-center justify-between">
+                          <span>Financial Distribution &amp; Payout</span>
+                          <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Admin Breakdown</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Platform Commission ({commRate}%)</span>
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">+{usd(commAmt)}</span>
+                        </div>
+                        {platFee > 0 && (
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Platform Flat Fee</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">+{usd(platFee)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-muted-foreground pt-1 border-t border-primary/10">
+                          <span>Total Platform Revenue</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300">+{usd(commAmt + platFee)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-primary/20 font-bold text-sm text-foreground">
+                          <span>Provider Payable Payout</span>
+                          <span className="font-display text-base text-primary">{usd(provAmt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {selected.payment && (selected.payment.payment_date || selected.payment.payment_method_type) && (

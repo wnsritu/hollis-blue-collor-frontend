@@ -22,6 +22,7 @@ import {
   CreditCard,
   Calculator,
   type LucideIcon,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -167,10 +168,11 @@ export const ProjectDetail: React.FC = () => {
             const lineItemsSubtotal = Number(data.line_items_subtotal) || grossSubtotal;
             const discountAmount = Number(data.discount_amount) || finalDiscount;
             const proposalTotal = Number(data.proposal_total ?? data.subtotal) || amountNum;
-            const serviceFeeRate = Number(data.service_fee_rate) || 5;
-            const serviceFee = Number(data.service_fee) || Number(data.commission_amount) || Math.round(proposalTotal * 0.05 * 100) / 100;
-            const platformFee = Number(data.platform_fee) || Number(data.platform_fee_amount) || 0;
-            const customerTotal = Number(data.customer_total ?? data.total) || Math.round((proposalTotal + serviceFee + platformFee) * 100) / 100;
+            const serviceFeeRate = Number(data.service_fee_rate ?? data.commission_rate) || 0;
+            const serviceFee = Number(data.service_fee ?? data.commission_amount) || 0;
+            const platformFee = Number(data.platform_fee ?? data.platform_fee_amount) || 0;
+            const taxAmount = Number(data.tax_amount) || 0;
+            const customerTotal = Number(data.customer_payment_amount ?? data.customer_total ?? data.total) || Math.round((proposalTotal + taxAmount) * 100) / 100;
 
             newMap[prop.id] = {
               line_items_subtotal: lineItemsSubtotal,
@@ -180,7 +182,7 @@ export const ProjectDetail: React.FC = () => {
               service_fee_rate: serviceFeeRate,
               service_fee: serviceFee,
               platform_fee: platformFee,
-              tax_amount: Number(data.tax_amount) || 0,
+              tax_amount: taxAmount,
               customer_total: customerTotal,
               total: customerTotal,
             };
@@ -202,18 +204,24 @@ export const ProjectDetail: React.FC = () => {
     };
   }, [proposals]);
 
-  const handleOpenChat = async () => {
+  const handleOpenChat = async (targetProviderId?: number | React.MouseEvent) => {
     if (!project) return;
     if (project.status === "cancelled") {
       toast.error("Chat is unavailable for cancelled requests.");
       return;
     }
     try {
-      const res = await chatApi.createChat({ project_id: project.id });
+      const payload: any = { project_id: Number(project.id) };
+      if (typeof targetProviderId === "number" && !isNaN(targetProviderId)) {
+        payload.provider_id = targetProviderId;
+      } else if (project.invited_provider_id) {
+        payload.provider_id = Number(project.invited_provider_id);
+      }
+      const res = await chatApi.createChat(payload);
       const chat = (res as any)?.data || res;
       navigate("/messages", { state: { selectedChatId: chat.id || chat.chat_id } });
     } catch (err: any) {
-      toast.error("Could not open chat room.");
+      toast.error(err?.response?.data?.message || err?.message || "Could not open chat room.");
     }
   };
 
@@ -576,14 +584,10 @@ export const ProjectDetail: React.FC = () => {
                             <span>Base Service Quote</span>
                             <span className="font-medium text-foreground">{usd(bd.subtotal)}</span>
                           </div>
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Platform Service Fee ({bd.service_fee_rate}%)</span>
-                            <span className="font-medium text-foreground">+{usd(bd.service_fee)}</span>
-                          </div>
-                          {bd.platform_fee > 0 && (
+                          {bd.tax_amount > 0 && (
                             <div className="flex justify-between text-muted-foreground">
-                              <span>Platform Flat Fee</span>
-                              <span className="font-medium text-foreground">+{usd(bd.platform_fee)}</span>
+                              <span>Taxes</span>
+                              <span className="font-medium text-foreground">+{usd(bd.tax_amount)}</span>
                             </div>
                           )}
                           <div className="flex justify-between font-bold text-foreground text-sm pt-1.5 border-t border-border/60">
@@ -604,31 +608,43 @@ export const ProjectDetail: React.FC = () => {
                           )}
                         </div>
 
-                        {userIsCustomer && project.status !== "cancelled" && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRejectProposal(prop.id)}
-                              className="h-8 text-xs text-destructive hover:bg-destructive-soft"
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleAcceptProposal(prop.id)}
-                              disabled={acceptingId === prop.id}
-                              className="h-8 text-xs gap-1 bg-success text-success-foreground hover:bg-success/90"
-                            >
-                              {acceptingId === prop.id ? (
-                                <Loader2 size={13} className="animate-spin" />
-                              ) : (
-                                <CheckCircle size={13} />
-                              )}
-                              Accept Proposal
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenChat(prop.provider_id || (prop.provider as any)?.id)}
+                            className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                          >
+                            <MessageSquare size={13} />
+                            Message Provider
+                          </Button>
+
+                          {userIsCustomer && project.status !== "cancelled" && !isAccepted && !isRejected && ((prop.status as string) === "submitted" || (prop.status as string) === "pending") && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectProposal(prop.id)}
+                                className="h-8 text-xs text-destructive hover:bg-destructive-soft"
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleAcceptProposal(prop.id)}
+                                disabled={acceptingId === prop.id}
+                                className="h-8 text-xs gap-1 bg-success text-success-foreground hover:bg-success/90"
+                              >
+                                {acceptingId === prop.id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <CheckCircle size={13} />
+                                )}
+                                Accept Proposal
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -675,14 +691,10 @@ export const ProjectDetail: React.FC = () => {
                     <dt>Base Service Quote</dt>
                     <dd className="font-medium text-foreground">{usd(activeBreakdown.subtotal)}</dd>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <dt>Platform Service Fee ({activeBreakdown.service_fee_rate}%)</dt>
-                    <dd className="font-medium text-foreground">+{usd(activeBreakdown.service_fee)}</dd>
-                  </div>
-                  {activeBreakdown.platform_fee > 0 && (
+                  {activeBreakdown.tax_amount > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <dt>Platform Flat Fee</dt>
-                      <dd className="font-medium text-foreground">+{usd(activeBreakdown.platform_fee)}</dd>
+                      <dt>Taxes</dt>
+                      <dd className="font-medium text-foreground">+{usd(activeBreakdown.tax_amount)}</dd>
                     </div>
                   )}
                 </dl>
@@ -710,14 +722,36 @@ export const ProjectDetail: React.FC = () => {
               </div>
             )}
 
-            {userIsCustomer && Boolean(activeBookingId) && project.payment_status !== "paid" && project.status !== "cancelled" && effectiveStatus?.toLowerCase() !== "cancelled" && (
-              <Button
-                className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                onClick={handlePayNow}
-              >
-                <CreditCard size={16} /> Pay Now ({usd(activeBreakdown?.total || Number(acceptedProp?.amount || 0))})
-              </Button>
-            )}
+            {(() => {
+              const isPaymentCompleted =
+                project?.payment_status === "paid" ||
+                project?.payment_status === "succeeded" ||
+                (acceptedProp as any)?.payment_status === "succeeded" ||
+                (acceptedProp as any)?.payment_status === "paid";
+
+              if (!userIsCustomer || !activeBookingId) return null;
+
+              if (isPaymentCompleted) {
+                return (
+                  <div className="w-full gap-2 mt-3 p-3 rounded-xl border border-success/30 bg-success-soft/20 text-success text-xs font-bold flex items-center justify-center">
+                    <CheckCircle2 size={16} /> Payment Confirmed (Paid)
+                  </div>
+                );
+              }
+
+              if (project.status !== "cancelled" && effectiveStatus?.toLowerCase() !== "cancelled") {
+                return (
+                  <Button
+                    className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                    onClick={handlePayNow}
+                  >
+                    <CreditCard size={16} /> Pay Now ({usd(activeBreakdown?.total || Number(acceptedProp?.amount || 0))})
+                  </Button>
+                );
+              }
+
+              return null;
+            })()}
           </section>
 
           {Boolean(project.booking_id) && !userIsProvider && (
