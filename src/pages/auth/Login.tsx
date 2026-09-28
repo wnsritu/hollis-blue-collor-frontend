@@ -151,6 +151,14 @@ export function Login() {
         );
         return;
       }
+
+      if (/Admin approval is required/i.test(msg) || /pending admin/i.test(msg)) {
+        navigate(
+          `/provider/onboarding?submitted=true&email=${encodeURIComponent(unverifiedEmail || email.trim().toLowerCase())}`,
+          { replace: true }
+        );
+        return;
+      }
     } finally {
       setLoading(false);
     }
