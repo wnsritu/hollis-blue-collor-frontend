@@ -74,7 +74,7 @@ export const ProviderProfile: React.FC = () => {
           setFetchedReviews(list);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -179,7 +179,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedCerts)) {
         certsList = parsedCerts.map((c: any) => (typeof c === "string" ? c : c.name || String(c))).filter(Boolean);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse FAQs dynamically
@@ -190,7 +190,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedFaqs)) {
         faqsList = parsedFaqs.filter((f: any) => f && f.question && f.answer);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Portfolio dynamically
@@ -201,7 +201,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedPort)) {
         portfolioList = parsedPort.filter((p: any) => p && p.url);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Reviews dynamically from API (embedded or fallback fetched)
@@ -286,7 +286,7 @@ export const ProviderProfile: React.FC = () => {
 
             {/* Header Action Buttons */}
             <div className="flex flex-wrap items-center gap-2">
-              <TooltipProvider delayDuration={100}>
+              {/* <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="lg" className="gap-2">
@@ -297,7 +297,7 @@ export const ProviderProfile: React.FC = () => {
                     Direct messaging is enabled upon quote or booking
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
+              </TooltipProvider> */}
 
               <Button size="lg" onClick={() => navigate(`/book/${provider.id}`)} className="gap-2 shadow-sm">
                 Book Services
