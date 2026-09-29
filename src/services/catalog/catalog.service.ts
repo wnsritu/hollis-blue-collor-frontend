@@ -107,8 +107,13 @@ export const catalogApi = {
   listServiceTypes: (params?: ServiceTypeListParams) =>
     http.get<ApiSuccess<ServiceType[]>>(ENDPOINTS.catalog.serviceTypes, params),
 
-  listServices: (params?: { service_type_id?: number | string; category_id?: number | string }) =>
-    http.get<ApiSuccess<ServiceItemModel[]>>(ENDPOINTS.catalog.services, params),
+  listServices: (params?: {
+    service_type_id?: number | string;
+    category_id?: number | string;
+    is_active?: boolean | string;
+    search?: string;
+    name?: string;
+  }) => http.get<ApiSuccess<ServiceItemModel[]>>(ENDPOINTS.catalog.services, params),
 
   createCategory: (payload: CreateCategoryPayload) =>
     http.post<ApiSuccess<Category>>(ENDPOINTS.catalog.adminCategories, payload),

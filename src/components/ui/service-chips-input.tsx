@@ -2,11 +2,16 @@ import { X } from "lucide-react";
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
+/** Must match the services.name VARCHAR(100) DB column */
+const MAX_CHAR_LENGTH = 100;
+
 interface ServiceChipsInputProps {
   value: string[];
   onChange: (chips: string[]) => void;
   placeholder?: string;
   className?: string;
+  /** Override the max character limit (default: 100) */
+  maxLength?: number;
 }
 
 export function ServiceChipsInput({
@@ -14,20 +19,18 @@ export function ServiceChipsInput({
   onChange,
   placeholder = "Type service name and press Enter or Comma...",
   className,
+  maxLength = MAX_CHAR_LENGTH,
 }: ServiceChipsInputProps) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addChip = (text: string) => {
-    const trimmed = text.trim();
+    const trimmed = text.trim().slice(0, maxLength);
     if (!trimmed) return;
-
-    // Avoid duplicate within current chips (case-insensitive)
     if (value.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
       setInputValue("");
       return;
     }
-
     onChange([...value, trimmed]);
     setInputValue("");
   };
@@ -48,12 +51,10 @@ export function ServiceChipsInput({
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pastedText = e.clipboardData.getData("text/plain");
-    // Split by comma or newline
     const items = pastedText
       .split(/[\n,]+/)
-      .map((item) => item.trim())
+      .map((item) => item.trim().slice(0, maxLength))
       .filter(Boolean);
-
     if (items.length > 0) {
       const newChips = [...value];
       items.forEach((item) => {
@@ -66,49 +67,69 @@ export function ServiceChipsInput({
     }
   };
 
+  const charsRemaining = maxLength - inputValue.length;
+  const isNearLimit = inputValue.length >= maxLength - 15;
+  const isAtLimit = inputValue.length >= maxLength;
+
   return (
-    <div
-      onClick={() => inputRef.current?.focus()}
-      className={cn(
-        "min-h-[52px] w-full cursor-text rounded-xl border border-border bg-card p-2.5 transition-all flex flex-wrap items-center gap-2",
-        "focus-within:border-primary focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20",
-        className
-      )}
-    >
-      {value.map((chip, idx) => (
-        <span
-          key={idx}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary-soft text-primary px-3 py-1.5 text-xs font-semibold shadow-xs transition-all animate-in fade-in zoom-in-95"
-        >
-          <span>{chip}</span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeChip(idx);
-            }}
-            className="rounded-full p-0.5 hover:bg-primary/20 hover:text-primary transition-colors focus:outline-none"
-            aria-label={`Remove ${chip}`}
+    <div className="w-full space-y-1">
+      <div
+        onClick={() => inputRef.current?.focus()}
+        className={cn(
+          "min-h-[52px] w-full cursor-text rounded-xl border border-border bg-card p-2.5 transition-all flex flex-wrap items-center gap-2",
+          "focus-within:border-primary focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20",
+          className
+        )}
+      >
+        {value.map((chip, idx) => (
+          <span
+            key={idx}
+            title={chip}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary-soft text-primary px-3 py-1.5 text-xs font-semibold shadow-xs transition-all animate-in fade-in zoom-in-95 max-w-[220px]"
           >
-            <X size={13} />
-          </button>
-        </span>
-      ))}
-      <input
-        ref={inputRef}
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        onBlur={() => {
-          if (inputValue.trim()) {
-            addChip(inputValue);
-          }
-        }}
-        placeholder={value.length === 0 ? placeholder : "Add another service..."}
-        className="flex-1 min-w-[160px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none border-none py-1 px-1"
-      />
+            {/* Truncate long chip text -- full name visible on hover via title */}
+            <span className="truncate max-w-[180px]">{chip}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeChip(idx);
+              }}
+              className="flex-shrink-0 rounded-full p-0.5 hover:bg-primary/20 hover:text-primary transition-colors focus:outline-none"
+              aria-label={`Remove ${chip}`}
+            >
+              <X size={13} />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          maxLength={maxLength}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onBlur={() => {
+            if (inputValue.trim()) addChip(inputValue);
+          }}
+          placeholder={value.length === 0 ? placeholder : "Add another service..."}
+          className="flex-1 min-w-[160px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none border-none py-1 px-1"
+        />
+      </div>
+
+      {isNearLimit && (
+        <p
+          className={cn(
+            "text-right text-xs transition-colors",
+            isAtLimit ? "text-destructive font-semibold" : "text-muted-foreground"
+          )}
+        >
+          {isAtLimit
+            ? "Maximum character limit reached"
+            : `${charsRemaining} character${charsRemaining === 1 ? "" : "s"} remaining`}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { catalogApi } from "@/services/catalog";
 import type { Category } from "@/types/api/catalog";
@@ -7,9 +7,11 @@ import type { ServiceFlatRow } from "@/types/admin.types";
 export function useAdminServices() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filteredServices, setFilteredServices] = useState<ServiceFlatRow[]>([]);
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedParentFilter, setSelectedParentFilter] = useState("ALL");
   const [selectedSubFilter, setSelectedSubFilter] = useState("ALL");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("ALL");
@@ -26,63 +28,92 @@ export function useAdminServices() {
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
-  // Fetch Tree
-  const fetchCatalogData = async () => {
-    setLoading(true);
+  // Debounce search input for UI responsiveness and backend efficiency (350ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Fetch Tree for Category and Subcategory dropdowns
+  const fetchCatalogTree = async () => {
     try {
       const res = await catalogApi.getTree();
       const data = (res as any)?.data || res || [];
-      const list = Array.isArray(data) ? data : [];
-      setCategories(list);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load catalog tree", err);
-      toast.error("Failed to load platform services.");
-    } finally {
-      setLoading(false);
+      toast.error("Failed to load platform categories.");
     }
   };
 
   useEffect(() => {
-    fetchCatalogData();
+    fetchCatalogTree();
   }, []);
 
-  // Flatten catalog into Service list for the table
-  const allServices = useMemo(() => {
-    const list: ServiceFlatRow[] = [];
-    categories.forEach((cat) => {
-      (cat.service_types || []).forEach((st) => {
-        const subServices = st.services || [];
-        if (subServices.length > 0) {
-          subServices.forEach((svc) => {
-            list.push({
-              serviceId: svc.id,
-              serviceName: svc.name,
-              description: `Service under ${st.name}`,
-              subcategoryId: st.id,
-              subcategoryName: st.name,
-              parentCategoryId: cat.id,
-              parentCategoryName: cat.name,
-              isActive: svc.is_active !== false,
-              rawServiceType: st,
-            });
-          });
-        } else {
-          list.push({
-            serviceId: st.id,
-            serviceName: st.name,
-            description: st.description || `Service under ${cat.name}`,
-            subcategoryId: st.id,
-            subcategoryName: st.name,
-            parentCategoryId: cat.id,
-            parentCategoryName: cat.name,
-            isActive: st.is_active !== false,
-            rawServiceType: st,
-          });
-        }
-      });
-    });
-    return list;
-  }, [categories]);
+  // Fetch Services from Backend API using query parameters
+  const fetchServicesFromApi = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {};
+
+      if (debouncedSearchTerm.trim()) {
+        params.search = debouncedSearchTerm.trim();
+      }
+      if (selectedParentFilter !== "ALL") {
+        params.category_id = selectedParentFilter;
+      }
+      if (selectedSubFilter !== "ALL") {
+        params.service_type_id = selectedSubFilter;
+      }
+      if (selectedStatusFilter === "Active") {
+        params.is_active = true;
+      } else if (selectedStatusFilter === "Inactive") {
+        params.is_active = false;
+      }
+
+      const res = await catalogApi.listServices(params);
+      if (signal?.aborted) return;
+
+      const data = (res as any)?.data || res || [];
+      const list: any[] = Array.isArray(data) ? data : [];
+
+      const mapped: ServiceFlatRow[] = list.map((svc) => ({
+        serviceId: svc.id,
+        serviceName: svc.name,
+        description: svc.description || `Service under ${svc.service_type?.name || "Subcategory"}`,
+        subcategoryId: svc.service_type_id,
+        subcategoryName: svc.service_type?.name || "N/A",
+        parentCategoryId: svc.category_id,
+        parentCategoryName: svc.category?.name || "N/A",
+        isActive: svc.is_active !== false,
+        rawServiceType: svc.service_type,
+      }));
+
+      setFilteredServices(mapped);
+    } catch (err: any) {
+      if (signal?.aborted) return;
+      console.error("Failed to fetch services from backend API", err);
+      toast.error("Failed to load services.");
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [debouncedSearchTerm, selectedParentFilter, selectedSubFilter, selectedStatusFilter]);
+
+  // Trigger backend refetch on filter or debounced search change
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchServicesFromApi(controller.signal);
+    return () => controller.abort();
+  }, [fetchServicesFromApi]);
+
+  const refreshAll = () => {
+    fetchCatalogTree();
+    fetchServicesFromApi();
+  };
 
   // Subcategories available for filter dropdown based on selected Parent Filter
   const availableSubcategories = useMemo(() => {
@@ -98,37 +129,6 @@ export function useAdminServices() {
     const cat = categories.find((c) => String(c.id) === modalParentId);
     return cat?.service_types || [];
   }, [categories, modalParentId]);
-
-  // Filtered Services List
-  const filteredServices = useMemo(() => {
-    return allServices.filter((item) => {
-      if (
-        selectedParentFilter !== "ALL" &&
-        String(item.parentCategoryId) !== selectedParentFilter
-      ) {
-        return false;
-      }
-      if (
-        selectedSubFilter !== "ALL" &&
-        String(item.subcategoryId) !== selectedSubFilter
-      ) {
-        return false;
-      }
-      if (selectedStatusFilter === "Active" && !item.isActive) return false;
-      if (selectedStatusFilter === "Inactive" && item.isActive) return false;
-
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        const matchName = item.serviceName.toLowerCase().includes(query);
-        const matchDesc = item.description.toLowerCase().includes(query);
-        const matchSub = item.subcategoryName.toLowerCase().includes(query);
-        const matchParent = item.parentCategoryName.toLowerCase().includes(query);
-        if (!matchName && !matchDesc && !matchSub && !matchParent) return false;
-      }
-
-      return true;
-    });
-  }, [allServices, selectedParentFilter, selectedSubFilter, selectedStatusFilter, searchTerm]);
 
   // Open Add Services Modal
   const handleOpenAddModal = () => {
@@ -174,7 +174,7 @@ export function useAdminServices() {
         `✓ ${serviceChips.length} service${serviceChips.length > 1 ? "s" : ""} added successfully under subcategory.`
       );
       setIsAddOpen(false);
-      fetchCatalogData();
+      refreshAll();
     } catch (err) {
       console.error("Failed to add services", err);
       toast.error("Failed to add services.");
@@ -200,7 +200,7 @@ export function useAdminServices() {
       });
       toast.success("Service updated successfully.");
       setEditingService(null);
-      fetchCatalogData();
+      refreshAll();
     } catch (err) {
       console.error("Failed to update service", err);
       toast.error("Failed to update service.");
@@ -238,7 +238,7 @@ export function useAdminServices() {
         try {
           await catalogApi.deleteService(id);
           toast.success("Service removed successfully.");
-          fetchCatalogData();
+          refreshAll();
         } catch (err) {
           console.error("Failed to delete service", err);
           toast.error("Failed to remove service.");
@@ -257,7 +257,7 @@ export function useAdminServices() {
       toast.success(
         item.isActive ? "Service deactivated." : "Service activated."
       );
-      fetchCatalogData();
+      refreshAll();
     } catch {
       try {
         await catalogApi.updateServiceType(item.serviceId, {
@@ -266,7 +266,7 @@ export function useAdminServices() {
         toast.success(
           item.isActive ? "Service deactivated." : "Service activated."
         );
-        fetchCatalogData();
+        refreshAll();
       } catch (err2) {
         console.error("Failed to toggle service status", err2);
         toast.error("Failed to update status.");
@@ -300,7 +300,6 @@ export function useAdminServices() {
     setEditName,
     editDesc,
     setEditDesc,
-    allServices,
     availableSubcategories,
     modalSubcategories,
     filteredServices,
