@@ -8,15 +8,16 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  ExternalLink,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader, StatCard, EmptyState, StatusPill } from "@/components/shared/primitives";
+import { PageHeader, StatCard, EmptyState } from "@/components/shared/primitives";
+import PaginationController from "@/components/ui/PaginationController";
 import { appointmentApi } from "@/services/booking";
 import { normalizeBooking } from "@/utils/bookingAdapter";
+import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
 export const CustomerPayments: React.FC = () => {
@@ -25,13 +26,30 @@ export const CustomerPayments: React.FC = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const debouncedSearch = useDebounce(searchQuery, 350);
 
-  const fetchPayments = async () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchPayments = async (page = currentPage, tab = activeTab, search = debouncedSearch) => {
     setLoading(true);
     try {
-      const res = await appointmentApi.listMine();
-      const list = (res as any)?.data || res || [];
-      setBookings(Array.isArray(list) ? list : []);
+      const res: any = await appointmentApi.listMine({
+        page,
+        limit: 10,
+        search,
+        status_tab: tab,
+      });
+
+      const dataObj = res?.data || res;
+      if (dataObj?.items) {
+        setBookings(Array.isArray(dataObj.items) ? dataObj.items : []);
+        setTotalPages(dataObj.totalPages || 1);
+      } else {
+        const list = Array.isArray(dataObj) ? dataObj : [];
+        setBookings(list);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load payments data", err);
       toast.error("Failed to load payment transactions.");
@@ -41,8 +59,14 @@ export const CustomerPayments: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPayments();
-  }, []);
+    setCurrentPage(1);
+    fetchPayments(1, activeTab, debouncedSearch);
+  }, [activeTab, debouncedSearch]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    fetchPayments(newPage, activeTab, debouncedSearch);
+  };
 
   const normalizedBookings = bookings.map((b) => normalizeBooking(b));
 
@@ -50,9 +74,7 @@ export const CustomerPayments: React.FC = () => {
   const totalPaid = normalizedBookings.reduce((sum, b) => {
     const isPaid =
       b.isPaid ||
-      (b.paymentStatus || "").toLowerCase() === "paid" ||
-      (b.paymentStatus || "").toLowerCase() === "success" ||
-      (b.paymentStatus || "").toLowerCase() === "succeeded" ||
+      ["paid", "success", "succeeded", "completed"].includes((b.paymentStatus || "").toLowerCase()) ||
       b.status === "Completed";
     return isPaid ? sum + (b.totalAmount || 0) : sum;
   }, 0);
@@ -60,42 +82,16 @@ export const CustomerPayments: React.FC = () => {
   const completedCount = normalizedBookings.filter(
     (b) =>
       b.isPaid ||
-      (b.paymentStatus || "").toLowerCase() === "paid" ||
+      ["paid", "success", "succeeded", "completed"].includes((b.paymentStatus || "").toLowerCase()) ||
       b.status === "Completed"
   ).length;
 
   const pendingCount = normalizedBookings.filter(
     (b) =>
       !b.isPaid &&
-      (b.paymentStatus || "").toLowerCase() !== "paid" &&
-      b.status !== "Cancelled"
+      !["paid", "success", "succeeded", "completed", "refunded", "partially_refunded"].includes((b.paymentStatus || "").toLowerCase()) &&
+      !["cancelled", "rejected", "expired"].includes((b.status || "").toLowerCase())
   ).length;
-
-  // Filtered items
-  const filtered = normalizedBookings.filter((b) => {
-    const matchesSearch =
-      b.displayId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (b.providerName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (b.categoryName || "").toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (activeTab === "completed") {
-      return (
-        b.isPaid ||
-        (b.paymentStatus || "").toLowerCase() === "paid" ||
-        b.status === "Completed"
-      );
-    }
-    if (activeTab === "pending") {
-      return (
-        !b.isPaid &&
-        (b.paymentStatus || "").toLowerCase() !== "paid" &&
-        b.status !== "Cancelled"
-      );
-    }
-    return true;
-  });
 
   return (
     <div className="space-y-6">
@@ -108,6 +104,7 @@ export const CustomerPayments: React.FC = () => {
           </Button>
         }
       />
+
 
       {/* Metrics Row */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -163,7 +160,7 @@ export const CustomerPayments: React.FC = () => {
           <Loader2 size={36} className="animate-spin text-primary mb-3" />
           <p className="text-sm text-muted-foreground">Loading payment records...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : normalizedBookings.length === 0 ? (
         <EmptyState
           icon={CreditCard}
           title="No payment records found"
@@ -193,12 +190,12 @@ export const CustomerPayments: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((b) => {
+                {normalizedBookings.map((b) => {
+
+                  const pStat = (b.paymentStatus || "").toLowerCase();
                   const isPaid =
                     b.isPaid ||
-                    (b.paymentStatus || "").toLowerCase() === "paid" ||
-                    (b.paymentStatus || "").toLowerCase() === "success" ||
-                    (b.paymentStatus || "").toLowerCase() === "succeeded" ||
+                    ["paid", "success", "succeeded", "completed"].includes(pStat) ||
                     b.status === "Completed";
                   const price = b.totalAmount || 0;
 
@@ -225,17 +222,32 @@ export const CustomerPayments: React.FC = () => {
                         ${price.toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            isPaid
-                              ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200"
-                              : "bg-amber-500/10 text-amber-600 border border-amber-200"
-                          }`}
-                        >
-                          <ShieldCheck size={12} />
-                          {isPaid ? "Paid" : "Pending"}
-                        </span>
+                        {pStat === "refunded" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-200">
+                            <ShieldCheck size={12} /> Refunded
+                          </span>
+                        ) : pStat === "partially_refunded" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-purple-500/10 text-purple-600 border border-purple-200">
+                            <ShieldCheck size={12} /> Partially Refunded
+                          </span>
+                        ) : (b.status || "").toLowerCase() === "cancelled" && !isPaid ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-rose-500/10 text-rose-600 border border-rose-200">
+                            <ShieldCheck size={12} /> Cancelled
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                              isPaid
+                                ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200"
+                                : "bg-amber-500/10 text-amber-600 border border-amber-200"
+                            }`}
+                          >
+                            <ShieldCheck size={12} />
+                            {isPaid ? "Paid" : "Pending"}
+                          </span>
+                        )}
                       </td>
+
                       <td className="px-6 py-4 text-right">
                         <Button
                           asChild
@@ -256,8 +268,20 @@ export const CustomerPayments: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Server-side Pagination */}
+      {totalPages > 1 && normalizedBookings.length > 0 && (
+        <div className="mt-4">
+          <PaginationController
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default CustomerPayments;

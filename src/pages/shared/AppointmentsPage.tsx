@@ -17,6 +17,8 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import { getTodayDateString } from "@/utils/date";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getBookingLifecycleCategory, canProviderPerformAction, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
 import { APPOINTMENT_FILTERS as FILTERS } from "@/constants/options";
 import { cn } from "@/lib/utils";
 
@@ -60,9 +62,12 @@ export const AppointmentsPage: React.FC = () => {
     cancelCustomNotes,
     setCancelCustomNotes,
     cancelling,
+    cancelPreview,
+    loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
   } = useAppointments();
+
 
   const rescheduleModalMarkup = (
     <Dialog
@@ -214,6 +219,52 @@ export const AppointmentsPage: React.FC = () => {
             />
           </div>
 
+          {/* Cancellation Policy & Refund Breakdown Card */}
+          {loadingCancelPreview ? (
+            <div className="rounded-lg border p-3 bg-muted/30 text-xs flex items-center gap-2 text-muted-foreground">
+              <Loader2 size={14} className="animate-spin text-primary" />
+              <span>Calculating refund estimate based on cancellation policy...</span>
+            </div>
+          ) : cancelPreview ? (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2 text-xs">
+              <div className="font-semibold text-foreground flex items-center justify-between">
+                <span>Refund Calculation & Policy Notice</span>
+                {cancelPreview.requires_admin_approval ? (
+                  <span className="text-blue-600 dark:text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded">
+                    Requires Admin Review
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    {cancelPreview.refund_percentage}% Refund
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1 text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Paid Amount:</span>
+                  <span className="font-medium text-foreground">${Number(cancelPreview.total_amount).toFixed(2)}</span>
+                </div>
+                {!cancelPreview.requires_admin_approval && cancelPreview.cancellation_fee > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>Cancellation Fee:</span>
+                    <span className="font-medium">-${Number(cancelPreview.cancellation_fee).toFixed(2)}</span>
+                  </div>
+                )}
+                {!cancelPreview.requires_admin_approval && (
+                  <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-bold text-foreground">
+                    <span>Estimated Refund:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ${Number(cancelPreview.refund_amount).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-tight italic pt-0.5">
+                {cancelPreview.policy_notice}
+              </p>
+            </div>
+          ) : null}
+
           <DialogFooter className="pt-2">
             <Button
               type="button"
@@ -229,9 +280,16 @@ export const AppointmentsPage: React.FC = () => {
               disabled={cancelling}
               className="gap-1.5"
             >
-              {cancelling ? <Loader2 size={15} className="animate-spin" /> : "Confirm Cancel"}
+              {cancelling ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : cancelPreview?.requires_admin_approval ? (
+                "Submit Cancellation Request"
+              ) : (
+                "Confirm Cancel"
+              )}
             </Button>
           </DialogFooter>
+
         </form>
       </DialogContent>
     </Dialog>
@@ -266,6 +324,7 @@ export const AppointmentsPage: React.FC = () => {
               const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
               const canReschedule = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived && !isRescheduled;
               const canCancel = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived;
+              const isUpcoming = getBookingLifecycleCategory(apt) === "UPCOMING";
 
               return (
                 <div key={apt.id} className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -290,6 +349,16 @@ export const AppointmentsPage: React.FC = () => {
                       <MapPin size={14} /> <span className="truncate">{n.address}</span>
                     </span>
                   </dl>
+
+                  {/* Upcoming Service Visit Banner */}
+                  {isUpcoming && !n.isCompleted && !n.isCancelled && (
+                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-500/10 p-3 text-xs text-blue-900 flex items-center gap-2">
+                      <Clock size={14} className="text-blue-600 shrink-0" />
+                      <span>
+                        <strong>Upcoming Visit:</strong> {formatUpcomingTimeNotice(apt)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Reschedule Requested Details Banner */}
                   {isRescheduled && (() => {
@@ -359,66 +428,134 @@ export const AppointmentsPage: React.FC = () => {
                             {n.appointmentStatus === "Requested" && (
                               <Button
                                 size="sm"
-                                onClick={() => handleUpdateStatus(apt.id, "Confirmed")}
+                                onClick={() => handleUpdateStatus(apt.id, "Confirmed", undefined, apt)}
                               >
                                 Confirm
                               </Button>
                             )}
-                            {n.appointmentStatus === "Confirmed" && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleUpdateStatus(apt.id, "En Route")}
-                                >
-                                  On My Way
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(apt.id, "Arrived")}
-                                >
-                                  Mark Arrived
-                                </Button>
-                              </>
-                            )}
-                            {n.appointmentStatus === "En Route" && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleUpdateStatus(apt.id, "Arrived")}
-                              >
-                                Mark Arrived
-                              </Button>
-                            )}
-                            {n.appointmentStatus === "Arrived" && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(apt.id, "In Progress")}
-                                >
-                                  Start Job
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                  onClick={() => handleUpdateStatus(apt.id, "Completed")}
-                                >
-                                  Mark Complete
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
-                                  onClick={() => handleUpdateStatus(apt.id, "No-show")}
-                                >
-                                  Mark No-Show
-                                </Button>
-                              </>
-                            )}
+                            {n.appointmentStatus === "Confirmed" && (() => {
+                              const checkEnRoute = canProviderPerformAction(apt, "En Route");
+                              const checkArrived = canProviderPerformAction(apt, "Arrived");
+                              return (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!checkEnRoute.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "En Route", undefined, apt)}
+                                          >
+                                            On My Way
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkEnRoute.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkEnRoute.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            disabled={!checkArrived.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
+                                          >
+                                            Mark Arrived
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkArrived.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkArrived.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              );
+                            })()}
+                            {n.appointmentStatus === "En Route" && (() => {
+                              const checkArrived = canProviderPerformAction(apt, "Arrived");
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip delayDuration={150}>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          size="sm"
+                                          disabled={!checkArrived.allowed}
+                                          onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
+                                        >
+                                          Mark Arrived
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    {!checkArrived.allowed && (
+                                      <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                        {checkArrived.reason}
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })()}
+                            {n.appointmentStatus === "Arrived" && (() => {
+                              const checkStart = canProviderPerformAction(apt, "In Progress");
+                              return (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            disabled={!checkStart.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "In Progress", undefined, apt)}
+                                          >
+                                            Start Job
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkStart.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkStart.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+
+                                  <Button
+                                    size="sm"
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                    onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
+                                  >
+                                    Mark Complete
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
+                                    onClick={() => handleUpdateStatus(apt.id, "No-show", undefined, apt)}
+                                  >
+                                    Mark No-Show
+                                  </Button>
+                                </>
+                              );
+                            })()}
                             {n.appointmentStatus === "In Progress" && (
                               <Button
                                 size="sm"
                                 className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                onClick={() => handleUpdateStatus(apt.id, "Completed")}
+                                onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
                               >
                                 Mark Complete
                               </Button>

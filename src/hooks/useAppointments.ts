@@ -8,6 +8,7 @@ import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { isPastDate, getTodayDateString } from "@/utils/date";
+import { canProviderPerformAction, getBookingLifecycleCategory, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
 
 export function useAppointments() {
   const navigate = useNavigate();
@@ -57,8 +58,30 @@ export function useAppointments() {
   const [cancelPresetReason, setCancelPresetReason] = useState<string>("Schedule conflict / Unavailable");
   const [cancelCustomNotes, setCancelCustomNotes] = useState<string>("");
   const [cancelling, setCancelling] = useState(false);
+  const [cancelPreview, setCancelPreview] = useState<{
+    total_amount: number;
+    refund_amount: number;
+    cancellation_fee: number;
+    refund_percentage: number;
+    requires_admin_approval?: boolean;
+    policy_notice: string;
+  } | null>(null);
 
-  const handleUpdateStatus = async (id: number | string, newStatus: string, reason?: string) => {
+  const [loadingCancelPreview, setLoadingCancelPreview] = useState(false);
+
+  const handleUpdateStatus = async (
+    id: number | string,
+    newStatus: string,
+    reason?: string,
+    targetAppointment?: any
+  ) => {
+    if (userIsProvider && targetAppointment) {
+      const check = canProviderPerformAction(targetAppointment, newStatus);
+      if (!check.allowed) {
+        toast.error(check.reason || "This job cannot be started before the scheduled service time.");
+        return;
+      }
+    }
     try {
       await appointmentApi.updateStatus(id, { appointment_status: newStatus, reason });
       toast.success(`Appointment marked as ${newStatus}`);
@@ -68,11 +91,24 @@ export function useAppointments() {
     }
   };
 
-  const handleOpenCancelModal = (apt: Appointment) => {
+  const handleOpenCancelModal = async (apt: Appointment) => {
     setSelectedCancelAppointment(apt);
     setCancelPresetReason(userIsProvider ? "Schedule conflict / Unavailable" : "Schedule change / No longer needed");
     setCancelCustomNotes("");
+    setCancelPreview(null);
     setCancelModalOpen(true);
+    setLoadingCancelPreview(true);
+
+    try {
+      const res = await appointmentApi.getCancelPreview(apt.id);
+      if (res?.data) {
+        setCancelPreview(res.data as any);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cancellation preview", err);
+    } finally {
+      setLoadingCancelPreview(false);
+    }
   };
 
   const handleCancelSubmit = async (e?: React.FormEvent) => {
@@ -93,6 +129,7 @@ export function useAppointments() {
       toast.success("Appointment cancelled successfully");
       setCancelModalOpen(false);
       setSelectedCancelAppointment(null);
+      setCancelPreview(null);
       fetchAppointments();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to cancel appointment.");
@@ -100,6 +137,7 @@ export function useAppointments() {
       setCancelling(false);
     }
   };
+
 
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
@@ -295,7 +333,10 @@ export function useAppointments() {
     cancelCustomNotes,
     setCancelCustomNotes,
     cancelling,
+    cancelPreview,
+    loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
   };
 }
+

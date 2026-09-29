@@ -44,6 +44,12 @@ import { ratingApi } from "@/services/rating";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
+import {
+  getBookingLifecycleCategory,
+  canProviderPerformAction,
+  formatUpcomingTimeNotice,
+  getScheduledStartDateTime,
+} from "@/utils/bookingLifecycle";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -52,7 +58,7 @@ export function ProviderJobs() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed" | "fixed" | "quote">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "completed" | "fixed" | "quote">("all");
 
   // State for Price Update Modal
   const [selectedBookingForPrice, setSelectedBookingForPrice] = useState<any | null>(null);
@@ -141,20 +147,25 @@ export function ProviderJobs() {
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
 
   const isCompletedJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["completed", "delivered", "reviewed", "finished", "work completed"].includes(apt);
+    return getBookingLifecycleCategory(b) === "COMPLETED";
   };
 
   const isCancelledJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["cancelled", "canceled", "rejected", "no-show"].includes(apt);
+    return getBookingLifecycleCategory(b) === "CANCELLED";
   };
 
-  const isActiveJob = (b: any) => !isCompletedJob(b) && !isCancelledJob(b);
+  const isUpcomingJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "UPCOMING";
+  };
+
+  const isActiveJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "ACTIVE";
+  };
 
   const myBookings = appointments;
 
   const filteredBookings = myBookings.filter((b: any) => {
+    if (activeTab === "upcoming") return isUpcomingJob(b);
     if (activeTab === "active") return isActiveJob(b);
     if (activeTab === "completed") return isCompletedJob(b);
     if (activeTab === "fixed") return !isQuoteJob(b);
@@ -162,12 +173,27 @@ export function ProviderJobs() {
     return true;
   });
 
+  const upcomingCount = myBookings.filter(isUpcomingJob).length;
   const activeCount = myBookings.filter(isActiveJob).length;
   const completedCount = myBookings.filter(isCompletedJob).length;
   const fixedCount = myBookings.filter((b) => !isQuoteJob(b)).length;
   const quoteCount = myBookings.filter((b) => isQuoteJob(b)).length;
 
-  const handleUpdateStatus = async (bookingId: number, nextStatus: string, legacyStatus?: string, reason?: string) => {
+  const handleUpdateStatus = async (
+    bookingId: number,
+    nextStatus: string,
+    legacyStatus?: string,
+    reason?: string,
+    targetBooking?: any
+  ) => {
+    if (targetBooking) {
+      const check = canProviderPerformAction(targetBooking, nextStatus);
+      if (!check.allowed) {
+        toast.error(check.reason || "This job cannot be started before the scheduled service time.");
+        return;
+      }
+    }
+
     setActionLoadingId(bookingId);
     try {
       await appointmentApi.updateStatus(bookingId, {
@@ -346,7 +372,8 @@ export function ProviderJobs() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
           <TabsList flex-wrap="true">
             <TabsTrigger value="all">All Requests ({myBookings.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming Jobs ({upcomingCount})</TabsTrigger>
+            <TabsTrigger value="active">Active Jobs ({activeCount})</TabsTrigger>
             <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
             <TabsTrigger value="fixed">Fixed Services ({fixedCount})</TabsTrigger>
             <TabsTrigger value="quote">Request a Quote ({quoteCount})</TabsTrigger>
@@ -598,6 +625,15 @@ export function ProviderJobs() {
                   )}
 
                   {/* Status Informational Banners */}
+                  {isUpcomingJob(b) && isConfirmed && (
+                    <div className="mt-4 rounded-xl border border-blue-200 bg-blue-500/10 p-3 text-xs text-blue-900 flex items-center gap-2">
+                      <Clock size={15} className="text-blue-600 shrink-0" />
+                      <span>
+                        <strong>Upcoming Job:</strong> {formatUpcomingTimeNotice(b)}
+                      </span>
+                    </div>
+                  )}
+
                   {isEnRoute && (
                     <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-500/10 p-3 text-xs text-indigo-900 flex items-center gap-2">
                       <Navigation size={15} className="text-indigo-600 shrink-0" />
@@ -734,40 +770,88 @@ export function ProviderJobs() {
                       )}
 
                       {/* Step 2: Start Travel when Confirmed */}
-                      {isConfirmed && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "En Route", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Navigation size={14} /> Start Travel (En Route)
-                        </Button>
-                      )}
+                      {isConfirmed && (() => {
+                        const check = canProviderPerformAction(b, "En Route");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "En Route", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Navigation size={14} /> Start Travel (En Route)
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 3: Mark Arrived when En Route */}
-                      {isEnRoute && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <MapPin size={14} /> Mark Arrived at Location
-                        </Button>
-                      )}
+                      {isEnRoute && (() => {
+                        const check = canProviderPerformAction(b, "Arrived");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <MapPin size={14} /> Mark Arrived at Location
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 4: Start Work when Arrived */}
-                      {isArrived && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Play size={14} /> Start Work
-                        </Button>
-                      )}
+                      {isArrived && (() => {
+                        const check = canProviderPerformAction(b, "In Progress");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Play size={14} /> Start Work
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 5: Complete Work when In Progress */}
                       {isInProgress && (

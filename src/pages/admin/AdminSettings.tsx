@@ -41,6 +41,12 @@ export function AdminSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // Cancellation & Refund Settings State
+  const [cancellationGraceHours, setCancellationGraceHours] = useState(24);
+  const [cancellationFeePercent, setCancellationFeePercent] = useState(20);
+  const [autoRefundMaxAmount, setAutoRefundMaxAmount] = useState(500);
+  const [allowInstantCustomerCancel, setAllowInstantCustomerCancel] = useState(true);
+
   // Formik for General Settings
   const generalFormik = useFormik<PlatformGeneralSettings>({
     initialValues: defaultGeneral,
@@ -55,6 +61,10 @@ export function AdminSettings() {
           support_email: values.support.trim(),
           support_phone: values.phone.trim(),
           business_address: values.address.trim(),
+          cancellation_grace_hours: Number(cancellationGraceHours),
+          cancellation_fee_percent: Number(cancellationFeePercent),
+          auto_refund_max_amount: Number(autoRefundMaxAmount),
+          allow_instant_customer_cancel: Boolean(allowInstantCustomerCancel),
         };
 
         await toast.promise(updatePlatformSettings(payload), {
@@ -70,6 +80,7 @@ export function AdminSettings() {
       }
     },
   });
+
 
   // Formik for Password & Security
   const securityFormik = useFormik({
@@ -118,7 +129,12 @@ export function AdminSettings() {
             phone: rawPhone,
             address: data.business_address ?? defaultGeneral.address,
           });
+          if (data.cancellation_grace_hours !== undefined) setCancellationGraceHours(Number(data.cancellation_grace_hours));
+          if (data.cancellation_fee_percent !== undefined) setCancellationFeePercent(Number(data.cancellation_fee_percent));
+          if (data.auto_refund_max_amount !== undefined) setAutoRefundMaxAmount(Number(data.auto_refund_max_amount));
+          if (data.allow_instant_customer_cancel !== undefined) setAllowInstantCustomerCancel(Boolean(data.allow_instant_customer_cancel));
         }
+
       } catch (err: any) {
         console.error("Failed to load platform settings:", err);
       } finally {
@@ -284,6 +300,98 @@ export function AdminSettings() {
               />
             </div>
           </section>
+
+          {/* CANCELLATION & REFUND POLICY CONFIGURATION CARD */}
+          <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-foreground">Cancellation & Refund Policy Controls</h3>
+              <p className="text-xs text-muted-foreground">
+                Configure automated refund grace windows, late cancellation penalty fees, and admin approval limits.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 pt-2">
+              <div className="grid gap-2">
+                <Label htmlFor="cgrace">Free Cancellation Window (Hours)</Label>
+                <Input
+                  id="cgrace"
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={cancellationGraceHours}
+                  onChange={(e) => setCancellationGraceHours(Number(e.target.value))}
+                  placeholder="24"
+                  disabled={loadingGeneral}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Hours before scheduled slot for 100% free refund. Default: 24h
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="cfee">Late Cancellation Penalty Fee (%)</Label>
+                <Input
+                  id="cfee"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={cancellationFeePercent}
+                  onChange={(e) => setCancellationFeePercent(Number(e.target.value))}
+                  placeholder="20"
+                  disabled={loadingGeneral}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Deduction percentage applied when cancelling inside grace window. Default: 20%
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="cmax">Auto-Refund Threshold Limit ($)</Label>
+                <Input
+                  id="cmax"
+                  type="number"
+                  min={0}
+                  value={autoRefundMaxAmount}
+                  onChange={(e) => setAutoRefundMaxAmount(Number(e.target.value))}
+                  placeholder="500"
+                  disabled={loadingGeneral}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Bookings exceeding this amount will be held for Admin manual review. Default: $500
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Instant Customer Auto-Refund Mode</Label>
+                <div className="flex items-center gap-3 pt-2">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="allowInstantCustomerCancel"
+                      checked={allowInstantCustomerCancel === true}
+                      onChange={() => setAllowInstantCustomerCancel(true)}
+                      className="accent-primary h-4 w-4"
+                    />
+                    <span>Enabled (Auto-process)</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="allowInstantCustomerCancel"
+                      checked={allowInstantCustomerCancel === false}
+                      onChange={() => setAllowInstantCustomerCancel(false)}
+                      className="accent-primary h-4 w-4"
+                    />
+                    <span>Require Admin Approval for All</span>
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Control whether customer cancellations process automatically or queue for Admin review.
+                </p>
+              </div>
+            </div>
+          </section>
+
 
           <div className="mt-6 flex justify-end">
             <Button

@@ -140,7 +140,11 @@ export const ENDPOINTS = {
     rejectReschedule: (id: number | string) =>
       `/appointments/${id}/reject-reschedule`,
     history: (id: number | string) => `/appointments/${id}/history`,
+    cancelPreview: (id: number | string) => `/appointments/${id}/cancel-preview`,
+    resolveCancellation: (id: number | string) => `/appointments/${id}/resolve-cancellation`,
   },
+
+
 
   // ─── M3 Chat ───────────────────────────────────────────
   chat: {
