@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import { subscriptionApi } from "@/services/payment";
-import { getWalletCoins } from "@/services/provider";
 import StripeSubscriptionModal from "@/components/payment/StripeSubscriptionModal";
 
 export interface PlanData {
@@ -53,7 +52,6 @@ export default function ProviderSubscriptionPage() {
     featured_credits_remaining: 0,
   });
 
-  const [coins, setCoins] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Stripe Checkout Modal state
@@ -63,14 +61,10 @@ export default function ProviderSubscriptionPage() {
   const loadSubscriptionData = useCallback(async () => {
     try {
       setLoading(true);
-      const [subRes, plansRes, coinsRes] = await Promise.all([
+      const [subRes, plansRes] = await Promise.all([
         subscriptionApi.getProviderSubscription().catch(() => null),
         subscriptionApi.getActivePublicPlans().catch(() => null),
-        getWalletCoins().catch(() => null),
       ]);
-
-      // Set coins
-      setCoins(coinsRes?.data?.available_balance || 0);
 
       // Set active plans
       const rawPlans = plansRes?.data?.data || plansRes?.data || [];
@@ -268,7 +262,6 @@ export default function ProviderSubscriptionPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           plan={selectedPlan}
-          coins={coins}
           onSuccess={() => {
             setIsModalOpen(false);
             loadSubscriptionData();

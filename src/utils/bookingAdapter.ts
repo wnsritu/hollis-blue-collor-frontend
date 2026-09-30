@@ -2,6 +2,24 @@ import type { Appointment } from "@/types/api/appointment";
 import type { GenericBooking } from "@/components/shared/cards";
 import { formatDisplayDate, formatDisplayTime } from "@/utils/format";
 
+export function formatTimeSlotLabel(slotIdOrName: any): string | null {
+  if (!slotIdOrName) return null;
+  if (typeof slotIdOrName === "string" && isNaN(Number(slotIdOrName))) {
+    const lower = slotIdOrName.toLowerCase();
+    if (lower.includes("morning") && !slotIdOrName.includes("(")) return "Morning Slot (06:00 AM - 10:00 AM)";
+    if (lower.includes("midday") && !slotIdOrName.includes("(")) return "Midday Slot (10:00 AM - 02:00 PM)";
+    if (lower.includes("afternoon") && !slotIdOrName.includes("(")) return "Afternoon Slot (02:00 PM - 06:00 PM)";
+    if (lower.includes("evening") && !slotIdOrName.includes("(")) return "Evening Slot (06:00 PM - 10:00 PM)";
+    return slotIdOrName;
+  }
+  const id = Number(slotIdOrName);
+  if (id === 1) return "Morning Slot (06:00 AM - 10:00 AM)";
+  if (id === 2) return "Midday Slot (10:00 AM - 02:00 PM)";
+  if (id === 3) return "Afternoon Slot (02:00 PM - 06:00 PM)";
+  if (id === 4) return "Evening Slot (06:00 PM - 10:00 PM)";
+  return null;
+}
+
 export interface NormalizedBooking {
   id: number;
   displayId: string;
@@ -317,21 +335,34 @@ export function normalizeBooking(b: any): NormalizedBooking {
 
   // Reschedule info
   const isTerminalState = isCancelled || isCompleted || isRejected;
-  const rescheduleTimeSlotName =
+  const rawRescheduleSlot =
     b.reschedule?.time_slot_name ||
     b.reschedule?.time_slot?.name ||
     b.reschedule?.time_slot?.slot_name ||
     b.reschedule_time_slot?.slot_name ||
     b.reschedule_time_slot?.name ||
+    b.reschedule_time_slot_name ||
+    b.reschedule?.time_slot_id ||
+    b.reschedule_time_slot_id ||
+    b.proposed_time_slot_id ||
+    b.proposed_time_slot?.slot_name ||
+    b.proposed_time_slot?.name ||
+    b.proposal?.proposed_time_slot_id ||
+    b.proposal?.time_slot_name ||
+    b.time_slot_name ||
+    b.time_slot_id ||
     b.time_slot?.slot_name ||
     b.time_slot?.name ||
     null;
+
+  const rescheduleTimeSlotName =
+    formatTimeSlotLabel(rawRescheduleSlot) || (typeof rawRescheduleSlot === "string" ? rawRescheduleSlot : null);
 
   const reschedule = {
     requested: !isTerminalState && Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
-    timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,
+    timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? b.proposed_time_slot_id ?? null,
     timeSlotName: rescheduleTimeSlotName,
     reason: b.reschedule?.reason ?? b.reschedule_reason ?? null,
   };

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader, StatusPill, EmptyState } from "@/components/shared/primitives";
 import { useAppointments } from "@/hooks/useAppointments";
-import { normalizeBooking } from "@/utils/bookingAdapter";
+import { normalizeBooking, formatTimeSlotLabel } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import { getTodayDateString } from "@/utils/date";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -391,7 +391,10 @@ export const AppointmentsPage: React.FC = () => {
                             <p>
                               <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
                               {formatDisplayDate(n.reschedule.date)}
-                              {n.reschedule.timeSlotName ? ` at ${n.reschedule.timeSlotName}` : ""}
+                              {(() => {
+                                const slot = n.reschedule.timeSlotName || formatTimeSlotLabel(n.reschedule.timeSlotId);
+                                return slot ? ` at ${slot}` : "";
+                              })()}
                             </p>
                           )}
                           {n.reschedule.reason && (
@@ -771,8 +774,12 @@ export const AppointmentsPage: React.FC = () => {
                       <div className="mt-1.5 space-y-1 text-muted-foreground">
                         {n.reschedule.date && (
                           <p>
-                            <strong className="text-foreground">New Proposed Date:</strong>{" "}
+                            <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
                             {formatDisplayDate(n.reschedule.date)}
+                            {(() => {
+                              const slot = n.reschedule.timeSlotName || formatTimeSlotLabel(n.reschedule.timeSlotId);
+                              return slot ? ` at ${slot}` : "";
+                            })()}
                           </p>
                         )}
                         {n.reschedule.reason && (

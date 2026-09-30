@@ -281,13 +281,6 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `/time-slots/${id}`,
   },
 
-  coin: {
-    balance: "/coins/balance",
-    transactions: "/coins/transactions",
-    add: "/coins/add",
-    deduct: "/coins/deduct",
-  },
-
   bulkPrice: {
     add: "/bulk-price/add",
     list: "/bulk-price/list",

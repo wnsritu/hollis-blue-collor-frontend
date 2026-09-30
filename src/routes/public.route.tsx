@@ -22,8 +22,6 @@ const ProviderOnboarding = lazy(() => import("@/pages/provider/ProviderOnboardin
 const ProviderProfile = lazy(() => import("@/pages/provider/ProviderProfile"));
 
 // Booking pages
-const CleaningBookingWizard = lazy(() => import("@/pages/booking/CleaningBookingWizard"));
-const CarWashBookingWizard = lazy(() => import("@/pages/booking/CarWashBookingWizard"));
 const BookService = lazy(() => import("@/pages/booking/BookService"));
 const Checkout = lazy(() => import("@/pages/booking/Checkout"));
 const RatingPage = lazy(() => import("@/pages/booking/RatingPage"));
@@ -45,8 +43,6 @@ export const PublicRoutes = () => (
 
       {/* Booking Flow (Requires Authentication) */}
       <Route element={<ProtectedRoute />}>
-        <Route path={routeMap.BOOKING_CLEANING.path} element={<CleaningBookingWizard />} />
-        <Route path={routeMap.BOOKING_CARWASH.path} element={<CarWashBookingWizard />} />
         <Route path={routeMap.BOOK_PROVIDER.path} element={<BookService />} />
         <Route path={routeMap.BOOKING_DETAIL.path} element={<BookService />} />
         <Route path={routeMap.CHECKOUT.path} element={<Checkout />} />
