@@ -38,6 +38,7 @@ export const AppointmentsPage: React.FC = () => {
     setActiveTab,
     searchQuery,
     setSearchQuery,
+    dbTimeSlots,
     selectedSlot,
     setSelectedSlot,
     rescheduleModalOpen,
@@ -101,20 +102,32 @@ export const AppointmentsPage: React.FC = () => {
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Time Slot</Label>
-            <div className="flex flex-wrap gap-2">
-              {timeSlots.map((t) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              {(dbTimeSlots.length > 0
+                ? dbTimeSlots.map((s: any) => ({
+                    id: s.id,
+                    name: s.slot_name || s.name || `Slot #${s.id}`,
+                    label: s.slot_name
+                      ? `${s.slot_name} (${s.start_time?.slice(0, 5) || ""}-${s.end_time?.slice(0, 5) || ""})`
+                      : s.name || `Slot #${s.id}`,
+                  }))
+                : timeSlots.map((t) => ({ id: t, name: t, label: t }))
+              ).map((slotObj) => (
                 <button
-                  key={t}
+                  key={slotObj.name}
                   type="button"
-                  onClick={() => setSelectedSlot(t)}
+                  onClick={() => setSelectedSlot(slotObj.name)}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-sm transition-colors",
-                    selectedSlot === t
-                      ? "border-primary bg-primary text-primary-foreground font-semibold"
+                    "rounded-xl border px-3 py-2 text-xs text-left transition-colors font-medium flex flex-col justify-center",
+                    selectedSlot === slotObj.name || selectedSlot === String(slotObj.id)
+                      ? "border-primary bg-primary text-primary-foreground font-semibold shadow-sm"
                       : "border-border hover:bg-muted text-foreground"
                   )}
                 >
-                  {t}
+                  <span className="font-bold">{slotObj.name}</span>
+                  {slotObj.label !== slotObj.name && (
+                    <span className="text-[10px] opacity-80">{slotObj.label.split("(")[1]?.replace(")", "") || ""}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -376,8 +389,9 @@ export const AppointmentsPage: React.FC = () => {
                         <div className="mt-1.5 space-y-1 text-muted-foreground">
                           {n.reschedule.date && (
                             <p>
-                              <strong className="text-foreground">New Proposed Date:</strong>{" "}
+                              <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
                               {formatDisplayDate(n.reschedule.date)}
+                              {n.reschedule.timeSlotName ? ` at ${n.reschedule.timeSlotName}` : ""}
                             </p>
                           )}
                           {n.reschedule.reason && (

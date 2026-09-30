@@ -41,6 +41,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
       message: "",
       estimatedHours: "",
       proposedDate: "",
+      proposedTimeSlot: "9:30 AM",
       validDays: "7",
       lineItems: [{ description: "Labor & Service", quantity: 1, unit_price: 150 }],
     },
@@ -67,6 +68,8 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
           message: values.message.trim(),
           estimated_duration_hours: values.estimatedHours ? Number(values.estimatedHours) : undefined,
           proposed_date: values.proposedDate || undefined,
+          proposed_time_slot_id: values.proposedTimeSlot || undefined,
+          time_slot_name: values.proposedTimeSlot || undefined,
           valid_until: validUntilDate.toISOString(),
           line_items: values.lineItems.map((item) => ({
             description: item.description || "Service item",
@@ -304,6 +307,31 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="propSlot" className="text-xs font-medium">
+                Proposed Time Slot
+              </Label>
+              <select
+                id="propSlot"
+                name="proposedTimeSlot"
+                value={formik.values.proposedTimeSlot || "Morning Slot"}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {[
+                  { value: "Morning Slot", label: "Morning Slot (06:00 AM - 10:00 AM)" },
+                  { value: "Midday Slot", label: "Midday Slot (10:00 AM - 02:00 PM)" },
+                  { value: "Afternoon Slot", label: "Afternoon Slot (02:00 PM - 06:00 PM)" },
+                  { value: "Evening Slot", label: "Evening Slot (06:00 PM - 10:00 PM)" },
+                ].map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-1.5">

@@ -598,17 +598,74 @@ export const ProjectDetail: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Details & Actions */}
-                      <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
-                          {prop.estimated_duration_hours && (
-                            <span>Est: {prop.estimated_duration_hours} hours</span>
-                          )}
-                          {prop.proposed_date && (
-                            <span>Start: {formatDate(prop.proposed_date)}</span>
-                          )}
+                      {/* Proposed Schedule & Logistics */}
+                      <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/30 p-3 rounded-xl border border-border text-xs">
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground text-[11px] flex items-center gap-1 font-medium">
+                            <CalendarDays size={13} className="text-primary" /> Proposed Start Date
+                          </span>
+                          <span className="font-semibold text-foreground block">
+                            {prop.proposed_date ? formatDate(prop.proposed_date) : "Flexible"}
+                          </span>
                         </div>
 
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground text-[11px] flex items-center gap-1 font-medium">
+                            <Clock size={13} className="text-primary" /> Proposed Time Slot
+                          </span>
+                          <span className="font-semibold text-foreground block">
+                            {(() => {
+                              const name =
+                                prop.time_slot_name ||
+                                prop.proposed_time_slot_name ||
+                                (prop.proposed_time_slot as any)?.slot_name ||
+                                (prop.proposed_time_slot as any)?.name ||
+                                (prop.time_slot as any)?.slot_name ||
+                                (prop.time_slot as any)?.name;
+
+                              if (name) {
+                                if (name.includes("Morning")) return `${name} (06:00 AM - 10:00 AM)`;
+                                if (name.includes("Midday")) return `${name} (10:00 AM - 02:00 PM)`;
+                                if (name.includes("Afternoon")) return `${name} (02:00 PM - 06:00 PM)`;
+                                if (name.includes("Evening")) return `${name} (06:00 PM - 10:00 PM)`;
+                                return name;
+                              }
+
+                              const id = Number(prop.proposed_time_slot_id || prop.time_slot_id);
+                              if (id === 1) return "Morning Slot (06:00 AM - 10:00 AM)";
+                              if (id === 2) return "Midday Slot (10:00 AM - 02:00 PM)";
+                              if (id === 3) return "Afternoon Slot (02:00 PM - 06:00 PM)";
+                              if (id === 4) return "Evening Slot (06:00 PM - 10:00 PM)";
+                              return "To be confirmed";
+                            })()}
+                          </span>
+                        </div>
+
+                        {prop.valid_until && (
+                          <div className="space-y-0.5">
+                            <span className="text-muted-foreground text-[11px] flex items-center gap-1 font-medium">
+                              <Sparkles size={13} className="text-primary" /> Quote Valid Until
+                            </span>
+                            <span className="font-semibold text-foreground block">
+                              {formatDate(prop.valid_until)}
+                            </span>
+                          </div>
+                        )}
+
+                        {prop.estimated_duration_hours && (
+                          <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                            <span className="text-muted-foreground text-[11px] flex items-center gap-1 font-medium">
+                              <Clock size={13} className="text-primary" /> Estimated Duration
+                            </span>
+                            <span className="font-semibold text-foreground block">
+                              {prop.estimated_duration_hours} hours
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details & Actions */}
+                      <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"

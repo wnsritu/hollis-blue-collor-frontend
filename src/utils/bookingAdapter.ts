@@ -57,6 +57,7 @@ export interface NormalizedBooking {
     requestedBy: string | number | null;
     date: string | null;
     timeSlotId: number | null;
+    timeSlotName?: string | null;
     reason?: string | null;
   };
   dispute: {
@@ -316,11 +317,22 @@ export function normalizeBooking(b: any): NormalizedBooking {
 
   // Reschedule info
   const isTerminalState = isCancelled || isCompleted || isRejected;
+  const rescheduleTimeSlotName =
+    b.reschedule?.time_slot_name ||
+    b.reschedule?.time_slot?.name ||
+    b.reschedule?.time_slot?.slot_name ||
+    b.reschedule_time_slot?.slot_name ||
+    b.reschedule_time_slot?.name ||
+    b.time_slot?.slot_name ||
+    b.time_slot?.name ||
+    null;
+
   const reschedule = {
     requested: !isTerminalState && Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
     date: b.reschedule?.date ?? b.reschedule_date ?? null,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? null,
+    timeSlotName: rescheduleTimeSlotName,
     reason: b.reschedule?.reason ?? b.reschedule_reason ?? null,
   };
 

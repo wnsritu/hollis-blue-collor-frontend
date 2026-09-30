@@ -32,7 +32,7 @@ import { usd } from "@/components/shared/cards";
 import { projectApi, proposalApi } from "@/services/project";
 import { bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
-import { formatDate } from "@/utils/date";
+import { formatDate, getTodayDateString } from "@/utils/date";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -131,6 +131,9 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           discount_amount: discountNum,
           currency: "usd",
           message: noteWithDiscount,
+          proposed_date: values.proposedDate || project?.preferred_date || undefined,
+          proposed_time_slot_id: values.proposedTimeSlot || project?.preferred_time_slot_id || undefined,
+          time_slot_name: values.proposedTimeSlot || undefined,
           valid_until: validUntilDate.toISOString(),
           line_items: lineItems,
         };
@@ -657,6 +660,48 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                     {formik.errors.completion}
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div className={CUSTOM_QUOTE_FORM_STYLES.fieldGroupGrid}>
+              <div className={CUSTOM_QUOTE_FORM_STYLES.fieldWrapper}>
+                <Label htmlFor="proposedDate" className={CUSTOM_QUOTE_FORM_STYLES.label}>
+                  Proposed Start Date
+                </Label>
+                <Input
+                  id="proposedDate"
+                  name="proposedDate"
+                  type="date"
+                  min={getTodayDateString()}
+                  value={formik.values.proposedDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+              </div>
+
+              <div className={CUSTOM_QUOTE_FORM_STYLES.fieldWrapper}>
+                <Label htmlFor="proposedTimeSlot" className={CUSTOM_QUOTE_FORM_STYLES.label}>
+                  Proposed Time Slot
+                </Label>
+                <select
+                  id="proposedTimeSlot"
+                  name="proposedTimeSlot"
+                  value={formik.values.proposedTimeSlot || "Morning Slot"}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {[
+                    { value: "Morning Slot", label: "Morning Slot (06:00 AM - 10:00 AM)" },
+                    { value: "Midday Slot", label: "Midday Slot (10:00 AM - 02:00 PM)" },
+                    { value: "Afternoon Slot", label: "Afternoon Slot (02:00 PM - 06:00 PM)" },
+                    { value: "Evening Slot", label: "Evening Slot (06:00 PM - 10:00 PM)" },
+                  ].map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

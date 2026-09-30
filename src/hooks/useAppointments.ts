@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appointmentApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
+import { getTimeSlots } from "@/services/provider/provider.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
@@ -48,9 +49,10 @@ export function useAppointments() {
     }
   };
 
-  // Calendar state
+  // Calendar & Time Slots state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string>("9:30 AM");
+  const [dbTimeSlots, setDbTimeSlots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string>("Morning Slot");
 
   // Cancellation modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -66,8 +68,19 @@ export function useAppointments() {
     requires_admin_approval?: boolean;
     policy_notice: string;
   } | null>(null);
-
   const [loadingCancelPreview, setLoadingCancelPreview] = useState(false);
+
+  useEffect(() => {
+    getTimeSlots()
+      .then((slots: any) => {
+        const list = Array.isArray(slots) ? slots : slots?.data || [];
+        if (list.length > 0) {
+          setDbTimeSlots(list);
+          setSelectedSlot(list[0]?.slot_name || list[0]?.name || "Morning Slot");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleUpdateStatus = async (
     id: number | string,
@@ -138,7 +151,6 @@ export function useAppointments() {
     }
   };
 
-
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
     const rawSt = String(apt.appointment_status || apt.status || normalized.status || "").toLowerCase();
@@ -152,7 +164,11 @@ export function useAppointments() {
     const initialDate = normalized.date && !isPastDate(normalized.date) ? normalized.date : getTodayDateString();
     setRescheduleDate(initialDate);
     setRescheduleReason("");
-    setSelectedSlot("9:30 AM");
+    if (dbTimeSlots.length > 0) {
+      setSelectedSlot(dbTimeSlots[0]?.slot_name || dbTimeSlots[0]?.name || "Morning Slot");
+    } else {
+      setSelectedSlot("Morning Slot");
+    }
     setRescheduleModalOpen(true);
   };
 
@@ -168,15 +184,20 @@ export function useAppointments() {
     }
     setRescheduling(true);
     try {
-      const timeSlotId = selectedAppointment.schedule?.time_slot?.id || selectedAppointment.time_slot_id || undefined;
+      const matchedSlotObj = dbTimeSlots.find(
+        (s) => s.slot_name === selectedSlot || s.name === selectedSlot || String(s.id) === String(selectedSlot)
+      );
+      const timeSlotIdToSend = matchedSlotObj?.id || undefined;
+      const timeSlotNameToSend = matchedSlotObj?.slot_name || matchedSlotObj?.name || selectedSlot;
+
       await appointmentApi.reschedule(selectedAppointment.id, {
         booking_date: rescheduleDate,
         proposed_date: rescheduleDate,
-        ...(timeSlotId ? { time_slot_id: timeSlotId } : {}),
+        ...(timeSlotIdToSend ? { time_slot_id: timeSlotIdToSend } : {}),
+        time_slot_name: timeSlotNameToSend,
         reason: rescheduleReason,
-        time_slot_name: selectedSlot,
       } as any);
-      toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
+      toast.success(`Reschedule requested: ${rescheduleDate} at ${timeSlotNameToSend}`);
       setRescheduleModalOpen(false);
       fetchAppointments();
     } catch (err: any) {
@@ -302,6 +323,7 @@ export function useAppointments() {
     setSearchQuery,
     selectedDay,
     setSelectedDay,
+    dbTimeSlots,
     selectedSlot,
     setSelectedSlot,
     rescheduleModalOpen,

@@ -509,6 +509,12 @@ export function ProviderJobs() {
               paymentStatusRaw === "completed" ||
               Boolean(b.paid);
 
+            const isPaymentCompleted =
+              isPaid ||
+              paymentStatusRaw === "escrow" ||
+              paymentStatusRaw === "held" ||
+              paymentStatusRaw === "authorized";
+
             const paymentBadgeText = isPaid
               ? "Payment: Paid"
               : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
@@ -758,14 +764,36 @@ export function ProviderJobs() {
                             <DollarSign size={14} /> Update Price
                           </Button> */}
 
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
-                            className="gap-1 text-xs"
-                            disabled={actionLoadingId === b.id}
-                          >
-                            <CheckCircle2 size={14} /> Accept Job
-                          </Button>
+                          {isPaymentCompleted ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
+                              className="gap-1 text-xs"
+                              disabled={actionLoadingId === b.id}
+                            >
+                              <CheckCircle2 size={14} /> Accept Job
+                            </Button>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={150}>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs opacity-70 bg-amber-500/10 text-amber-800 border-amber-300 dark:text-amber-300 cursor-not-allowed font-semibold"
+                                      disabled
+                                    >
+                                      <Clock size={14} /> Awaiting Customer Payment
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg max-w-xs">
+                                  Job can only be accepted after the customer completes payment.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </>
                       )}
 
