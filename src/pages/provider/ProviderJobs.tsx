@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { appointmentApi, bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
 import { ratingApi } from "@/services/rating";
@@ -59,6 +60,16 @@ export function ProviderJobs() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "completed" | "fixed" | "quote">("all");
+
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   // State for Price Update Modal
   const [selectedBookingForPrice, setSelectedBookingForPrice] = useState<any | null>(null);
@@ -84,7 +95,7 @@ export function ProviderJobs() {
     setLoading(true);
     try {
       const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
-      const queryParams: Record<string, unknown> = { limit: 100 };
+      const queryParams: Record<string, unknown> = { page, limit };
       if (tabToUse === "active") queryParams.status_tab = "in_progress";
       else if (tabToUse === "completed") queryParams.status_tab = "completed";
       else if (tabToUse === "fixed") queryParams.job_type = "fixed";
@@ -96,21 +107,72 @@ export function ProviderJobs() {
       ]);
 
       let aptList: any[] = [];
+      let totalItems = 0;
+      let calculatedTotalPages = 1;
+
       if (aptRes.status === "fulfilled") {
-        const val = aptRes.value;
-        aptList = (val as any)?.data || val || [];
-        if (!Array.isArray(aptList)) aptList = [];
+        const val = aptRes.value as any;
+        const pagination =
+          val?.pagination ||
+          val?.data?.pagination ||
+          val?.meta?.pagination;
+
+        if (pagination) {
+          totalItems = Number(pagination.total ?? pagination.total_records ?? pagination.totalCount ?? 0);
+          calculatedTotalPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        } else if (val?.total !== undefined) {
+          totalItems = Number(val.total);
+          calculatedTotalPages = Number(val.totalPages ?? val.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        } else if (val?.data && typeof val.data === "object" && !Array.isArray(val.data)) {
+          totalItems = Number(val.data.total ?? val.data.total_records ?? 0);
+          calculatedTotalPages = Number(val.data.totalPages ?? val.data.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        }
+
+        const rawData = val?.data || val;
+        if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
+          aptList = rawData.items;
+          if (!totalItems) {
+            totalItems = Number(rawData.total || 0);
+            calculatedTotalPages = Number(rawData.totalPages || Math.ceil(totalItems / limit) || 1);
+          }
+        } else if (Array.isArray(rawData)) {
+          aptList = rawData;
+        } else if (Array.isArray(val?.items)) {
+          aptList = val.items;
+        } else if (Array.isArray(val)) {
+          aptList = val;
+        }
+
+        if (!totalItems) {
+          totalItems = aptList.length;
+          calculatedTotalPages = Math.ceil(totalItems / limit) || 1;
+        }
       }
 
       let bookingList: any[] = [];
       if (bookingRes.status === "fulfilled") {
-        const val = bookingRes.value;
+        const val = bookingRes.value as any;
+        const pagination =
+          val?.pagination ||
+          val?.data?.pagination ||
+          val?.meta?.pagination;
+
+        if (pagination) {
+          const bTotal = Number(pagination.total ?? pagination.total_records ?? 0);
+          const bPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(bTotal / limit) ?? 1);
+          if (bTotal > totalItems) {
+            totalItems = bTotal;
+            calculatedTotalPages = bPages;
+          }
+        } else if (val?.total !== undefined && val.total > totalItems) {
+          totalItems = Number(val.total);
+          calculatedTotalPages = Number(val.totalPages ?? Math.ceil(totalItems / limit) ?? 1);
+        }
+
         bookingList =
-          (val as any)?.bookings ||
-          (val as any)?.data?.bookings ||
-          (val as any)?.data ||
-          val ||
-          [];
+          val?.bookings ||
+          val?.data?.bookings ||
+          (Array.isArray(val?.data) ? val.data : Array.isArray(val) ? val : []);
         if (!Array.isArray(bookingList)) bookingList = [];
       }
 
@@ -123,7 +185,6 @@ export function ProviderJobs() {
 
       const combined = Array.from(map.values());
 
-      // Sort newest created first (senior developer approach)
       combined.sort((a, b) => {
         const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || 0).getTime() || Number(a.id) || 0;
         const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || 0).getTime() || Number(b.id) || 0;
@@ -131,6 +192,8 @@ export function ProviderJobs() {
       });
 
       setAppointments(combined);
+      setTotalCount(totalItems || combined.length);
+      setTotalPages(calculatedTotalPages || Math.ceil((totalItems || combined.length) / limit) || 1);
     } catch (err) {
       console.error("Failed to load jobs:", err);
       toast.error("Failed to load jobs.");
@@ -141,7 +204,7 @@ export function ProviderJobs() {
 
   useEffect(() => {
     fetchActiveJobs();
-  }, [activeTab]);
+  }, [page, limit, activeTab]);
 
   // Classify direct fixed services vs request a quote / project flow
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
@@ -530,8 +593,8 @@ export function ProviderJobs() {
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isFixed
-                              ? "bg-primary/10 text-primary"
-                              : "bg-amber-500/10 text-amber-600"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-amber-500/10 text-amber-600"
                             }`}
                         >
                           {isFixed ? <Tag size={12} /> : <FileText size={12} />}
@@ -554,10 +617,10 @@ export function ProviderJobs() {
                       <StatusPill status={n.providerStatusLabel || aptStatus} />
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isPaid
-                            ? "bg-success-soft text-success border border-success/20"
-                            : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
-                              ? "bg-blue-500/10 text-blue-600 border border-blue-200"
-                              : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                          ? "bg-success-soft text-success border border-success/20"
+                          : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+                            ? "bg-blue-500/10 text-blue-600 border border-blue-200"
+                            : "bg-amber-500/10 text-amber-700 border border-amber-200"
                           }`}
                       >
                         <DollarSign size={12} />
@@ -580,20 +643,20 @@ export function ProviderJobs() {
                             <div key={st} className="flex flex-col items-center">
                               <div
                                 className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${done
-                                    ? active
-                                      ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
-                                      : "bg-primary text-primary-foreground"
-                                    : "bg-muted text-muted-foreground"
+                                  ? active
+                                    ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
+                                    : "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
                                   }`}
                               >
                                 {done ? <Check size={12} /> : i + 1}
                               </div>
                               <span
                                 className={`mt-1.5 text-[10px] font-semibold truncate max-w-full ${active
-                                    ? "text-amber-600 font-bold"
-                                    : done
-                                      ? "text-foreground"
-                                      : "text-muted-foreground opacity-60"
+                                  ? "text-amber-600 font-bold"
+                                  : done
+                                    ? "text-foreground"
+                                    : "text-muted-foreground opacity-60"
                                   }`}
                               >
                                 {st}
@@ -918,6 +981,20 @@ export function ProviderJobs() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 

@@ -79,7 +79,7 @@ export function useAppointments() {
           setSelectedSlot(list[0]?.slot_name || list[0]?.name || "Morning Slot");
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleUpdateStatus = async (
@@ -240,16 +240,30 @@ export function useAppointments() {
     }
   };
 
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, selectedDay]);
+
   const fetchAppointments = async (overrideParams?: {
     tab?: string;
     query?: string;
     day?: number | null;
+    page?: number;
+    limit?: number;
   }) => {
     setLoading(true);
     try {
       const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
       const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
       const dayToUse = overrideParams?.day !== undefined ? overrideParams.day : selectedDay;
+      const pageToUse = overrideParams?.page !== undefined ? overrideParams.page : page;
+      const limitToUse = overrideParams?.limit !== undefined ? overrideParams.limit : limit;
 
       let statusTab: string | undefined = undefined;
       if (tabToUse === "Upcoming") statusTab = "upcoming";
@@ -257,14 +271,26 @@ export function useAppointments() {
       else if (tabToUse === "Completed") statusTab = "completed";
       else if (tabToUse === "Cancelled") statusTab = "cancelled";
 
-      const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = {
+        page: pageToUse,
+        limit: limitToUse,
+      };
       if (statusTab) params.status_tab = statusTab;
       if (queryToUse && queryToUse.trim()) params.search = queryToUse.trim();
       if (dayToUse !== null && dayToUse !== undefined) params.day = dayToUse;
 
       const res = await appointmentApi.listMine(params);
-      const list = (res as any)?.data || res || [];
-      setAppointments(Array.isArray(list) ? list : []);
+      const rawData = (res as any)?.data || res;
+      if (rawData && typeof rawData === "object" && "items" in rawData) {
+        setAppointments(Array.isArray(rawData.items) ? rawData.items : []);
+        setTotalCount(rawData.total || 0);
+        setTotalPages(rawData.totalPages || Math.ceil((rawData.total || 0) / limitToUse) || 1);
+      } else {
+        const list = Array.isArray(rawData) ? rawData : [];
+        setAppointments(list);
+        setTotalCount(list.length);
+        setTotalPages(Math.ceil(list.length / limitToUse) || 1);
+      }
     } catch (err) {
       console.error("Failed to load appointments", err);
       toast.error("Failed to load your appointments.");
@@ -278,39 +304,11 @@ export function useAppointments() {
       fetchAppointments();
     }, 300);
     return () => clearTimeout(handler);
-  }, [activeTab, searchQuery, selectedDay]);
+  }, [page, limit, activeTab, searchQuery, selectedDay]);
 
-  // Status tab filtering matching backend business rules & UI requirements
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((apt) => {
-      const n = normalizeBooking(apt);
-      const tab = (activeTab || "All").toLowerCase();
-
-      if (tab === "all") return true;
-
-      const raw = (n.rawStatus || "").toLowerCase();
-      const apptSt = n.appointmentStatus || "";
-
-      const isCompleted = n.isCompleted || ["completed", "finished", "delivered", "reviewed", "work completed"].includes(raw);
-      const isCancelled = n.isCancelled || ["cancelled", "canceled", "rejected", "declined", "no-show", "noshow", "expired"].includes(raw);
-      const isInProgress = ["en route", "en_route", "arrived", "arrived at site", "in_progress", "in progress", "in_process", "in process"].includes(raw) ||
-        ["En Route", "Arrived", "In Progress"].includes(apptSt);
-
-      if (tab === "upcoming") {
-        return !isCompleted && !isCancelled && !isInProgress;
-      }
-      if (tab === "in progress" || tab === "in_progress") {
-        return !isCompleted && !isCancelled && isInProgress;
-      }
-      if (tab === "completed") {
-        return isCompleted;
-      }
-      if (tab === "cancelled" || tab === "canceled") {
-        return isCancelled;
-      }
-      return true;
-    });
-  }, [appointments, activeTab]);
+    return appointments;
+  }, [appointments]);
 
   return {
     navigate,
@@ -359,6 +357,12 @@ export function useAppointments() {
     loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    totalCount,
+    totalPages,
   };
 }
 

@@ -455,7 +455,7 @@ const AdminDisputes = () => {
           )}
         </CardContent>
 
-        {totalPages > 1 && disputes?.length > 0 && (
+        {disputes?.length > 0 && (
           <div className="p-4 border-t border-border bg-card">
             <PaginationController
               currentPage={currentPage}

@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader, StatusPill, EmptyState } from "@/components/shared/primitives";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { useAppointments } from "@/hooks/useAppointments";
 import { normalizeBooking, formatTimeSlotLabel } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
@@ -67,6 +68,12 @@ export const AppointmentsPage: React.FC = () => {
     loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    totalCount,
+    totalPages,
   } = useAppointments();
 
 
@@ -886,6 +893,20 @@ export const AppointmentsPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 

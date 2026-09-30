@@ -270,7 +270,7 @@ export const CustomerPayments: React.FC = () => {
       )}
 
       {/* Server-side Pagination */}
-      {totalPages > 1 && normalizedBookings.length > 0 && (
+      {normalizedBookings.length > 0 && (
         <div className="mt-4">
           <PaginationController
             currentPage={currentPage}

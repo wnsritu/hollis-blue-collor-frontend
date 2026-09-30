@@ -800,7 +800,7 @@ export const AdminOrders: React.FC = () => {
       </Dialog>
 
       {/* Server-side Pagination */}
-      {totalPages > 1 && orders?.length > 0 && (
+      {orders?.length > 0 && (
         <div className="mt-4">
           <PaginationController
             currentPage={currentPage}

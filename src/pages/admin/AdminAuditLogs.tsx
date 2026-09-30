@@ -50,6 +50,7 @@ import {
 import { adminApi } from "@/services/admin";
 import { getErrorMessage } from "@/services";
 import { formatDate as formatDateUtil } from "@/utils/date";
+import PaginationController from "@/components/ui/PaginationController";
 
 export interface AuditLogActor {
   id?: number;
@@ -191,6 +192,7 @@ export function AdminAuditLogs() {
         limit,
       };
 
+      if (search.trim()) params.search = search.trim();
       if (entityFilter !== "all") params.entity_type = entityFilter;
       if (actionFilter !== "all") params.action = actionFilter;
       if (fromDate) params.from = fromDate;
@@ -221,11 +223,15 @@ export function AdminAuditLogs() {
   };
 
   useEffect(() => {
+    setPage(1);
+  }, [search, entityFilter, actionFilter, fromDate, toDate, limit]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       void fetchAuditLogs();
     }, 300);
     return () => clearTimeout(timer);
-  }, [page, limit, entityFilter, actionFilter, fromDate, toDate]);
+  }, [page, limit, search, entityFilter, actionFilter, fromDate, toDate]);
 
   const handleResetFilters = () => {
     setSearch("");
@@ -605,61 +611,16 @@ export function AdminAuditLogs() {
           </TableBody>
         </Table>
 
-        {/* Footer Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border/60 bg-muted/20">
-          <div className="text-xs text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{filteredLogs.length}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalCount}</span> total audit records
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Per page:</span>
-              <Select
-                value={String(limit)}
-                onValueChange={(val) => {
-                  setLimit(Number(val));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[70px] h-8 text-xs bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-
-              <span className="text-xs font-medium px-2">
-                Page {page} of {totalPages}
-              </span>
-
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+        <div className="p-4 border-t border-border/60 bg-muted/20">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       </div>
 
