@@ -126,10 +126,11 @@ export const ProviderCustomRequestDetail: React.FC = () => {
 
         const payload: CustomQuoteSubmitPayload = {
           amount: netQuoteAmount,
-          discount: discountNum,
-          discount_amount: discountNum,
+          // discount: discountNum,
+          // discount_amount: discountNum,
           currency: "usd",
-          message: noteWithDiscount,
+          // message: noteWithDiscount,
+          message: "Test Quote",
           valid_until: validUntilDate.toISOString(),
           line_items: lineItems,
         };
@@ -308,9 +309,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
 
       <PageHeader
         title={project.title}
-        subtitle={`CSR-${project.id} · ${customerName} · submitted ${
-          project.created_at ? formatDate(project.created_at) : "recently"
-        }`}
+        subtitle={`CSR-${project.id} · ${customerName} · submitted ${project.created_at ? formatDate(project.created_at) : "recently"
+          }`}
         action={<StatusPill status={project.status || "Quote Pending"} />}
       />
 
@@ -469,8 +469,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                 onBlur={formik.handleBlur}
                 className={cn(
                   formik.touched.workDescription &&
-                    formik.errors.workDescription &&
-                    CUSTOM_QUOTE_FORM_STYLES.inputError
+                  formik.errors.workDescription &&
+                  CUSTOM_QUOTE_FORM_STYLES.inputError
                 )}
               />
               {formik.touched.workDescription && formik.errors.workDescription && (
@@ -496,8 +496,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.labor &&
-                      formik.errors.labor &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.labor &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.labor && formik.errors.labor && (
@@ -520,8 +520,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.materials &&
-                      formik.errors.materials &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.materials &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.materials && formik.errors.materials && (
@@ -546,8 +546,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.fees &&
-                      formik.errors.fees &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.fees &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.fees && formik.errors.fees && (
@@ -570,8 +570,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.discount &&
-                      formik.errors.discount &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.discount &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.discount && formik.errors.discount && (
@@ -596,8 +596,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.tax &&
-                      formik.errors.tax &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.tax &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.tax && formik.errors.tax && (
@@ -617,8 +617,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   onBlur={formik.handleBlur}
                   className={cn(
                     formik.touched.completion &&
-                      formik.errors.completion &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                    formik.errors.completion &&
+                    CUSTOM_QUOTE_FORM_STYLES.inputError
                   )}
                 />
                 {formik.touched.completion && formik.errors.completion && (
@@ -641,8 +641,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                 onBlur={formik.handleBlur}
                 className={cn(
                   formik.touched.expires &&
-                    formik.errors.expires &&
-                    CUSTOM_QUOTE_FORM_STYLES.inputError
+                  formik.errors.expires &&
+                  CUSTOM_QUOTE_FORM_STYLES.inputError
                 )}
               />
               {formik.touched.expires && formik.errors.expires && (
@@ -663,8 +663,8 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                 onBlur={formik.handleBlur}
                 className={cn(
                   formik.touched.terms &&
-                    formik.errors.terms &&
-                    CUSTOM_QUOTE_FORM_STYLES.inputError
+                  formik.errors.terms &&
+                  CUSTOM_QUOTE_FORM_STYLES.inputError
                 )}
               />
               {formik.touched.terms && formik.errors.terms && (
