@@ -50,6 +50,8 @@ export interface NormalizedBooking {
   totalAmount: number;
   currency: string;
   isPaid: boolean;
+  isRefunded: boolean;
+  isPartiallyRefunded: boolean;
   paymentStatus: string;
   paymentDate: string | null;
   receiptUrl: string | null;
@@ -130,6 +132,8 @@ export function normalizeBooking(b: any): NormalizedBooking {
       totalAmount: 0,
       currency: "USD",
       isPaid: false,
+      isRefunded: false,
+      isPartiallyRefunded: false,
       paymentStatus: "pending",
       paymentDate: null,
       receiptUrl: null,
@@ -320,7 +324,9 @@ export function normalizeBooking(b: any): NormalizedBooking {
   // Payment
   const paymentStatus = b.payment?.payment_status || b.payment_status || "pending";
   const normPayStatus = String(paymentStatus).toLowerCase();
-  const isPaid = ["paid", "success", "succeeded", "completed"].includes(normPayStatus) || Boolean(b.paid);
+  const isRefunded = normPayStatus === "refunded";
+  const isPartiallyRefunded = normPayStatus === "partially_refunded" || normPayStatus === "partially refunded";
+  const isPaid = ["paid", "success", "succeeded", "completed", "refunded", "partially_refunded", "partially refunded"].includes(normPayStatus) || Boolean(b.paid);
   const paymentDate = b.payment?.payment_date || b.payment?.createdAt || b.payment_date || null;
   const receiptUrl = b.payment?.receipt_url || null;
 
@@ -440,6 +446,8 @@ export function normalizeBooking(b: any): NormalizedBooking {
     totalAmount,
     currency,
     isPaid,
+    isRefunded,
+    isPartiallyRefunded,
     paymentStatus,
     paymentDate,
     receiptUrl,

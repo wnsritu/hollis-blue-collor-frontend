@@ -739,8 +739,16 @@ export function ProviderJobs() {
 
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Payment Status</span>
-                      <span className={`font-bold text-xs ${isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
-                        {isPaid ? "Paid (Completed)" : paymentStatusRaw === "escrow" ? "Escrow Held" : "Pending Payment"}
+                      <span className={`font-bold text-xs ${paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded" || paymentStatusRaw === "refunded" ? "text-purple-700 font-extrabold" : isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
+                        {paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded"
+                          ? "Partially Refunded"
+                          : paymentStatusRaw === "refunded"
+                          ? "Refunded"
+                          : isPaid
+                          ? "Paid (Completed)"
+                          : paymentStatusRaw === "escrow"
+                          ? "Escrow Held"
+                          : "Pending Payment"}
                       </span>
                     </div>
 

@@ -112,12 +112,12 @@ export const AppointmentsPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
               {(dbTimeSlots.length > 0
                 ? dbTimeSlots.map((s: any) => ({
-                    id: s.id,
-                    name: s.slot_name || s.name || `Slot #${s.id}`,
-                    label: s.slot_name
-                      ? `${s.slot_name} (${s.start_time?.slice(0, 5) || ""}-${s.end_time?.slice(0, 5) || ""})`
-                      : s.name || `Slot #${s.id}`,
-                  }))
+                  id: s.id,
+                  name: s.slot_name || s.name || `Slot #${s.id}`,
+                  label: s.slot_name
+                    ? `${s.slot_name} (${s.start_time?.slice(0, 5) || ""}-${s.end_time?.slice(0, 5) || ""})`
+                    : s.name || `Slot #${s.id}`,
+                }))
                 : timeSlots.map((t) => ({ id: t, name: t, label: t }))
               ).map((slotObj) => (
                 <button
@@ -193,19 +193,19 @@ export const AppointmentsPage: React.FC = () => {
             <div className="space-y-1.5">
               {(side === "provider"
                 ? [
-                    "Schedule conflict / Unavailable",
-                    "Location out of service area",
-                    "Required tools or materials unavailable",
-                    "Customer requested cancellation",
-                    "Other reason",
-                  ]
+                  "Schedule conflict / Unavailable",
+                  "Location out of service area",
+                  "Required tools or materials unavailable",
+                  "Customer requested cancellation",
+                  "Other reason",
+                ]
                 : [
-                    "Schedule change / No longer needed",
-                    "Booked by mistake",
-                    "Found alternative provider",
-                    "Provider unavailable at required time",
-                    "Other reason",
-                  ]
+                  "Schedule change / No longer needed",
+                  "Booked by mistake",
+                  "Found alternative provider",
+                  "Provider unavailable at required time",
+                  "Other reason",
+                ]
               ).map((reason) => (
                 <label
                   key={reason}
@@ -619,40 +619,40 @@ export const AppointmentsPage: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdateStatus(apt.id, "Requested")}
-                        >
-                          Request again
-                        </Button>
-                        {n.isNoShow && (
                           <Button
                             size="sm"
-                            variant="destructive"
-                            onClick={async () => {
-                              try {
-                                const { http } = await import("@/lib/api/http");
-                                await http.post("/disputes/create", {
-                                  booking_id: apt.id,
-                                  reason: "No-show Contest",
-                                  description: "Customer contesting false no-show claim",
-                                  refund_requested: n.totalAmount || 0,
-                                });
-                                toast.success("Dispute submitted successfully! Our support team will review your case.");
-                              } catch (err: any) {
-                                toast.error(err?.response?.data?.message || err?.message || "Failed to submit dispute.");
-                              }
-                            }}
+                            variant="outline"
+                            onClick={() => handleUpdateStatus(apt.id, "Requested")}
                           >
-                            Dispute No-Show
+                            Request again
                           </Button>
-                        )}
+                          {n.isNoShow && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={async () => {
+                                try {
+                                  const { http } = await import("@/lib/api/http");
+                                  await http.post("/disputes/create", {
+                                    booking_id: apt.id,
+                                    reason: "No-show Contest",
+                                    description: "Customer contesting false no-show claim",
+                                    refund_requested: n.totalAmount || 0,
+                                  });
+                                  toast.success("Dispute submitted successfully! Our support team will review your case.");
+                                } catch (err: any) {
+                                  toast.error(err?.response?.data?.message || err?.message || "Failed to submit dispute.");
+                                }
+                              }}
+                            >
+                              Dispute No-Show
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
               );
             })
           )}
@@ -669,7 +669,7 @@ export const AppointmentsPage: React.FC = () => {
     <div>
       <PageHeader
         title="My Bookings"
-        subtitle={`${appointments.length} services booked with professionals`}
+        subtitle={`${totalCount} services booked with professionals`}
         action={
           <Button onClick={() => navigate("/search")}>
             Find a Professional

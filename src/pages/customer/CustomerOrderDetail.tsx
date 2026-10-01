@@ -201,6 +201,9 @@ export const CustomerOrderDetail: React.FC = () => {
   const isInProgress = ["in progress", "in_progress", "in_process", "in process"].includes(normStatus);
 
   const isPaid = normalized.isPaid;
+  const rawPaymentStatus = String(booking?.payment_status || booking?.payment?.payment_status || normalized.paymentStatus || "").toLowerCase();
+  const isPartiallyRefunded = rawPaymentStatus === "partially_refunded" || rawPaymentStatus === "partially refunded" || Boolean(normalized.isPartiallyRefunded);
+  const isRefunded = rawPaymentStatus === "refunded" || Boolean(normalized.isRefunded);
   const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
     isPaid,
     isReviewed: reviewed,
@@ -785,12 +788,21 @@ export const CustomerOrderDetail: React.FC = () => {
                 <CreditCard size={18} className="text-primary" /> Payment Summary
               </h2>
               <span
-                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isPaid
-                  ? "bg-success-soft text-success border border-success/20"
-                  : "bg-amber-500/10 text-amber-700 border border-amber-200"
-                  }`}
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  isPartiallyRefunded || isRefunded
+                    ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                    : isPaid
+                    ? "bg-success-soft text-success border border-success/20"
+                    : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                }`}
               >
-                {isPaid ? "Paid" : "Pending"}
+                {isPartiallyRefunded
+                  ? "Partially Refunded"
+                  : isRefunded
+                  ? "Refunded"
+                  : isPaid
+                  ? "Paid"
+                  : "Pending"}
               </span>
             </div>
 
@@ -831,8 +843,22 @@ export const CustomerOrderDetail: React.FC = () => {
             <div className="rounded-xl border border-border p-4 bg-muted/20 space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Payment Status:</span>
-                <span className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${isPaid ? "bg-success-soft text-success" : "bg-amber-500/10 text-amber-700"}`}>
-                  {isPaid ? "Paid (Success)" : "Pending Payment"}
+                <span
+                  className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                    isPartiallyRefunded || isRefunded
+                      ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                      : isPaid
+                      ? "bg-success-soft text-success"
+                      : "bg-amber-500/10 text-amber-700"
+                  }`}
+                >
+                  {isPartiallyRefunded
+                    ? "Partially Refunded"
+                    : isRefunded
+                    ? "Refunded"
+                    : isPaid
+                    ? "Paid (Success)"
+                    : "Pending Payment"}
                 </span>
               </div>
 

@@ -492,12 +492,22 @@ export const AdminOrders: React.FC = () => {
                   <Badge
                     variant="outline"
                     className={
-                      selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success"
+                      selected.payment_status === "partially_refunded" || selected.payment?.payment_status === "partially_refunded"
+                        ? "bg-purple-500/10 text-purple-700 border-purple-300 font-bold"
+                        : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
+                        ? "bg-rose-500/10 text-rose-700 border-rose-300 font-bold"
+                        : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
                         ? "bg-success-soft text-success border-success/20 font-bold"
                         : "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
                     }
                   >
-                    {selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment?.payment_status === "success" ? "Paid" : "Pending Payment"}
+                    {selected.payment_status === "partially_refunded" || selected.payment?.payment_status === "partially_refunded"
+                      ? "Partially Refunded"
+                      : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
+                      ? "Refunded"
+                      : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
+                      ? "Paid"
+                      : "Pending Payment"}
                   </Badge>
                 </div>
 

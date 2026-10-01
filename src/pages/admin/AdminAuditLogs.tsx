@@ -266,7 +266,7 @@ export function AdminAuditLogs() {
     const lower = (action || "").toLowerCase();
     if (lower.includes("create") || lower.includes("approve") || lower.includes("verify") || lower.includes("activate") || lower.includes("succeeded")) {
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
+        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium transition-colors">
           <CheckCircle2 className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
@@ -274,7 +274,7 @@ export function AdminAuditLogs() {
     }
     if (lower.includes("delete") || lower.includes("reject") || lower.includes("deactivate") || lower.includes("cancel") || lower.includes("suspend")) {
       return (
-        <Badge className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 font-medium">
+        <Badge variant="outline" className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-300 font-medium transition-colors">
           <XCircle className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
@@ -282,14 +282,14 @@ export function AdminAuditLogs() {
     }
     if (lower.includes("update") || lower.includes("change") || lower.includes("edit") || lower.includes("payment")) {
       return (
-        <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-medium">
+        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors">
           <Info className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-slate-500/10 text-slate-700 dark:text-slate-300 font-medium">
+      <Badge variant="outline" className="bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20 hover:bg-slate-500/20 hover:text-slate-900 dark:hover:text-slate-100 font-medium transition-colors">
         {action}
       </Badge>
     );
@@ -425,7 +425,6 @@ export function AdminAuditLogs() {
                 <SelectItem value="plan">Subscription Plans</SelectItem>
                 <SelectItem value="dispute">Disputes & Resolutions</SelectItem>
                 <SelectItem value="review">Reviews & Moderation</SelectItem>
-                <SelectItem value="coin">Coins & Promotions</SelectItem>
                 <SelectItem value="platform_settings">Platform Settings</SelectItem>
               </SelectContent>
             </Select>
