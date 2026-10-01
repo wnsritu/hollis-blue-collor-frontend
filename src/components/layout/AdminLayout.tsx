@@ -47,7 +47,7 @@ const adminNav: NavItem[] = [
   { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
   { label: "Reviews", to: "/admin/reviews", icon: Star },
   { label: "Reports", to: "/admin/reports", icon: Gauge },
-  { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
+  // { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
   { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
 ];
