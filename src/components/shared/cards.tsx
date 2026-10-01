@@ -35,6 +35,135 @@ export interface GenericProvider {
   availability?: string;
 }
 
+export function mapProviderToGeneric(p: any): GenericProvider {
+  const catName =
+    p.category?.name ||
+    (Array.isArray(p.service_categories) && p.service_categories[0]) ||
+    "Service Professional";
+  const subCatName = p.sub_category?.name || "";
+
+  let servicesList: string[] = [];
+  if (p.service_pricing) {
+    try {
+      const pricingMap =
+        typeof p.service_pricing === "string"
+          ? JSON.parse(p.service_pricing)
+          : p.service_pricing;
+      if (pricingMap && typeof pricingMap === "object") {
+        servicesList = Object.entries(pricingMap)
+          .filter(([_, cfg]: [string, any]) => cfg?.offered === true)
+          .map(([name]) => name)
+          .filter(Boolean);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (servicesList.length === 0 && p.offered_services) {
+    let rawOffered = p.offered_services;
+    if (typeof rawOffered === "string") {
+      try {
+        rawOffered = JSON.parse(rawOffered);
+      } catch {
+        if (rawOffered.trim()) rawOffered = [rawOffered.trim()];
+      }
+    }
+    if (Array.isArray(rawOffered) && rawOffered.length > 0) {
+      servicesList = rawOffered
+        .map((item: any) =>
+          typeof item === "string" ? item : item?.name || String(item)
+        )
+        .filter(Boolean);
+    }
+  }
+
+  if (
+    servicesList.length === 0 &&
+    Array.isArray(p.service_types) &&
+    p.service_types.length > 0
+  ) {
+    servicesList = p.service_types
+      .map((st: any) => st?.name || st)
+      .filter(Boolean);
+  }
+
+  let price: number | null = Number(p.starting_price) || null;
+  if (!price && p.service_pricing) {
+    try {
+      const pricingMap =
+        typeof p.service_pricing === "string"
+          ? JSON.parse(p.service_pricing)
+          : p.service_pricing;
+      const prices = Object.values(pricingMap)
+        .filter((v: any) => v?.offered === true)
+        .map((v: any) => Number(v?.price || v))
+        .filter((n) => !isNaN(n) && n > 0);
+      if (prices.length > 0) price = Math.min(...prices);
+    } catch {
+      // ignore
+    }
+  }
+  if (!price && Array.isArray(p.service_types)) {
+    for (const st of p.service_types) {
+      const amt = Number(
+        st.ProviderService?.amount || st.provider_services?.amount
+      );
+      if (amt > 0) {
+        price = amt;
+        break;
+      }
+    }
+  }
+  if (!price && p.pricing?.min) {
+    price = Number(p.pricing.min);
+  }
+
+  const photo =
+    p.profile_photo || p.user?.profile_image || p.profile_image || null;
+  const yearsVal = Number(p.years_of_experience ?? p.experience ?? 0);
+  const ratingVal = Number(p.rating) || 0;
+  const reviewsVal = Number(p.review_count ?? p.reviews_count ?? 0);
+
+  const catDisplay = subCatName ? `${catName} • ${subCatName}` : catName;
+  const name =
+    p.business_name || p.user?.full_name || "Service Professional";
+  const initials =
+    (name || "")
+      .split(" ")
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "SP";
+
+  return {
+    id: String(p.id || p.provider_id),
+    name,
+    avatarUrl: photo,
+    initials,
+    verified: p.verified === "verified" || p.status === "active",
+    featured: Boolean(p.is_featured || p.featured),
+    category: catDisplay,
+    rating: ratingVal,
+    reviews: reviewsVal,
+    tagline: p.service_description || "",
+    services: servicesList,
+    city: p.city || "",
+    state: p.state || "",
+    service_location_address: p.service_location_address || "",
+    years: yearsVal > 0 ? yearsVal : undefined,
+    startingPrice: price && price > 0 ? price : undefined,
+    availability:
+      p.availability_text ||
+      (p.is_available_today || p.available_today
+        ? "Available today"
+        : p.next_available_day
+        ? `Available ${p.next_available_day}`
+        : undefined),
+  };
+}
+
 export function ProviderCard({
   provider,
   compact = false,

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { Toaster as HotToaster } from "react-hot-toast";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
 import PageTitleUpdater from "@/components/PageTitleUpdater";
@@ -17,7 +18,8 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster position="top-right" />
+        <HotToaster position="top-right" />
+        <SonnerToaster position="top-right" />
         <BrowserRouter>
           <NotificationProvider>
             <ScrollToTop />

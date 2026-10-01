@@ -47,9 +47,11 @@ import { EmptyState, PageHeader, StatusPill, Stars } from "@/components/shared/p
 import { usd } from "@/components/shared/cards";
 import PaginationController from "@/components/ui/PaginationController";
 import { getOrderDetails, getOrderList } from "@/services/order.service";
+import { appointmentApi } from "@/services/booking/booking.service";
 import { formatDate } from "@/utils/date";
 import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
+
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
@@ -490,12 +492,22 @@ export const AdminOrders: React.FC = () => {
                   <Badge
                     variant="outline"
                     className={
-                      selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success"
+                      selected.payment_status === "partially_refunded" || selected.payment?.payment_status === "partially_refunded"
+                        ? "bg-purple-500/10 text-purple-700 border-purple-300 font-bold"
+                        : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
+                        ? "bg-rose-500/10 text-rose-700 border-rose-300 font-bold"
+                        : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
                         ? "bg-success-soft text-success border-success/20 font-bold"
                         : "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
                     }
                   >
-                    {selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment?.payment_status === "success" ? "Paid" : "Pending Payment"}
+                    {selected.payment_status === "partially_refunded" || selected.payment?.payment_status === "partially_refunded"
+                      ? "Partially Refunded"
+                      : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
+                      ? "Refunded"
+                      : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
+                      ? "Paid"
+                      : "Pending Payment"}
                   </Badge>
                 </div>
 
@@ -525,28 +537,10 @@ export const AdminOrders: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Service Fee */}
-                  {(() => {
-                    const subtotalVal = Number(selected.pricing?.subtotal || selected.total_amount || 0);
-                    const serviceFeeVal = Number(selected.pricing?.service_fee || 0);
-                    const feeRate = Number(selected.pricing?.service_fee_rate) || (subtotalVal > 0 && serviceFeeVal > 0 ? Math.round((serviceFeeVal / subtotalVal) * 100) : 0);
-                    return (
-                      <div className="flex justify-between">
-                        <span>Platform Service Fee{feeRate > 0 ? ` (${feeRate}%)` : ""}</span>
-                        <span className="font-semibold text-foreground">
-                          +{usd(serviceFeeVal)}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Platform Flat Fee */}
-                  {Number(selected.pricing?.platform_fee) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Platform Flat Fee</span>
-                      <span className="font-semibold text-foreground">
-                        +{usd(selected.pricing.platform_fee)}
-                      </span>
+                  {Number(selected.pricing?.tax_amount) > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Taxes</span>
+                      <span className="font-medium text-foreground">+{usd(selected.pricing.tax_amount)}</span>
                     </div>
                   )}
 
@@ -557,6 +551,42 @@ export const AdminOrders: React.FC = () => {
                       {usd(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0)}
                     </span>
                   </div>
+
+                  {/* Admin Platform Revenue & Provider Distribution Section */}
+                  {(() => {
+                    const custTotal = Number(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0);
+                    const commRate = Number(selected.payment?.commission_rate ?? selected.pricing?.commission_rate ?? selected.pricing?.service_fee_rate ?? 5);
+                    const commAmt = Number(selected.payment?.commission_amount ?? selected.pricing?.commission_amount ?? selected.pricing?.service_fee ?? Math.round(((custTotal * commRate) / 100) * 100) / 100);
+                    const platFee = Number(selected.payment?.platform_fee_amount ?? selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? 10);
+                    const provAmt = Number(selected.payment?.provider_amount ?? selected.pricing?.provider_amount ?? Math.max(0, custTotal - commAmt - platFee));
+
+                    return (
+                      <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2 text-xs">
+                        <div className="font-bold text-foreground text-xs pb-1 border-b border-primary/20 flex items-center justify-between">
+                          <span>Financial Distribution &amp; Payout</span>
+                          <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Admin Breakdown</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Platform Commission ({commRate}%)</span>
+                          <span className="font-medium text-emerald-600 dark:text-emerald-400">+{usd(commAmt)}</span>
+                        </div>
+                        {platFee > 0 && (
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Platform Flat Fee</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">+{usd(platFee)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-muted-foreground pt-1 border-t border-primary/10">
+                          <span>Total Platform Revenue</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300">+{usd(commAmt + platFee)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1 border-t border-primary/20 font-bold text-sm text-foreground">
+                          <span>Provider Payable Payout</span>
+                          <span className="font-display text-base text-primary">{usd(provAmt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {selected.payment && (selected.payment.payment_date || selected.payment.payment_method_type) && (
@@ -588,15 +618,117 @@ export const AdminOrders: React.FC = () => {
                 </p>
 
                 {selected?.status === "cancelled" || selected?.status === "rejected" ? (
-                  <div className="flex flex-col items-center justify-center py-4 gap-1.5 rounded-xl bg-destructive-soft/10 text-destructive text-xs">
-                    <p className="font-semibold">
+                  <div className="flex flex-col items-center justify-center py-4 gap-2 rounded-xl bg-destructive/10 text-destructive text-xs p-4">
+                    <p className="font-bold text-sm">
                       Booking {selected?.status === "cancelled" ? "Cancelled" : "Rejected"}
                     </p>
-                    <p className="text-muted-foreground text-[11px]">
-                      This order is no longer active.
-                    </p>
+                    {(() => {
+                      let notesObj: any = {};
+                      if (selected?.notes && String(selected.notes).startsWith("{")) {
+                        try { notesObj = JSON.parse(selected.notes); } catch (_) {}
+                      }
+                      const notice = notesObj.admin_approval_notice || notesObj.cancellation_reason;
+                      const isPendingRefund = selected.payment_status === "paid" || selected.payment_status === "succeeded";
+
+                      return (
+                        <div className="w-full space-y-2 mt-1 border-t border-destructive/20 pt-2 text-foreground">
+                          {notice && (
+                            <p className="text-xs text-muted-foreground italic bg-background/50 p-2 rounded border border-border">
+                              📌 {notice}
+                            </p>
+                          )}
+
+                          {isPendingRefund && (
+                            <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg space-y-2 text-xs">
+                              <div className="flex justify-between items-center font-bold text-amber-700 dark:text-amber-400">
+                                <span>⚠️ Refund Approval Required</span>
+                                <span>Paid Amount: {usd(selected.total_amount || 0)}</span>
+                              </div>
+                              <p className="text-muted-foreground text-[11px]">
+                                This cancellation was flagged for Admin review. Choose an action to process the payment refund and payout.
+                              </p>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                                  onClick={async () => {
+                                    try {
+                                      await toast.promise(
+                                        appointmentApi.resolveCancellation(selected.id, { action: "approve_full" }),
+                                        {
+                                          loading: "Processing 100% full refund...",
+                                          success: "100% Full Refund issued successfully!",
+                                          error: "Failed to resolve refund.",
+                                        }
+                                      );
+                                      setSelected(null);
+                                      fetchOrderList();
+                                    } catch (_) {}
+                                  }}
+                                >
+                                  Approve 100% Full Refund ({usd(selected.total_amount || 0)})
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 border-amber-500 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                                  onClick={async () => {
+                                    const amountStr = prompt(`Enter refund amount for customer (Max ${usd(selected.total_amount || 0)}):`, String(selected.total_amount || 0));
+                                    if (!amountStr) return;
+                                    const customAmount = Number(amountStr);
+                                    if (isNaN(customAmount) || customAmount <= 0) {
+                                      toast.error("Please enter a valid positive refund amount.");
+                                      return;
+                                    }
+                                    try {
+                                      await toast.promise(
+                                        appointmentApi.resolveCancellation(selected.id, {
+                                          action: "approve_partial",
+                                          custom_refund_amount: customAmount,
+                                        }),
+                                        {
+                                          loading: `Processing ${usd(customAmount)} partial refund...`,
+                                          success: `Partial refund of ${usd(customAmount)} issued successfully!`,
+                                          error: "Failed to resolve refund.",
+                                        }
+                                      );
+                                      setSelected(null);
+                                      fetchOrderList();
+                                    } catch (_) {}
+                                  }}
+                                >
+                                  Partial Refund Custom
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="text-xs h-8"
+                                  onClick={async () => {
+                                    try {
+                                      await toast.promise(
+                                        appointmentApi.resolveCancellation(selected.id, { action: "decline" }),
+                                        {
+                                          loading: "Declining cancellation request...",
+                                          success: "Cancellation declined. Job restored to active.",
+                                          error: "Failed to decline cancellation.",
+                                        }
+                                      );
+                                      setSelected(null);
+                                      fetchOrderList();
+                                    } catch (_) {}
+                                  }}
+                                >
+                                  Decline Refund
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
+
                   <div className="flex items-center w-full px-2">
                     {timeline.map((step, i) => {
                       const done = i <= currentIdx;
@@ -678,7 +810,7 @@ export const AdminOrders: React.FC = () => {
       </Dialog>
 
       {/* Server-side Pagination */}
-      {totalPages > 1 && orders?.length > 0 && (
+      {orders?.length > 0 && (
         <div className="mt-4">
           <PaginationController
             currentPage={currentPage}

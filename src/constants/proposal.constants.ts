@@ -13,6 +13,8 @@ export const DEFAULT_CUSTOM_QUOTE_VALUES: CustomQuoteFormValues = {
   completion: "1 business day",
   terms: DEFAULT_CUSTOM_QUOTE_TERMS,
   expires: "7 days",
+  proposedDate: "",
+  proposedTimeSlot: "9:30 AM",
 };
 
 export const PLATFORM_COMMISSION_PERCENT = 9;

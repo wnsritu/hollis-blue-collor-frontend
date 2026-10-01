@@ -9,7 +9,6 @@ export { default as AdminDisputes } from "./AdminDisputes";
 export { default as AdminDisputeDetail } from "./AdminDisputeDetail";
 export { default as AdminReviews } from "./AdminReviews";
 export { default as AdminSponsored } from "./AdminSponsored";
-export { default as AdminCoins } from "./AdminCoins";
 export { default as AdminFeaturedPricing } from "./AdminFeaturedPricing";
 export { default as AdminMessages } from "./AdminMessages";
 export { default as AdminConversation } from "./AdminConversation";

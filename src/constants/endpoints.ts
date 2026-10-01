@@ -89,6 +89,7 @@ export const ENDPOINTS = {
   marketplaceProvider: {
     root: "/providers",
     search: "/providers/search",
+    topRated: "/providers/top-rated",
     byId: (id: number | string) => `/providers/${id}`,
     profile: "/providers/me/profile",
     leads: "/providers/me/leads",
@@ -139,7 +140,11 @@ export const ENDPOINTS = {
     rejectReschedule: (id: number | string) =>
       `/appointments/${id}/reject-reschedule`,
     history: (id: number | string) => `/appointments/${id}/history`,
+    cancelPreview: (id: number | string) => `/appointments/${id}/cancel-preview`,
+    resolveCancellation: (id: number | string) => `/appointments/${id}/resolve-cancellation`,
   },
+
+
 
   // ─── M3 Chat ───────────────────────────────────────────
   chat: {
@@ -266,19 +271,14 @@ export const ENDPOINTS = {
     chatReportById: (id: number | string) => `/admin/chat-reports/${id}`,
     updateChatReportStatus: (id: number | string) => `/admin/chat-reports/${id}/status`,
     reports: "/admin/reports",
+    auditLogs: "/admin/audit-logs",
+    auditLogById: (id: number | string) => `/admin/audit-logs/${id}`,
   },
 
   timeSlot: {
     list: "/time-slots/list",
     add: "/time-slots/add",
     byId: (id: number | string) => `/time-slots/${id}`,
-  },
-
-  coin: {
-    balance: "/coins/balance",
-    transactions: "/coins/transactions",
-    add: "/coins/add",
-    deduct: "/coins/deduct",
   },
 
   bulkPrice: {

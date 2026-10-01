@@ -13,10 +13,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader, StatusPill, EmptyState } from "@/components/shared/primitives";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { useAppointments } from "@/hooks/useAppointments";
-import { normalizeBooking } from "@/utils/bookingAdapter";
+import { normalizeBooking, formatTimeSlotLabel } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import { getTodayDateString } from "@/utils/date";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getBookingLifecycleCategory, canProviderPerformAction, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
 import { APPOINTMENT_FILTERS as FILTERS } from "@/constants/options";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +39,7 @@ export const AppointmentsPage: React.FC = () => {
     setActiveTab,
     searchQuery,
     setSearchQuery,
+    dbTimeSlots,
     selectedSlot,
     setSelectedSlot,
     rescheduleModalOpen,
@@ -60,9 +64,18 @@ export const AppointmentsPage: React.FC = () => {
     cancelCustomNotes,
     setCancelCustomNotes,
     cancelling,
+    cancelPreview,
+    loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    totalCount,
+    totalPages,
   } = useAppointments();
+
 
   const rescheduleModalMarkup = (
     <Dialog
@@ -96,20 +109,32 @@ export const AppointmentsPage: React.FC = () => {
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Time Slot</Label>
-            <div className="flex flex-wrap gap-2">
-              {timeSlots.map((t) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+              {(dbTimeSlots.length > 0
+                ? dbTimeSlots.map((s: any) => ({
+                  id: s.id,
+                  name: s.slot_name || s.name || `Slot #${s.id}`,
+                  label: s.slot_name
+                    ? `${s.slot_name} (${s.start_time?.slice(0, 5) || ""}-${s.end_time?.slice(0, 5) || ""})`
+                    : s.name || `Slot #${s.id}`,
+                }))
+                : timeSlots.map((t) => ({ id: t, name: t, label: t }))
+              ).map((slotObj) => (
                 <button
-                  key={t}
+                  key={slotObj.name}
                   type="button"
-                  onClick={() => setSelectedSlot(t)}
+                  onClick={() => setSelectedSlot(slotObj.name)}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-sm transition-colors",
-                    selectedSlot === t
-                      ? "border-primary bg-primary text-primary-foreground font-semibold"
+                    "rounded-xl border px-3 py-2 text-xs text-left transition-colors font-medium flex flex-col justify-center",
+                    selectedSlot === slotObj.name || selectedSlot === String(slotObj.id)
+                      ? "border-primary bg-primary text-primary-foreground font-semibold shadow-sm"
                       : "border-border hover:bg-muted text-foreground"
                   )}
                 >
-                  {t}
+                  <span className="font-bold">{slotObj.name}</span>
+                  {slotObj.label !== slotObj.name && (
+                    <span className="text-[10px] opacity-80">{slotObj.label.split("(")[1]?.replace(")", "") || ""}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -168,19 +193,19 @@ export const AppointmentsPage: React.FC = () => {
             <div className="space-y-1.5">
               {(side === "provider"
                 ? [
-                    "Schedule conflict / Unavailable",
-                    "Location out of service area",
-                    "Required tools or materials unavailable",
-                    "Customer requested cancellation",
-                    "Other reason",
-                  ]
+                  "Schedule conflict / Unavailable",
+                  "Location out of service area",
+                  "Required tools or materials unavailable",
+                  "Customer requested cancellation",
+                  "Other reason",
+                ]
                 : [
-                    "Schedule change / No longer needed",
-                    "Booked by mistake",
-                    "Found alternative provider",
-                    "Provider unavailable at required time",
-                    "Other reason",
-                  ]
+                  "Schedule change / No longer needed",
+                  "Booked by mistake",
+                  "Found alternative provider",
+                  "Provider unavailable at required time",
+                  "Other reason",
+                ]
               ).map((reason) => (
                 <label
                   key={reason}
@@ -214,6 +239,52 @@ export const AppointmentsPage: React.FC = () => {
             />
           </div>
 
+          {/* Cancellation Policy & Refund Breakdown Card */}
+          {loadingCancelPreview ? (
+            <div className="rounded-lg border p-3 bg-muted/30 text-xs flex items-center gap-2 text-muted-foreground">
+              <Loader2 size={14} className="animate-spin text-primary" />
+              <span>Calculating refund estimate based on cancellation policy...</span>
+            </div>
+          ) : cancelPreview ? (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2 text-xs">
+              <div className="font-semibold text-foreground flex items-center justify-between">
+                <span>Refund Calculation & Policy Notice</span>
+                {cancelPreview.requires_admin_approval ? (
+                  <span className="text-blue-600 dark:text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded">
+                    Requires Admin Review
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    {cancelPreview.refund_percentage}% Refund
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1 text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Paid Amount:</span>
+                  <span className="font-medium text-foreground">${Number(cancelPreview.total_amount).toFixed(2)}</span>
+                </div>
+                {!cancelPreview.requires_admin_approval && cancelPreview.cancellation_fee > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>Cancellation Fee:</span>
+                    <span className="font-medium">-${Number(cancelPreview.cancellation_fee).toFixed(2)}</span>
+                  </div>
+                )}
+                {!cancelPreview.requires_admin_approval && (
+                  <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-bold text-foreground">
+                    <span>Estimated Refund:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ${Number(cancelPreview.refund_amount).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-tight italic pt-0.5">
+                {cancelPreview.policy_notice}
+              </p>
+            </div>
+          ) : null}
+
           <DialogFooter className="pt-2">
             <Button
               type="button"
@@ -229,9 +300,16 @@ export const AppointmentsPage: React.FC = () => {
               disabled={cancelling}
               className="gap-1.5"
             >
-              {cancelling ? <Loader2 size={15} className="animate-spin" /> : "Confirm Cancel"}
+              {cancelling ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : cancelPreview?.requires_admin_approval ? (
+                "Submit Cancellation Request"
+              ) : (
+                "Confirm Cancel"
+              )}
             </Button>
           </DialogFooter>
+
         </form>
       </DialogContent>
     </Dialog>
@@ -262,6 +340,11 @@ export const AppointmentsPage: React.FC = () => {
             filteredAppointments.map((apt) => {
               const n = normalizeBooking(apt);
               const isRescheduled = n.reschedule.requested || n.appointmentStatus === "Rescheduled";
+              const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
+              const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
+              const canReschedule = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived && !isRescheduled;
+              const canCancel = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived;
+              const isUpcoming = getBookingLifecycleCategory(apt) === "UPCOMING";
 
               return (
                 <div key={apt.id} className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -277,15 +360,25 @@ export const AppointmentsPage: React.FC = () => {
 
                   <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
-                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date TBD"}
+                      <CalendarDays size={14} /> {n.formattedDate || n.date || "Date Pending"}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Clock size={14} /> {n.formattedTime || n.time || "Time TBD"}
+                      <Clock size={14} /> {(!n.formattedTime || n.formattedTime === "TBD" || n.formattedTime === "Time TBD") ? "Not Available" : n.formattedTime}
                     </span>
                     <span className="flex min-w-0 items-center gap-1.5">
                       <MapPin size={14} /> <span className="truncate">{n.address}</span>
                     </span>
                   </dl>
+
+                  {/* Upcoming Service Visit Banner */}
+                  {isUpcoming && !n.isCompleted && !n.isCancelled && (
+                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-500/10 p-3 text-xs text-blue-900 flex items-center gap-2">
+                      <Clock size={14} className="text-blue-600 shrink-0" />
+                      <span>
+                        <strong>Upcoming Visit:</strong> {formatUpcomingTimeNotice(apt)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Reschedule Requested Details Banner */}
                   {isRescheduled && (() => {
@@ -303,8 +396,12 @@ export const AppointmentsPage: React.FC = () => {
                         <div className="mt-1.5 space-y-1 text-muted-foreground">
                           {n.reschedule.date && (
                             <p>
-                              <strong className="text-foreground">New Proposed Date:</strong>{" "}
+                              <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
                               {formatDisplayDate(n.reschedule.date)}
+                              {(() => {
+                                const slot = n.reschedule.timeSlotName || formatTimeSlotLabel(n.reschedule.timeSlotId);
+                                return slot ? ` at ${slot}` : "";
+                              })()}
                             </p>
                           )}
                           {n.reschedule.reason && (
@@ -355,86 +452,158 @@ export const AppointmentsPage: React.FC = () => {
                             {n.appointmentStatus === "Requested" && (
                               <Button
                                 size="sm"
-                                onClick={() => handleUpdateStatus(apt.id, "Confirmed")}
+                                onClick={() => handleUpdateStatus(apt.id, "Confirmed", undefined, apt)}
                               >
                                 Confirm
                               </Button>
                             )}
-                            {n.appointmentStatus === "Confirmed" && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleUpdateStatus(apt.id, "En Route")}
-                                >
-                                  On My Way
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(apt.id, "Arrived")}
-                                >
-                                  Mark Arrived
-                                </Button>
-                              </>
-                            )}
-                            {n.appointmentStatus === "En Route" && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleUpdateStatus(apt.id, "Arrived")}
-                              >
-                                Mark Arrived
-                              </Button>
-                            )}
-                            {n.appointmentStatus === "Arrived" && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleUpdateStatus(apt.id, "In Progress")}
-                                >
-                                  Start Job
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                  onClick={() => handleUpdateStatus(apt.id, "Completed")}
-                                >
-                                  Mark Complete
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
-                                  onClick={() => handleUpdateStatus(apt.id, "No-show")}
-                                >
-                                  Mark No-Show
-                                </Button>
-                              </>
-                            )}
+                            {n.appointmentStatus === "Confirmed" && (() => {
+                              const checkEnRoute = canProviderPerformAction(apt, "En Route");
+                              const checkArrived = canProviderPerformAction(apt, "Arrived");
+                              return (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!checkEnRoute.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "En Route", undefined, apt)}
+                                          >
+                                            On My Way
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkEnRoute.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkEnRoute.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            disabled={!checkArrived.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
+                                          >
+                                            Mark Arrived
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkArrived.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkArrived.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              );
+                            })()}
+                            {n.appointmentStatus === "En Route" && (() => {
+                              const checkArrived = canProviderPerformAction(apt, "Arrived");
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip delayDuration={150}>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          size="sm"
+                                          disabled={!checkArrived.allowed}
+                                          onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
+                                        >
+                                          Mark Arrived
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    {!checkArrived.allowed && (
+                                      <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                        {checkArrived.reason}
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })()}
+                            {n.appointmentStatus === "Arrived" && (() => {
+                              const checkStart = canProviderPerformAction(apt, "In Progress");
+                              return (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={150}>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            disabled={!checkStart.allowed}
+                                            onClick={() => handleUpdateStatus(apt.id, "In Progress", undefined, apt)}
+                                          >
+                                            Start Job
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      {!checkStart.allowed && (
+                                        <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg">
+                                          {checkStart.reason}
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+
+                                  <Button
+                                    size="sm"
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                    onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
+                                  >
+                                    Mark Complete
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
+                                    onClick={() => handleUpdateStatus(apt.id, "No-show", undefined, apt)}
+                                  >
+                                    Mark No-Show
+                                  </Button>
+                                </>
+                              );
+                            })()}
                             {n.appointmentStatus === "In Progress" && (
                               <Button
                                 size="sm"
                                 className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                onClick={() => handleUpdateStatus(apt.id, "Completed")}
+                                onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
                               >
                                 Mark Complete
                               </Button>
                             )}
                           </>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenReschedule(apt)}
-                        >
-                          Reschedule
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenCancelModal(apt)}
-                        >
-                          Cancel
-                        </Button>
+                        {canReschedule && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenReschedule(apt)}
+                          >
+                            Reschedule
+                          </Button>
+                        )}
+                        {canCancel && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleOpenCancelModal(apt)}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </>
                     )}
                     {n.isCompleted && (
@@ -450,40 +619,40 @@ export const AppointmentsPage: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdateStatus(apt.id, "Requested")}
-                        >
-                          Request again
-                        </Button>
-                        {n.isNoShow && (
                           <Button
                             size="sm"
-                            variant="destructive"
-                            onClick={async () => {
-                              try {
-                                const { http } = await import("@/lib/api/http");
-                                await http.post("/disputes/create", {
-                                  booking_id: apt.id,
-                                  reason: "No-show Contest",
-                                  description: "Customer contesting false no-show claim",
-                                  refund_requested: n.totalAmount || 0,
-                                });
-                                toast.success("Dispute submitted successfully! Our support team will review your case.");
-                              } catch (err: any) {
-                                toast.error(err?.response?.data?.message || err?.message || "Failed to submit dispute.");
-                              }
-                            }}
+                            variant="outline"
+                            onClick={() => handleUpdateStatus(apt.id, "Requested")}
                           >
-                            Dispute No-Show
+                            Request again
                           </Button>
-                        )}
+                          {n.isNoShow && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={async () => {
+                                try {
+                                  const { http } = await import("@/lib/api/http");
+                                  await http.post("/disputes/create", {
+                                    booking_id: apt.id,
+                                    reason: "No-show Contest",
+                                    description: "Customer contesting false no-show claim",
+                                    refund_requested: n.totalAmount || 0,
+                                  });
+                                  toast.success("Dispute submitted successfully! Our support team will review your case.");
+                                } catch (err: any) {
+                                  toast.error(err?.response?.data?.message || err?.message || "Failed to submit dispute.");
+                                }
+                              }}
+                            >
+                              Dispute No-Show
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
               );
             })
           )}
@@ -500,7 +669,7 @@ export const AppointmentsPage: React.FC = () => {
     <div>
       <PageHeader
         title="My Bookings"
-        subtitle={`${appointments.length} services booked with professionals`}
+        subtitle={`${totalCount} services booked with professionals`}
         action={
           <Button onClick={() => navigate("/search")}>
             Find a Professional
@@ -560,6 +729,10 @@ export const AppointmentsPage: React.FC = () => {
             const displayPrice = n.totalAmount;
             const isTerminal = n.isCancelled || n.isCompleted || n.isRejected;
             const isRescheduled = !isTerminal && (n.reschedule.requested || n.appointmentStatus === "Rescheduled");
+            const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
+            const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
+            const canReschedule = !isTerminal && !isInProgressOrArrived && !isRescheduled;
+            const canCancel = !isTerminal && !isInProgressOrArrived;
 
             return (
               <div
@@ -608,8 +781,12 @@ export const AppointmentsPage: React.FC = () => {
                       <div className="mt-1.5 space-y-1 text-muted-foreground">
                         {n.reschedule.date && (
                           <p>
-                            <strong className="text-foreground">New Proposed Date:</strong>{" "}
+                            <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
                             {formatDisplayDate(n.reschedule.date)}
+                            {(() => {
+                              const slot = n.reschedule.timeSlotName || formatTimeSlotLabel(n.reschedule.timeSlotId);
+                              return slot ? ` at ${slot}` : "";
+                            })()}
                           </p>
                         )}
                         {n.reschedule.reason && (
@@ -688,30 +865,48 @@ export const AppointmentsPage: React.FC = () => {
                     </Button>
                   )}
 
-                  {!n.isCompleted && !n.isCancelled && (
+                  {(canReschedule || canCancel) && (
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs h-8"
-                        onClick={() => handleOpenReschedule(apt)}
-                      >
-                        Reschedule
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleOpenCancelModal(apt)}
-                      >
-                        Cancel
-                      </Button>
+                      {canReschedule && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs h-8"
+                          onClick={() => handleOpenReschedule(apt)}
+                        >
+                          Reschedule
+                        </Button>
+                      )}
+                      {canCancel && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleOpenCancelModal(apt)}
+                        >
+                          Cancel
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 

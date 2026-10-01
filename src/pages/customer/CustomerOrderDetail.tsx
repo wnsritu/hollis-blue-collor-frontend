@@ -10,6 +10,7 @@ import {
   CreditCard,
   DollarSign,
   FileText,
+  Info,
   Loader2,
   MapPin,
   MessageSquare,
@@ -25,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Timeline } from "@/components/shared/Timeline";
 import { EmptyState, PageHeader, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
@@ -199,6 +201,9 @@ export const CustomerOrderDetail: React.FC = () => {
   const isInProgress = ["in progress", "in_progress", "in_process", "in process"].includes(normStatus);
 
   const isPaid = normalized.isPaid;
+  const rawPaymentStatus = String(booking?.payment_status || booking?.payment?.payment_status || normalized.paymentStatus || "").toLowerCase();
+  const isPartiallyRefunded = rawPaymentStatus === "partially_refunded" || rawPaymentStatus === "partially refunded" || Boolean(normalized.isPartiallyRefunded);
+  const isRefunded = rawPaymentStatus === "refunded" || Boolean(normalized.isRefunded);
   const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
     isPaid,
     isReviewed: reviewed,
@@ -216,20 +221,8 @@ export const CustomerOrderDetail: React.FC = () => {
   const formattedDate = normalized.formattedDate !== "Date to be confirmed" ? normalized.formattedDate : (booking.schedule?.date || normalized.date || "Date Pending");
   const formattedTime = normalized.timeSlotName
     ? `${normalized.timeSlotName} ${normalized.time ? `(${normalized.time})` : ""}`
-    : normalized.formattedTime;
+    : (normalized.formattedTime && !["TBD", "Time TBD", "Time to be confirmed"].includes(normalized.formattedTime) ? normalized.formattedTime : "Not Available");
   const formattedAddress = normalized.address;
-
-  // Pricing calculations
-  const totalAmountNum = normalized.totalAmount;
-  const subtotalNum = normalized.subtotal;
-  const serviceFeeNum = normalized.serviceFee;
-  const discountAmountNum = normalized.discountAmount || 0;
-  const platformFeeNum = normalized.platformFee || 0;
-  const lineItemsSubtotalNum = normalized.lineItemsSubtotal || (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum);
-  const serviceFeeRateNum = Number((booking as any)?.pricing?.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
-
-  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
-  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
 
   let finSnapshot: any = null;
   if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
@@ -237,6 +230,19 @@ export const CustomerOrderDetail: React.FC = () => {
       finSnapshot = JSON.parse(booking.notes)?.financial_snapshot || JSON.parse(booking.notes);
     } catch (e) { }
   }
+
+  const priceAdj = (booking as any)?.price_adjustment || (booking?.notes && String(booking.notes).trim().startsWith("{") ? (JSON.parse(booking.notes)?.price_adjustment || JSON.parse(booking.notes)) : null);
+  const counterNote = priceAdj?.counter_note || priceAdj?.note_text || (booking?.notes && !String(booking.notes).trim().startsWith("{") ? booking.notes : null);
+
+  // Pricing calculations
+  const pricingData = (booking as any)?.pricing || finSnapshot || {};
+  const totalAmountNum = Number(pricingData.customer_total ?? pricingData.total ?? normalized.totalAmount ?? 0);
+  const subtotalNum = Number(pricingData.subtotal ?? pricingData.proposal_total ?? normalized.subtotal ?? 0);
+  const serviceFeeNum = Number(pricingData.service_fee ?? normalized.serviceFee ?? 0);
+  const platformFeeNum = Number(pricingData.platform_fee ?? normalized.platformFee ?? 0);
+  const discountAmountNum = Number(pricingData.discount_amount ?? normalized.discountAmount ?? 0);
+  const lineItemsSubtotalNum = Number(pricingData.line_items_subtotal ?? normalized.lineItemsSubtotal ?? (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum));
+  const serviceFeeRateNum = Number(pricingData.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
 
   const paidTotalAmount = Number(
     booking?.payment?.amount ||
@@ -335,53 +341,40 @@ export const CustomerOrderDetail: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <StatusPill status={customerStatusLabel} />
 
-            <span
-              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${isPaid
-                ? "bg-success-soft text-success border border-success/20"
-                : "bg-amber-500/10 text-amber-700 border border-amber-200"
-                }`}
-            >
-              <DollarSign size={13} />
-              {isPaid ? "Payment: Paid" : "Payment: Pending"}
-            </span>
+            {(() => {
+              const pStat = String(booking?.payment_status || booking?.payment?.payment_status || "").toLowerCase();
+              if (pStat === "refunded") {
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 border border-blue-200">
+                    <DollarSign size={13} /> Payment: Refunded (100%)
+                  </span>
+                );
+              }
+              if (pStat === "partially_refunded") {
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 border border-purple-200">
+                    <DollarSign size={13} /> Payment: Partially Refunded
+                  </span>
+                );
+              }
+              return (
+                <span
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${isPaid
+                    ? "bg-success-soft text-success border border-success/20"
+                    : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                    }`}
+                >
+                  <DollarSign size={13} />
+                  {isPaid ? "Payment: Paid" : "Payment: Pending"}
+                </span>
+              );
+            })()}
 
             {!isCancelled && (
               <Button variant="outline" size="sm" onClick={handleOpenChat} className="gap-1.5 text-xs">
                 <MessageSquare size={14} /> Message Pro
               </Button>
             )}
-
-            {/* Dispute Badge & Report Issue button - commented out for now as per requirements
-            {!isCancelled && (
-              normalized.dispute.status && !["none", "null"].includes(normalized.dispute.status) ? (
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                    ["resolved", "rejected", "closed"].includes(normalized.dispute.status)
-                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-200"
-                      : "bg-rose-500/10 text-rose-600 border border-rose-200"
-                  }`}
-                >
-                  <AlertTriangle size={14} />
-                  {["resolved", "rejected", "closed"].includes(normalized.dispute.status)
-                    ? `Dispute ${normalized.dispute.status.charAt(0).toUpperCase() + normalized.dispute.status.slice(1)}`
-                    : `Dispute Opened (${normalized.dispute.status === "open" ? "Active" : normalized.dispute.status})`}
-                </span>
-              ) : (
-                canReportIssue && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                  >
-                    <Link to={`/report-issue/${booking.id}`}>
-                      <AlertTriangle size={14} /> Report Issue
-                    </Link>
-                  </Button>
-                )
-              )
-            )}
-            */}
 
             {!isPaid && !isCancelled && (
               <Button
@@ -415,19 +408,42 @@ export const CustomerOrderDetail: React.FC = () => {
                       <strong>Reason:</strong> {normalized.cancellationReason || booking.cancellation_reason}
                     </p>
                   )}
-                  {isPaid ? (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      💳 <strong>Refund Status:</strong> Payment of {usd(totalAmountNum)} was received. A full refund has been initiated to your original payment method and will appear on your statement within 3–5 business days.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      No payment was captured for this booking.
-                    </p>
-                  )}
+                  {(() => {
+                    const pStat = String(booking?.payment_status || booking?.payment?.payment_status || "").toLowerCase();
+                    const refundedAmt = booking?.payment?.refunded_amount ? Number(booking.payment.refunded_amount) : null;
+
+                    if (pStat === "refunded") {
+                      return (
+                        <p className="text-xs text-muted-foreground pt-1">
+                          💳 <strong>100% Full Refund Issued:</strong> A full refund of {usd(totalAmountNum)} was processed to your original payment method.
+                        </p>
+                      );
+                    }
+                    if (pStat === "partially_refunded") {
+                      return (
+                        <p className="text-xs text-muted-foreground pt-1">
+                          💳 <strong>Partial Refund Issued:</strong> {refundedAmt ? `A refund of ${usd(refundedAmt)}` : "A partial refund"} was processed by Admin to your original payment method.
+                        </p>
+                      );
+                    }
+                    if (isPaid) {
+                      return (
+                        <p className="text-xs text-muted-foreground pt-1">
+                          💳 <strong>Refund Status:</strong> Payment of {usd(totalAmountNum)} was received. A refund has been initiated to your original payment method.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-xs text-muted-foreground pt-1">
+                        No payment was captured for this booking.
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </section>
           )}
+
 
           {/* Status Informational Banners */}
           {isEnRoute && (
@@ -772,12 +788,21 @@ export const CustomerOrderDetail: React.FC = () => {
                 <CreditCard size={18} className="text-primary" /> Payment Summary
               </h2>
               <span
-                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${isPaid
-                  ? "bg-success-soft text-success border border-success/20"
-                  : "bg-amber-500/10 text-amber-700 border border-amber-200"
-                  }`}
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  isPartiallyRefunded || isRefunded
+                    ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                    : isPaid
+                    ? "bg-success-soft text-success border border-success/20"
+                    : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                }`}
               >
-                {isPaid ? "Paid" : "Pending"}
+                {isPartiallyRefunded
+                  ? "Partially Refunded"
+                  : isRefunded
+                  ? "Refunded"
+                  : isPaid
+                  ? "Paid"
+                  : "Pending"}
               </span>
             </div>
 
@@ -798,15 +823,18 @@ export const CustomerOrderDetail: React.FC = () => {
                 <span>{discountAmountNum > 0 ? "Net Services Quote" : "Subtotal (Services)"}</span>
                 <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidSubtotal : subtotalNum)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Platform Service Fee{serviceFeeRateNum > 0 ? ` (${serviceFeeRateNum}%)` : ""}</span>
-                <span className="font-semibold text-foreground">{usd(isPaid && isPriceUpdated ? paidFee : (serviceFeeNum + platformFeeNum))}</span>
-              </div>
+              {/* Taxes (if applicable) */}
+              {Number(pricingData.tax_amount || 0) > 0 && (
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Taxes</span>
+                  <span className="font-semibold text-foreground">{usd(Number(pricingData.tax_amount))}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex items-center justify-between text-sm pt-1">
                 <span className="font-bold text-foreground">{isPaid && isPriceUpdated ? "Total Paid Amount" : "Total Amount"}</span>
                 <span className="font-extrabold text-primary text-base">
-                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum + serviceFeeNum + platformFeeNum))}
+                  {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum))}
                 </span>
               </div>
             </dl>
@@ -815,8 +843,22 @@ export const CustomerOrderDetail: React.FC = () => {
             <div className="rounded-xl border border-border p-4 bg-muted/20 space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Payment Status:</span>
-                <span className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${isPaid ? "bg-success-soft text-success" : "bg-amber-500/10 text-amber-700"}`}>
-                  {isPaid ? "Paid (Success)" : "Pending Payment"}
+                <span
+                  className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                    isPartiallyRefunded || isRefunded
+                      ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                      : isPaid
+                      ? "bg-success-soft text-success"
+                      : "bg-amber-500/10 text-amber-700"
+                  }`}
+                >
+                  {isPartiallyRefunded
+                    ? "Partially Refunded"
+                    : isRefunded
+                    ? "Refunded"
+                    : isPaid
+                    ? "Paid (Success)"
+                    : "Pending Payment"}
                 </span>
               </div>
 

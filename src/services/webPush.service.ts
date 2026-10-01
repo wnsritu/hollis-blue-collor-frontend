@@ -139,7 +139,7 @@ export const subscribeToPush = async (
     const convertedKey = urlBase64ToUint8Array(publicKey);
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: convertedKey,
+      applicationServerKey: convertedKey as unknown as BufferSource,
     });
   }
 

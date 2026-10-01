@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appointmentApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
+import { getTimeSlots } from "@/services/provider/provider.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { isCustomer, isProvider } from "@/constants/roles";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { isPastDate, getTodayDateString } from "@/utils/date";
+import { canProviderPerformAction, getBookingLifecycleCategory, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
 
 export function useAppointments() {
   const navigate = useNavigate();
@@ -47,9 +49,10 @@ export function useAppointments() {
     }
   };
 
-  // Calendar state
+  // Calendar & Time Slots state
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string>("9:30 AM");
+  const [dbTimeSlots, setDbTimeSlots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string>("Morning Slot");
 
   // Cancellation modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -57,8 +60,41 @@ export function useAppointments() {
   const [cancelPresetReason, setCancelPresetReason] = useState<string>("Schedule conflict / Unavailable");
   const [cancelCustomNotes, setCancelCustomNotes] = useState<string>("");
   const [cancelling, setCancelling] = useState(false);
+  const [cancelPreview, setCancelPreview] = useState<{
+    total_amount: number;
+    refund_amount: number;
+    cancellation_fee: number;
+    refund_percentage: number;
+    requires_admin_approval?: boolean;
+    policy_notice: string;
+  } | null>(null);
+  const [loadingCancelPreview, setLoadingCancelPreview] = useState(false);
 
-  const handleUpdateStatus = async (id: number | string, newStatus: string, reason?: string) => {
+  useEffect(() => {
+    getTimeSlots()
+      .then((slots: any) => {
+        const list = Array.isArray(slots) ? slots : slots?.data || [];
+        if (list.length > 0) {
+          setDbTimeSlots(list);
+          setSelectedSlot(list[0]?.slot_name || list[0]?.name || "Morning Slot");
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  const handleUpdateStatus = async (
+    id: number | string,
+    newStatus: string,
+    reason?: string,
+    targetAppointment?: any
+  ) => {
+    if (userIsProvider && targetAppointment) {
+      const check = canProviderPerformAction(targetAppointment, newStatus);
+      if (!check.allowed) {
+        toast.error(check.reason || "This job cannot be started before the scheduled service time.");
+        return;
+      }
+    }
     try {
       await appointmentApi.updateStatus(id, { appointment_status: newStatus, reason });
       toast.success(`Appointment marked as ${newStatus}`);
@@ -68,11 +104,24 @@ export function useAppointments() {
     }
   };
 
-  const handleOpenCancelModal = (apt: Appointment) => {
+  const handleOpenCancelModal = async (apt: Appointment) => {
     setSelectedCancelAppointment(apt);
     setCancelPresetReason(userIsProvider ? "Schedule conflict / Unavailable" : "Schedule change / No longer needed");
     setCancelCustomNotes("");
+    setCancelPreview(null);
     setCancelModalOpen(true);
+    setLoadingCancelPreview(true);
+
+    try {
+      const res = await appointmentApi.getCancelPreview(apt.id);
+      if (res?.data) {
+        setCancelPreview(res.data as any);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cancellation preview", err);
+    } finally {
+      setLoadingCancelPreview(false);
+    }
   };
 
   const handleCancelSubmit = async (e?: React.FormEvent) => {
@@ -93,6 +142,7 @@ export function useAppointments() {
       toast.success("Appointment cancelled successfully");
       setCancelModalOpen(false);
       setSelectedCancelAppointment(null);
+      setCancelPreview(null);
       fetchAppointments();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to cancel appointment.");
@@ -103,11 +153,22 @@ export function useAppointments() {
 
   const handleOpenReschedule = (apt: Appointment) => {
     const normalized = normalizeBooking(apt);
+    const rawSt = String(apt.appointment_status || apt.status || normalized.status || "").toLowerCase();
+    const isInProgressOrArrived = ["in_process", "in_progress", "in process", "in progress", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || normalized.appointmentStatus === "In Progress" || normalized.appointmentStatus === "Arrived";
+
+    if (normalized.isCompleted || normalized.isCancelled || isInProgressOrArrived) {
+      toast.error("Reschedule is not allowed once service is in progress or completed.");
+      return;
+    }
     setSelectedAppointment(apt);
     const initialDate = normalized.date && !isPastDate(normalized.date) ? normalized.date : getTodayDateString();
     setRescheduleDate(initialDate);
     setRescheduleReason("");
-    setSelectedSlot("9:30 AM");
+    if (dbTimeSlots.length > 0) {
+      setSelectedSlot(dbTimeSlots[0]?.slot_name || dbTimeSlots[0]?.name || "Morning Slot");
+    } else {
+      setSelectedSlot("Morning Slot");
+    }
     setRescheduleModalOpen(true);
   };
 
@@ -123,15 +184,20 @@ export function useAppointments() {
     }
     setRescheduling(true);
     try {
-      const timeSlotId = selectedAppointment.schedule?.time_slot?.id || selectedAppointment.time_slot_id || undefined;
+      const matchedSlotObj = dbTimeSlots.find(
+        (s) => s.slot_name === selectedSlot || s.name === selectedSlot || String(s.id) === String(selectedSlot)
+      );
+      const timeSlotIdToSend = matchedSlotObj?.id || undefined;
+      const timeSlotNameToSend = matchedSlotObj?.slot_name || matchedSlotObj?.name || selectedSlot;
+
       await appointmentApi.reschedule(selectedAppointment.id, {
         booking_date: rescheduleDate,
         proposed_date: rescheduleDate,
-        ...(timeSlotId ? { time_slot_id: timeSlotId } : {}),
+        ...(timeSlotIdToSend ? { time_slot_id: timeSlotIdToSend } : {}),
+        time_slot_name: timeSlotNameToSend,
         reason: rescheduleReason,
-        time_slot_name: selectedSlot,
       } as any);
-      toast.success(`Reschedule requested: ${rescheduleDate} at ${selectedSlot}`);
+      toast.success(`Reschedule requested: ${rescheduleDate} at ${timeSlotNameToSend}`);
       setRescheduleModalOpen(false);
       fetchAppointments();
     } catch (err: any) {
@@ -174,16 +240,30 @@ export function useAppointments() {
     }
   };
 
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, selectedDay]);
+
   const fetchAppointments = async (overrideParams?: {
     tab?: string;
     query?: string;
     day?: number | null;
+    page?: number;
+    limit?: number;
   }) => {
     setLoading(true);
     try {
       const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
       const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
       const dayToUse = overrideParams?.day !== undefined ? overrideParams.day : selectedDay;
+      const pageToUse = overrideParams?.page !== undefined ? overrideParams.page : page;
+      const limitToUse = overrideParams?.limit !== undefined ? overrideParams.limit : limit;
 
       let statusTab: string | undefined = undefined;
       if (tabToUse === "Upcoming") statusTab = "upcoming";
@@ -191,14 +271,26 @@ export function useAppointments() {
       else if (tabToUse === "Completed") statusTab = "completed";
       else if (tabToUse === "Cancelled") statusTab = "cancelled";
 
-      const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = {
+        page: pageToUse,
+        limit: limitToUse,
+      };
       if (statusTab) params.status_tab = statusTab;
       if (queryToUse && queryToUse.trim()) params.search = queryToUse.trim();
       if (dayToUse !== null && dayToUse !== undefined) params.day = dayToUse;
 
       const res = await appointmentApi.listMine(params);
-      const list = (res as any)?.data || res || [];
-      setAppointments(Array.isArray(list) ? list : []);
+      const rawData = (res as any)?.data || res;
+      if (rawData && typeof rawData === "object" && "items" in rawData) {
+        setAppointments(Array.isArray(rawData.items) ? rawData.items : []);
+        setTotalCount(rawData.total || 0);
+        setTotalPages(rawData.totalPages || Math.ceil((rawData.total || 0) / limitToUse) || 1);
+      } else {
+        const list = Array.isArray(rawData) ? rawData : [];
+        setAppointments(list);
+        setTotalCount(list.length);
+        setTotalPages(Math.ceil(list.length / limitToUse) || 1);
+      }
     } catch (err) {
       console.error("Failed to load appointments", err);
       toast.error("Failed to load your appointments.");
@@ -212,39 +304,11 @@ export function useAppointments() {
       fetchAppointments();
     }, 300);
     return () => clearTimeout(handler);
-  }, [activeTab, searchQuery, selectedDay]);
+  }, [page, limit, activeTab, searchQuery, selectedDay]);
 
-  // Status tab filtering matching backend business rules & UI requirements
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((apt) => {
-      const n = normalizeBooking(apt);
-      const tab = (activeTab || "All").toLowerCase();
-
-      if (tab === "all") return true;
-
-      const raw = (n.rawStatus || "").toLowerCase();
-      const apptSt = n.appointmentStatus || "";
-
-      const isCompleted = n.isCompleted || ["completed", "finished", "delivered", "reviewed", "work completed"].includes(raw);
-      const isCancelled = n.isCancelled || ["cancelled", "canceled", "rejected", "declined", "no-show", "noshow", "expired"].includes(raw);
-      const isInProgress = ["en route", "en_route", "arrived", "arrived at site", "in_progress", "in progress", "in_process", "in process"].includes(raw) ||
-        ["En Route", "Arrived", "In Progress"].includes(apptSt);
-
-      if (tab === "upcoming") {
-        return !isCompleted && !isCancelled && !isInProgress;
-      }
-      if (tab === "in progress" || tab === "in_progress") {
-        return !isCompleted && !isCancelled && isInProgress;
-      }
-      if (tab === "completed") {
-        return isCompleted;
-      }
-      if (tab === "cancelled" || tab === "canceled") {
-        return isCancelled;
-      }
-      return true;
-    });
-  }, [appointments, activeTab]);
+    return appointments;
+  }, [appointments]);
 
   return {
     navigate,
@@ -257,6 +321,7 @@ export function useAppointments() {
     setSearchQuery,
     selectedDay,
     setSelectedDay,
+    dbTimeSlots,
     selectedSlot,
     setSelectedSlot,
     rescheduleModalOpen,
@@ -288,7 +353,16 @@ export function useAppointments() {
     cancelCustomNotes,
     setCancelCustomNotes,
     cancelling,
+    cancelPreview,
+    loadingCancelPreview,
     handleOpenCancelModal,
     handleCancelSubmit,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    totalCount,
+    totalPages,
   };
 }
+

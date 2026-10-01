@@ -86,8 +86,9 @@ export default function StripeBookingModal({
   const grandTotal = Number(
     paymentData?.grandTotal ??
       (norm?.totalAmount ||
+        rawBooking?.customer_payment_amount ||
         rawBooking?.total_amount ||
-        subtotal + serviceFee + taxAmount)
+        subtotal + taxAmount)
   );
 
   // Address & customer info for billing

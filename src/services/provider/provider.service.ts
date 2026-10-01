@@ -123,10 +123,6 @@ export const selectPlan = (data: any) => {
   return apiClient.post("/provider/select-plan", data);
 };
 
-export const getWalletCoins = () => {
-  return apiClient.get("/coins/balance");
-};
-
 export const getMyPlan = () => {
   return apiClient.get("/provider/subscription");
 };
@@ -222,6 +218,12 @@ export const providerApi = {
   search: (params?: ProviderSearchParams) =>
     http.get<ProviderSearchResult | ApiSuccess<MarketplaceProvider[]>>(
       ENDPOINTS.marketplaceProvider.search,
+      params
+    ),
+
+  getTopRated: (params?: { limit?: number }) =>
+    http.get<ProviderSearchResult | ApiSuccess<MarketplaceProvider[]>>(
+      ENDPOINTS.marketplaceProvider.topRated,
       params
     ),
 

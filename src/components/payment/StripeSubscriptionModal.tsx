@@ -48,7 +48,6 @@ export interface StripeSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   plan: any;
-  coins?: number;
   onSuccess?: (subscriptionData?: any) => void;
 }
 
@@ -56,7 +55,6 @@ export default function StripeSubscriptionModal({
   isOpen,
   onClose,
   plan,
-  coins = 0,
   onSuccess,
 }: StripeSubscriptionModalProps) {
   const [clientSecret, setClientSecret] = useState("");
@@ -79,8 +77,6 @@ export default function StripeSubscriptionModal({
     try {
       const payload = {
         plan_id: plan?.id,
-        use_coins: coins > 0 && plan?.discount > 0,
-        coins_used: plan?.coins_used || 0,
         discount_amount: plan?.discount || 0,
         final_amount: plan?.price || plan?.original_price,
       };
