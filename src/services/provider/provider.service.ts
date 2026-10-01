@@ -123,10 +123,6 @@ export const selectPlan = (data: any) => {
   return apiClient.post("/provider/select-plan", data);
 };
 
-export const getWalletCoins = () => {
-  return apiClient.get("/coins/balance");
-};
-
 export const getMyPlan = () => {
   return apiClient.get("/provider/subscription");
 };

@@ -155,4 +155,21 @@ export const appointmentApi = {
 
   getHistory: (id: number | string) =>
     http.get<ApiSuccess<any[]>>(ENDPOINTS.appointment.history(id)),
+
+  getCancelPreview: (id: number | string) =>
+    http.get<ApiSuccess<{
+      booking_id: number;
+      total_amount: number;
+      refund_amount: number;
+      cancellation_fee: number;
+      refund_percentage: number;
+      requires_admin_approval?: boolean;
+      policy_notice: string;
+      payment_status: string;
+    }>>(ENDPOINTS.appointment.cancelPreview(id)),
+
+  resolveCancellation: (id: number | string, payload: { action: "approve_full" | "approve_partial" | "decline"; custom_refund_amount?: number; notes?: string }) =>
+    http.post<ApiSuccess<Appointment>>(ENDPOINTS.appointment.resolveCancellation(id), payload),
 };
+
+

@@ -57,14 +57,6 @@ export const getAllProvider = (data: any) => {
   return apiClient.post("/provider/get-all-provider", data);
 };
 
-export const getAllCoinHistory = (data: any) => {
-  return apiClient.post("/coins/history", data);
-};
-
-export const addUpdateCoins = (data: any) => {
-  return apiClient.post("/coins/manage", data);
-};
-
 export const updateProfile = async (payload: any) => {
   const res = await apiClient.put("/user/update-profile", payload);
   return res.data;

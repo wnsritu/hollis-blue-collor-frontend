@@ -38,12 +38,19 @@ import {
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { appointmentApi, bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
 import { ratingApi } from "@/services/rating";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
+import {
+  getBookingLifecycleCategory,
+  canProviderPerformAction,
+  formatUpcomingTimeNotice,
+  getScheduledStartDateTime,
+} from "@/utils/bookingLifecycle";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -52,7 +59,17 @@ export function ProviderJobs() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed" | "fixed" | "quote">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "completed" | "fixed" | "quote">("all");
+
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   // State for Price Update Modal
   const [selectedBookingForPrice, setSelectedBookingForPrice] = useState<any | null>(null);
@@ -78,7 +95,7 @@ export function ProviderJobs() {
     setLoading(true);
     try {
       const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
-      const queryParams: Record<string, unknown> = { limit: 100 };
+      const queryParams: Record<string, unknown> = { page, limit };
       if (tabToUse === "active") queryParams.status_tab = "in_progress";
       else if (tabToUse === "completed") queryParams.status_tab = "completed";
       else if (tabToUse === "fixed") queryParams.job_type = "fixed";
@@ -90,21 +107,72 @@ export function ProviderJobs() {
       ]);
 
       let aptList: any[] = [];
+      let totalItems = 0;
+      let calculatedTotalPages = 1;
+
       if (aptRes.status === "fulfilled") {
-        const val = aptRes.value;
-        aptList = (val as any)?.data || val || [];
-        if (!Array.isArray(aptList)) aptList = [];
+        const val = aptRes.value as any;
+        const pagination =
+          val?.pagination ||
+          val?.data?.pagination ||
+          val?.meta?.pagination;
+
+        if (pagination) {
+          totalItems = Number(pagination.total ?? pagination.total_records ?? pagination.totalCount ?? 0);
+          calculatedTotalPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        } else if (val?.total !== undefined) {
+          totalItems = Number(val.total);
+          calculatedTotalPages = Number(val.totalPages ?? val.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        } else if (val?.data && typeof val.data === "object" && !Array.isArray(val.data)) {
+          totalItems = Number(val.data.total ?? val.data.total_records ?? 0);
+          calculatedTotalPages = Number(val.data.totalPages ?? val.data.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+        }
+
+        const rawData = val?.data || val;
+        if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
+          aptList = rawData.items;
+          if (!totalItems) {
+            totalItems = Number(rawData.total || 0);
+            calculatedTotalPages = Number(rawData.totalPages || Math.ceil(totalItems / limit) || 1);
+          }
+        } else if (Array.isArray(rawData)) {
+          aptList = rawData;
+        } else if (Array.isArray(val?.items)) {
+          aptList = val.items;
+        } else if (Array.isArray(val)) {
+          aptList = val;
+        }
+
+        if (!totalItems) {
+          totalItems = aptList.length;
+          calculatedTotalPages = Math.ceil(totalItems / limit) || 1;
+        }
       }
 
       let bookingList: any[] = [];
       if (bookingRes.status === "fulfilled") {
-        const val = bookingRes.value;
+        const val = bookingRes.value as any;
+        const pagination =
+          val?.pagination ||
+          val?.data?.pagination ||
+          val?.meta?.pagination;
+
+        if (pagination) {
+          const bTotal = Number(pagination.total ?? pagination.total_records ?? 0);
+          const bPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(bTotal / limit) ?? 1);
+          if (bTotal > totalItems) {
+            totalItems = bTotal;
+            calculatedTotalPages = bPages;
+          }
+        } else if (val?.total !== undefined && val.total > totalItems) {
+          totalItems = Number(val.total);
+          calculatedTotalPages = Number(val.totalPages ?? Math.ceil(totalItems / limit) ?? 1);
+        }
+
         bookingList =
-          (val as any)?.bookings ||
-          (val as any)?.data?.bookings ||
-          (val as any)?.data ||
-          val ||
-          [];
+          val?.bookings ||
+          val?.data?.bookings ||
+          (Array.isArray(val?.data) ? val.data : Array.isArray(val) ? val : []);
         if (!Array.isArray(bookingList)) bookingList = [];
       }
 
@@ -117,7 +185,6 @@ export function ProviderJobs() {
 
       const combined = Array.from(map.values());
 
-      // Sort newest created first (senior developer approach)
       combined.sort((a, b) => {
         const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || 0).getTime() || Number(a.id) || 0;
         const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || 0).getTime() || Number(b.id) || 0;
@@ -125,6 +192,8 @@ export function ProviderJobs() {
       });
 
       setAppointments(combined);
+      setTotalCount(totalItems || combined.length);
+      setTotalPages(calculatedTotalPages || Math.ceil((totalItems || combined.length) / limit) || 1);
     } catch (err) {
       console.error("Failed to load jobs:", err);
       toast.error("Failed to load jobs.");
@@ -135,26 +204,31 @@ export function ProviderJobs() {
 
   useEffect(() => {
     fetchActiveJobs();
-  }, [activeTab]);
+  }, [page, limit, activeTab]);
 
   // Classify direct fixed services vs request a quote / project flow
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
 
   const isCompletedJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["completed", "delivered", "reviewed", "finished", "work completed"].includes(apt);
+    return getBookingLifecycleCategory(b) === "COMPLETED";
   };
 
   const isCancelledJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["cancelled", "canceled", "rejected", "no-show"].includes(apt);
+    return getBookingLifecycleCategory(b) === "CANCELLED";
   };
 
-  const isActiveJob = (b: any) => !isCompletedJob(b) && !isCancelledJob(b);
+  const isUpcomingJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "UPCOMING";
+  };
+
+  const isActiveJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "ACTIVE";
+  };
 
   const myBookings = appointments;
 
   const filteredBookings = myBookings.filter((b: any) => {
+    if (activeTab === "upcoming") return isUpcomingJob(b);
     if (activeTab === "active") return isActiveJob(b);
     if (activeTab === "completed") return isCompletedJob(b);
     if (activeTab === "fixed") return !isQuoteJob(b);
@@ -162,12 +236,27 @@ export function ProviderJobs() {
     return true;
   });
 
+  const upcomingCount = myBookings.filter(isUpcomingJob).length;
   const activeCount = myBookings.filter(isActiveJob).length;
   const completedCount = myBookings.filter(isCompletedJob).length;
   const fixedCount = myBookings.filter((b) => !isQuoteJob(b)).length;
   const quoteCount = myBookings.filter((b) => isQuoteJob(b)).length;
 
-  const handleUpdateStatus = async (bookingId: number, nextStatus: string, legacyStatus?: string, reason?: string) => {
+  const handleUpdateStatus = async (
+    bookingId: number,
+    nextStatus: string,
+    legacyStatus?: string,
+    reason?: string,
+    targetBooking?: any
+  ) => {
+    if (targetBooking) {
+      const check = canProviderPerformAction(targetBooking, nextStatus);
+      if (!check.allowed) {
+        toast.error(check.reason || "This job cannot be started before the scheduled service time.");
+        return;
+      }
+    }
+
     setActionLoadingId(bookingId);
     try {
       await appointmentApi.updateStatus(bookingId, {
@@ -346,7 +435,8 @@ export function ProviderJobs() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
           <TabsList flex-wrap="true">
             <TabsTrigger value="all">All Requests ({myBookings.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming Jobs ({upcomingCount})</TabsTrigger>
+            <TabsTrigger value="active">Active Jobs ({activeCount})</TabsTrigger>
             <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
             <TabsTrigger value="fixed">Fixed Services ({fixedCount})</TabsTrigger>
             <TabsTrigger value="quote">Request a Quote ({quoteCount})</TabsTrigger>
@@ -482,6 +572,12 @@ export function ProviderJobs() {
               paymentStatusRaw === "completed" ||
               Boolean(b.paid);
 
+            const isPaymentCompleted =
+              isPaid ||
+              paymentStatusRaw === "escrow" ||
+              paymentStatusRaw === "held" ||
+              paymentStatusRaw === "authorized";
+
             const paymentBadgeText = isPaid
               ? "Payment: Paid"
               : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
@@ -497,8 +593,8 @@ export function ProviderJobs() {
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isFixed
-                              ? "bg-primary/10 text-primary"
-                              : "bg-amber-500/10 text-amber-600"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-amber-500/10 text-amber-600"
                             }`}
                         >
                           {isFixed ? <Tag size={12} /> : <FileText size={12} />}
@@ -521,10 +617,10 @@ export function ProviderJobs() {
                       <StatusPill status={n.providerStatusLabel || aptStatus} />
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isPaid
-                            ? "bg-success-soft text-success border border-success/20"
-                            : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
-                              ? "bg-blue-500/10 text-blue-600 border border-blue-200"
-                              : "bg-amber-500/10 text-amber-700 border border-amber-200"
+                          ? "bg-success-soft text-success border border-success/20"
+                          : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+                            ? "bg-blue-500/10 text-blue-600 border border-blue-200"
+                            : "bg-amber-500/10 text-amber-700 border border-amber-200"
                           }`}
                       >
                         <DollarSign size={12} />
@@ -547,20 +643,20 @@ export function ProviderJobs() {
                             <div key={st} className="flex flex-col items-center">
                               <div
                                 className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${done
-                                    ? active
-                                      ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
-                                      : "bg-primary text-primary-foreground"
-                                    : "bg-muted text-muted-foreground"
+                                  ? active
+                                    ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
+                                    : "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
                                   }`}
                               >
                                 {done ? <Check size={12} /> : i + 1}
                               </div>
                               <span
                                 className={`mt-1.5 text-[10px] font-semibold truncate max-w-full ${active
-                                    ? "text-amber-600 font-bold"
-                                    : done
-                                      ? "text-foreground"
-                                      : "text-muted-foreground opacity-60"
+                                  ? "text-amber-600 font-bold"
+                                  : done
+                                    ? "text-foreground"
+                                    : "text-muted-foreground opacity-60"
                                   }`}
                               >
                                 {st}
@@ -598,6 +694,15 @@ export function ProviderJobs() {
                   )}
 
                   {/* Status Informational Banners */}
+                  {isUpcomingJob(b) && isConfirmed && (
+                    <div className="mt-4 rounded-xl border border-blue-200 bg-blue-500/10 p-3 text-xs text-blue-900 flex items-center gap-2">
+                      <Clock size={15} className="text-blue-600 shrink-0" />
+                      <span>
+                        <strong>Upcoming Job:</strong> {formatUpcomingTimeNotice(b)}
+                      </span>
+                    </div>
+                  )}
+
                   {isEnRoute && (
                     <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-500/10 p-3 text-xs text-indigo-900 flex items-center gap-2">
                       <Navigation size={15} className="text-indigo-600 shrink-0" />
@@ -634,8 +739,16 @@ export function ProviderJobs() {
 
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Payment Status</span>
-                      <span className={`font-bold text-xs ${isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
-                        {isPaid ? "Paid (Completed)" : paymentStatusRaw === "escrow" ? "Escrow Held" : "Pending Payment"}
+                      <span className={`font-bold text-xs ${paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded" || paymentStatusRaw === "refunded" ? "text-purple-700 font-extrabold" : isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
+                        {paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded"
+                          ? "Partially Refunded"
+                          : paymentStatusRaw === "refunded"
+                          ? "Refunded"
+                          : isPaid
+                          ? "Paid (Completed)"
+                          : paymentStatusRaw === "escrow"
+                          ? "Escrow Held"
+                          : "Pending Payment"}
                       </span>
                     </div>
 
@@ -722,52 +835,122 @@ export function ProviderJobs() {
                             <DollarSign size={14} /> Update Price
                           </Button> */}
 
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
-                            className="gap-1 text-xs"
-                            disabled={actionLoadingId === b.id}
-                          >
-                            <CheckCircle2 size={14} /> Accept Job
-                          </Button>
+                          {isPaymentCompleted ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
+                              className="gap-1 text-xs"
+                              disabled={actionLoadingId === b.id}
+                            >
+                              <CheckCircle2 size={14} /> Accept Job
+                            </Button>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={150}>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs opacity-70 bg-amber-500/10 text-amber-800 border-amber-300 dark:text-amber-300 cursor-not-allowed font-semibold"
+                                      disabled
+                                    >
+                                      <Clock size={14} /> Awaiting Customer Payment
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg max-w-xs">
+                                  Job can only be accepted after the customer completes payment.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </>
                       )}
 
                       {/* Step 2: Start Travel when Confirmed */}
-                      {isConfirmed && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "En Route", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Navigation size={14} /> Start Travel (En Route)
-                        </Button>
-                      )}
+                      {isConfirmed && (() => {
+                        const check = canProviderPerformAction(b, "En Route");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "En Route", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Navigation size={14} /> Start Travel (En Route)
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 3: Mark Arrived when En Route */}
-                      {isEnRoute && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <MapPin size={14} /> Mark Arrived at Location
-                        </Button>
-                      )}
+                      {isEnRoute && (() => {
+                        const check = canProviderPerformAction(b, "Arrived");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <MapPin size={14} /> Mark Arrived at Location
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 4: Start Work when Arrived */}
-                      {isArrived && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Play size={14} /> Start Work
-                        </Button>
-                      )}
+                      {isArrived && (() => {
+                        const check = canProviderPerformAction(b, "In Progress");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Play size={14} /> Start Work
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 5: Complete Work when In Progress */}
                       {isInProgress && (
@@ -806,6 +989,20 @@ export function ProviderJobs() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 

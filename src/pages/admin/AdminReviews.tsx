@@ -21,6 +21,7 @@ import {
 import { PageHeader, Stars, StatusPill, EmptyState } from "@/components/shared/primitives";
 import { ratingApi } from "@/services/rating";
 import { formatDisplayDate } from "@/utils/format";
+import PaginationController from "@/components/ui/PaginationController";
 import toast from "react-hot-toast";
 
 export const AdminReviews: React.FC = () => {
@@ -28,19 +29,28 @@ export const AdminReviews: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [moderatingId, setModeratingId] = useState<number | null>(null);
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (page = 1) => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = { page, limit: pageSize };
       if (searchQuery.trim()) params.search = searchQuery.trim();
       if (statusFilter && statusFilter !== "all") params.status = statusFilter.toLowerCase();
 
       const res = await ratingApi.adminList(params);
       const resData = (res as any)?.data || res;
-      const list = Array.isArray(resData) ? resData : resData?.rows || [];
+      const list = Array.isArray(resData) ? resData : (resData?.rows || resData?.items || []);
+      const total = resData?.count || resData?.pagination?.total || list.length;
+      const pages = resData?.pagination?.totalPages || Math.ceil(total / pageSize) || 1;
+
       setReviews(list);
+      setTotalCount(total);
+      setTotalPages(pages);
     } catch (err) {
       console.error("Failed to load admin reviews", err);
       toast.error("Failed to load reviews directory.");
@@ -50,11 +60,15 @@ export const AdminReviews: React.FC = () => {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
+
+  useEffect(() => {
     const handler = setTimeout(() => {
-      fetchReviews();
+      fetchReviews(currentPage);
     }, 300);
     return () => clearTimeout(handler);
-  }, [searchQuery, statusFilter]);
+  }, [currentPage, searchQuery, statusFilter, pageSize]);
 
   const handleModerate = async (reviewId: number, action: string) => {
     setModeratingId(reviewId);
@@ -212,6 +226,16 @@ export const AdminReviews: React.FC = () => {
           })}
         </div>
       )}
+
+      <PaginationController
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalCount}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        loading={loading}
+      />
     </div>
   );
 };

@@ -143,6 +143,7 @@ export interface ProposalSubmissionFormValues {
   message: string;
   estimatedHours: string;
   proposedDate: string;
+  proposedTimeSlot?: string;
   validDays: string;
   lineItems: ProposalLineItem[];
 }
@@ -159,6 +160,8 @@ export const proposalSubmissionValidationSchema = Yup.object().shape({
     .positive("Estimated hours must be greater than 0")
     .nullable()
     .transform((v, o) => (String(o).trim() === "" ? null : v)),
+
+  proposedTimeSlot: Yup.string().optional(),
 
   validDays: Yup.number()
     .typeError("Validity days must be a number")

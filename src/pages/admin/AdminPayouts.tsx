@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import PaginationController from "@/components/ui/PaginationController";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   Select,
@@ -830,32 +831,15 @@ export function AdminPayouts() {
             )}
 
             {/* Payments Ledger Pagination Bar */}
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Page <strong className="text-foreground">{page}</strong> of{" "}
-                  <strong className="text-foreground">{totalPages}</strong> ({total} total transactions)
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1 || loading}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="h-8 text-xs gap-1"
-                  >
-                    <ChevronLeft size={14} /> Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages || loading}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="h-8 text-xs gap-1"
-                  >
-                    Next <ChevronRight size={14} />
-                  </Button>
-                </div>
+            {total > 0 && (
+              <div className="px-6 py-4 border-t border-border">
+                <PaginationController
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={total}
+                  onPageChange={setPage}
+                  loading={loading}
+                />
               </div>
             )}
           </div>

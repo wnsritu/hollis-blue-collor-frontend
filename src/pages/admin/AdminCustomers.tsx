@@ -33,13 +33,19 @@ import { adminApi } from "@/services/admin";
 import { getErrorMessage } from "@/services";
 import { formatDate as formatDateUtil } from "@/utils/date";
 
-function unwrapList<T>(res: unknown): T[] {
-  if (Array.isArray(res)) return res as T[];
+import PaginationController from "@/components/ui/PaginationController";
+
+function unwrapList<T>(res: unknown): { items: T[]; total: number; totalPages: number } {
+  if (Array.isArray(res)) return { items: res as T[], total: (res as T[]).length, totalPages: 1 };
   if (res && typeof res === "object") {
-    const d = (res as { data?: unknown }).data;
-    if (Array.isArray(d)) return d as T[];
+    const r = res as any;
+    const dataObj = r.data || r;
+    const items = Array.isArray(dataObj) ? dataObj : (dataObj.items || dataObj.customers || []);
+    const total = dataObj.pagination?.total || dataObj.total || items.length;
+    const totalPages = dataObj.pagination?.totalPages || dataObj.totalPages || Math.ceil(total / 10) || 1;
+    return { items, total, totalPages };
   }
-  return [];
+  return { items: [], total: 0, totalPages: 1 };
 }
 
 import type { CustomerUser } from "@/types/admin.types";
@@ -50,19 +56,25 @@ export function AdminCustomers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerUser | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (page = 1) => {
     try {
       setLoading(true);
-      const params: Record<string, string> = {};
+      const params: Record<string, any> = { page, limit: pageSize };
       if (search.trim()) params.search = search.trim();
       if (statusFilter !== "all") params.status = statusFilter;
 
       const res = await adminApi.listCustomers(params);
-      const list = unwrapList<CustomerUser>(res);
-      setCustomers(list);
+      const { items, total, totalPages: pages } = unwrapList<CustomerUser>(res);
+      setCustomers(items);
+      setTotalCount(total);
+      setTotalPages(pages);
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to fetch customer list"));
     } finally {
@@ -71,11 +83,15 @@ export function AdminCustomers() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, pageSize]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
-      void fetchCustomers();
+      void fetchCustomers(currentPage);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, statusFilter]);
+  }, [currentPage, search, statusFilter, pageSize]);
 
   const toggleCustomerStatus = async (customer: CustomerUser) => {
     const currentStatus = String(customer.status || "").toLowerCase();
@@ -284,6 +300,16 @@ export function AdminCustomers() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationController
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalCount}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        loading={loading}
+      />
 
       {/* Customer Detail Modal */}
       {selectedCustomer && (

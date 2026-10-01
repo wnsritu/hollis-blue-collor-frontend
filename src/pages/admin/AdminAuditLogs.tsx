@@ -50,6 +50,7 @@ import {
 import { adminApi } from "@/services/admin";
 import { getErrorMessage } from "@/services";
 import { formatDate as formatDateUtil } from "@/utils/date";
+import PaginationController from "@/components/ui/PaginationController";
 
 export interface AuditLogActor {
   id?: number;
@@ -191,6 +192,7 @@ export function AdminAuditLogs() {
         limit,
       };
 
+      if (search.trim()) params.search = search.trim();
       if (entityFilter !== "all") params.entity_type = entityFilter;
       if (actionFilter !== "all") params.action = actionFilter;
       if (fromDate) params.from = fromDate;
@@ -221,11 +223,15 @@ export function AdminAuditLogs() {
   };
 
   useEffect(() => {
+    setPage(1);
+  }, [search, entityFilter, actionFilter, fromDate, toDate, limit]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       void fetchAuditLogs();
     }, 300);
     return () => clearTimeout(timer);
-  }, [page, limit, entityFilter, actionFilter, fromDate, toDate]);
+  }, [page, limit, search, entityFilter, actionFilter, fromDate, toDate]);
 
   const handleResetFilters = () => {
     setSearch("");
@@ -260,7 +266,7 @@ export function AdminAuditLogs() {
     const lower = (action || "").toLowerCase();
     if (lower.includes("create") || lower.includes("approve") || lower.includes("verify") || lower.includes("activate") || lower.includes("succeeded")) {
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
+        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium transition-colors">
           <CheckCircle2 className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
@@ -268,7 +274,7 @@ export function AdminAuditLogs() {
     }
     if (lower.includes("delete") || lower.includes("reject") || lower.includes("deactivate") || lower.includes("cancel") || lower.includes("suspend")) {
       return (
-        <Badge className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 font-medium">
+        <Badge variant="outline" className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-300 font-medium transition-colors">
           <XCircle className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
@@ -276,14 +282,14 @@ export function AdminAuditLogs() {
     }
     if (lower.includes("update") || lower.includes("change") || lower.includes("edit") || lower.includes("payment")) {
       return (
-        <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-medium">
+        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors">
           <Info className="w-3 h-3 mr-1 inline-block" />
           {action}
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-slate-500/10 text-slate-700 dark:text-slate-300 font-medium">
+      <Badge variant="outline" className="bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20 hover:bg-slate-500/20 hover:text-slate-900 dark:hover:text-slate-100 font-medium transition-colors">
         {action}
       </Badge>
     );
@@ -419,7 +425,6 @@ export function AdminAuditLogs() {
                 <SelectItem value="plan">Subscription Plans</SelectItem>
                 <SelectItem value="dispute">Disputes & Resolutions</SelectItem>
                 <SelectItem value="review">Reviews & Moderation</SelectItem>
-                <SelectItem value="coin">Coins & Promotions</SelectItem>
                 <SelectItem value="platform_settings">Platform Settings</SelectItem>
               </SelectContent>
             </Select>
@@ -605,61 +610,16 @@ export function AdminAuditLogs() {
           </TableBody>
         </Table>
 
-        {/* Footer Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border/60 bg-muted/20">
-          <div className="text-xs text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{filteredLogs.length}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalCount}</span> total audit records
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Per page:</span>
-              <Select
-                value={String(limit)}
-                onValueChange={(val) => {
-                  setLimit(Number(val));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[70px] h-8 text-xs bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-
-              <span className="text-xs font-medium px-2">
-                Page {page} of {totalPages}
-              </span>
-
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+        <div className="p-4 border-t border-border/60 bg-muted/20">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       </div>
 
