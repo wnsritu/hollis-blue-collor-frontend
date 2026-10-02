@@ -37,6 +37,8 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { providerApi } from "@/services/provider";
 import { customerApi, userApi } from "@/services/customer";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { providerAccessStore } from "@/store/providerAccessStore";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 
 /**
  * Check whether a provider has been verified/approved.
@@ -455,6 +457,8 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     fetchMe,
   } = useAuthSession();
 
+  const { isSuspended, suspendReason } = useProviderAccess();
+
   const {
     completion,
     isComplete,
@@ -463,7 +467,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     openModal,
     closeModal,
     updateFromData,
-  } = useProviderCompletion();
+  } = useProviderCompletion(true);
 
   const [accountName, setAccountName] =
     useState(
@@ -545,7 +549,10 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         }
       }
 
-      await fetchMe();
+      await Promise.all([
+        fetchMe(),
+        providerAccessStore.fetchSubscriptionAccess(),
+      ]);
 
       if (isManualCheck) {
         const verified =
@@ -686,6 +693,19 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         onOpenChange={(val) => !val && closeModal()}
         canDismiss={isAllowedPath}
       />
+      {isSuspended && (
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-semibold text-destructive flex flex-wrap items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={18} className="shrink-0 text-destructive" />
+            <span>
+              Your provider account is currently <strong>SUSPENDED</strong> by administration. Reason: <span className="font-normal italic">{suspendReason || "Policy compliance review"}</span>
+            </span>
+          </div>
+          <a href="mailto:support@hollis.com?subject=Provider Account Suspension Appeal" className="underline hover:opacity-80 font-bold shrink-0">
+            Contact Support
+          </a>
+        </div>
+      )}
       {children ?? <Outlet />}
     </DashboardShell>
   );

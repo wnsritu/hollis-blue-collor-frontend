@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useFormik } from "formik";
 import {
   Dialog,
@@ -11,9 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Lock, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { proposalApi } from "@/services/project";
+import { subscriptionApi } from "@/services/payment";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
+import { proposalRules } from "@/rules/proposalRules";
 import {
   proposalSubmissionValidationSchema,
   type ProposalSubmissionFormValues,
@@ -36,6 +40,21 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
   projectTitle,
   onProposalSubmitted,
 }) => {
+  const { can, limits, plan, isUnsubscribed, isLimitReached, refresh } = useProviderAccess();
+
+  useEffect(() => {
+    if (open) {
+      refresh();
+    }
+  }, [open, refresh]);
+
+  const canCreateProposal = proposalRules.canCreate({
+    hasCapability: can("createProposal"),
+  });
+  const isProposalBlocked = !canCreateProposal;
+  const proposalLimit = limits.proposalLimit;
+  const proposalsRemaining = limits.proposalsRemaining;
+
   const formik = useFormik<ProposalSubmissionFormValues>({
     initialValues: {
       message: "",
@@ -142,6 +161,52 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
             Project: <span className="font-semibold text-foreground">{projectTitle}</span>
           </p>
         </DialogHeader>
+
+        {isProposalBlocked ? (
+          <div className="space-y-6 py-6 text-center">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm">
+              <Lock size={28} />
+            </div>
+
+            <div className="space-y-2 max-w-md mx-auto">
+              <h3 className="font-display text-lg font-bold text-foreground">
+                {isUnsubscribed ? "Subscription Required to Send Proposals" : "Monthly Proposal Limit Reached"}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {isUnsubscribed
+                  ? "An active subscription plan is required to send proposals to customers. Choose a plan to unlock proposal submissions."
+                  : `You have used all ${proposalLimit} proposals included in your ${plan?.name || "Starter"} plan this month. Upgrade your plan to submit unlimited proposals.`}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/30 p-4 max-w-sm mx-auto text-xs space-y-2 text-left">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current Plan:</span>
+                <span className="font-semibold text-foreground">{plan?.name || "No Active Plan"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Proposals Remaining:</span>
+                <span className="font-bold text-amber-500">{proposalsRemaining ?? 0}</span>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 gap-2 pt-2 border-t flex flex-col sm:flex-row justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button asChild className="gap-2 font-semibold">
+                <Link to="/provider/subscription" onClick={() => onOpenChange(false)}>
+                  <Sparkles size={15} />
+                  {isUnsubscribed ? "Explore Subscription Plans" : "Upgrade Subscription Plan"}
+                </Link>
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
 
         <form onSubmit={formik.handleSubmit} className="mt-4 space-y-5">
           {/* Work Message / Scope */}
@@ -381,6 +446,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -21,7 +21,7 @@ export function AdminCommission() {
   const [saving, setSaving] = useState(false);
   const [commissionRate, setCommissionRate] = useState(5);
   const [rate, setRate] = useState([5]);
-  const [platformFee, setPlatformFee] = useState("10");
+  const [platformFee, setPlatformFee] = useState("0");
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -30,7 +30,7 @@ export function AdminCommission() {
       const data = res?.data?.settings || res?.data || res?.settings || res;
       if (data) {
         const comm = Number(data.admin_commission) || 5;
-        const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "10";
+        const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "0";
         setCommissionRate(comm);
         setRate([comm]);
         setPlatformFee(fee);
@@ -61,7 +61,7 @@ export function AdminCommission() {
       setCommissionRate(finalRate);
       setRate([finalRate]);
       setPlatformFee(String(finalFee));
-      toast.success(`Platform settings saved successfully! Commission: ${finalRate}%, Fee: ${usd(finalFee)}.`);
+      toast.success(`Platform settings saved successfully! Commission: ${finalRate}%.`);
     } catch (err: any) {
       console.error("Failed to save settings:", err);
       toast.error(err?.response?.data?.message || err?.message || "Failed to update platform settings.");
@@ -114,7 +114,8 @@ export function AdminCommission() {
 
           <Separator className="my-6" />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 max-w-md">
+            {/* Commented out as per SOW requirement - single percentage-based commission model.
             <div className="grid gap-2">
               <Label htmlFor="platformFee">Platform Flat Fee ($)</Label>
               <Input
@@ -145,6 +146,7 @@ export function AdminCommission() {
                 }}
               />
             </div>
+            */}
             <div className="grid gap-2">
               <Label htmlFor="exact">Exact Rate (%)</Label>
               <Input
@@ -193,7 +195,7 @@ export function AdminCommission() {
           </Button>
 
           <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-            Changing the commission rate or platform fee updates active calculations across the marketplace.
+            Changing the commission rate updates active calculations across the marketplace.
           </div>
         </section>
 
@@ -205,7 +207,7 @@ export function AdminCommission() {
                 ["Processed Monthly Volume", usd(mockGrossVolume)],
                 ["Current Active Rate", `${commissionRate}%`],
                 ["New Proposed Rate", `${safeRate}%`],
-                ["Platform Flat Fee", usd(safeFlatFee)],
+                // ["Platform Flat Fee", usd(safeFlatFee)], // Commented out flat fee row
                 ["Projected Commission", usd(projected)],
                 ["Paid to Providers", usd(paidToProviders)],
               ].map(([k, v]) => (
@@ -227,6 +229,7 @@ export function AdminCommission() {
                   {usd(splitAmount(1000, safeRate).commission)}
                 </span>
               </li>
+              {/* Commented out Platform Flat Fee line in Example Split
               {safeFlatFee > 0 && (
                 <li className="flex justify-between">
                   <span className="text-muted-foreground">Platform Flat Fee</span>
@@ -235,6 +238,7 @@ export function AdminCommission() {
                   </span>
                 </li>
               )}
+              */}
               <li className="flex justify-between pt-1 border-t border-border">
                 <span className="text-muted-foreground">Provider Pay</span>
                 <span className="font-semibold text-green-600">
