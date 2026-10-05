@@ -337,7 +337,7 @@ const AdminDisputes = () => {
             </div>
           ) : disputes.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-4">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <AlertCircle size={24} />
               </div>
               <div>

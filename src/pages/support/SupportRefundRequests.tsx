@@ -68,7 +68,7 @@ const SupportRefundRequests = () => {
 
   if (loading) {
     return (
-      <div className="m-auto flex flex-col items-center justify-center min-h-[200px] bg-accent rounded-lg p-6">
+      <div className="m-auto flex flex-col items-center justify-center min-h-[200px] bg-card border border-border rounded-lg p-6">
         <h2 className="text-xl font-bold text-foreground mb-2">
           Coming Soon 🚀
         </h2>

@@ -238,9 +238,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
                 navigate(targetUrl);
               }
             }}
-            className={`max-w-md w-full bg-white dark:bg-zinc-900 shadow-xl rounded-2xl pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/10 p-4 cursor-pointer hover:shadow-2xl transition-all duration-200 border-l-4 border-primary ${
-              t.visible ? "animate-enter" : "animate-leave"
-            }`}
+            className={`max-w-md w-full bg-white dark:bg-zinc-900 shadow-xl rounded-2xl pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/10 p-4 cursor-pointer hover:shadow-2xl transition-all duration-200 border-l-4 border-primary ${t.visible ? "animate-enter" : "animate-leave"
+              }`}
           >
             <div className="flex-1 w-0">
               <div className="flex items-start">

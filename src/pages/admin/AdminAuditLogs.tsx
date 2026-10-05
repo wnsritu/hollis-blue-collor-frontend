@@ -51,6 +51,7 @@ import { adminApi } from "@/services/admin";
 import { getErrorMessage } from "@/services";
 import { formatDate as formatDateUtil } from "@/utils/date";
 import PaginationController from "@/components/ui/PaginationController";
+import { ROLES } from "@/constants/roles";
 
 export interface AuditLogActor {
   id?: number;
@@ -307,10 +308,10 @@ export function AdminAuditLogs() {
   };
 
   const getActorRoleLabel = (roleId?: number | null) => {
-    if (roleId === 1 || roleId === 3) return "Super Admin";
-    if (roleId === 2) return "Admin";
-    if (roleId === 4) return "Provider";
-    if (roleId === 5) return "Customer";
+    if (roleId === ROLES.CUSTOMER) return "Customer";
+    if (roleId === ROLES.PROVIDER) return "Provider";
+    if (roleId === ROLES.ADMIN) return "Admin";
+    if (roleId === ROLES.SUPPORT) return "Support Agent";
     return "Administrator";
   };
 
