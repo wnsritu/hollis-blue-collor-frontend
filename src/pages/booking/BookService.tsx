@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
@@ -208,14 +209,16 @@ export default function BookService() {
                 <CardContent className="p-5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="lg" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h2 className="font-bold text-base text-foreground truncate">{businessName}</h2>
+                        <TruncatedText as="h2" text={businessName} className="font-bold text-base text-foreground" />
                         {(provider.verified === "verified" || provider.verified === "approved") && <VerifiedBadge compact />}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {provider.category?.name || provider.service_type?.name || "Services"} • {providerLocation}
-                      </p>
+                      <TruncatedText
+                        as="p"
+                        text={`${provider.category?.name || provider.service_type?.name || "Services"} • ${providerLocation}`}
+                        className="text-xs text-muted-foreground"
+                      />
                       {ratingValue > 0 ? (
                         <div className="flex items-center gap-1 text-xs text-amber-500 mt-1">
                           <Star size={13} className="fill-amber-500 text-amber-500" />
@@ -750,8 +753,8 @@ export default function BookService() {
               {/* Provider Info */}
               <div className="flex items-center gap-3 pb-3 border-b border-border/60">
                 <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="sm" />
-                <div className="min-w-0">
-                  <p className="font-bold text-xs text-foreground truncate">{businessName}</p>
+                <div className="min-w-0 flex-1">
+                  <TruncatedText as="p" text={businessName} className="font-bold text-xs text-foreground" />
                   <p className="text-[11px] text-muted-foreground">{providerLocation}</p>
                 </div>
               </div>
@@ -763,9 +766,9 @@ export default function BookService() {
                 ) : (
                   selectedItems.map((i) => (
                     <div key={i.id} className="flex justify-between items-center">
-                      <span className="text-foreground truncate max-w-[190px]">
+                      <TruncatedText as="span" className="text-foreground max-w-[190px]">
                         {i.name} <span className="text-muted-foreground font-semibold">(x{i.qty})</span>
-                      </span>
+                      </TruncatedText>
                       <span className="font-semibold text-foreground">${Number(i.price) * (i.qty || 1)}</span>
                     </div>
                   ))
@@ -775,20 +778,20 @@ export default function BookService() {
               {/* Date & Address Preview */}
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs text-muted-foreground">
                 {selectedDateObj && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <CalendarDays size={13} className="text-primary shrink-0" />
-                    <span className="truncate">{selectedDateObj.fullLabel}</span>
+                    <TruncatedText as="span" text={selectedDateObj.fullLabel} className="max-w-[200px]" />
                   </div>
                 )}
                 {selectedTimeSlotLabel && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Clock size={13} className="text-primary shrink-0" />
-                    <span className="truncate">{selectedTimeSlotLabel}</span>
+                    <TruncatedText as="span" text={selectedTimeSlotLabel} className="max-w-[200px]" />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <MapPin size={13} className="text-primary shrink-0" />
-                  <span className="truncate">{summaryLocation}</span>
+                  <TruncatedText as="span" text={summaryLocation} className="max-w-[200px]" />
                 </div>
               </div>
 

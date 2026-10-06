@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { CustomerPortal, ProviderPortal, RolePortal } from "@/components/layout/portals";
 import { StatusPill, EmptyState, Stars, VerifiedBadge, PageHeader } from "@/components/shared/primitives";
 import { Timeline } from "@/components/shared/Timeline";
@@ -62,9 +63,13 @@ function Detail({
       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
         <Icon size={16} />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-semibold text-foreground truncate">{value || "—"}</p>
+        <TruncatedText
+          as="p"
+          text={value || "—"}
+          className="text-sm font-semibold text-foreground"
+        />
       </div>
     </div>
   );
@@ -424,7 +429,7 @@ export const ProjectDetail: React.FC = () => {
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs hover:border-primary transition-colors"
                       >
                         <Paperclip size={13} className="text-primary shrink-0" />
-                        <span className="max-w-[140px] truncate font-medium">{fileName}</span>
+                        <TruncatedText as="span" text={fileName} className="max-w-[140px] font-medium" />
                         {fileUrl ? (
                           <button
                             type="button"

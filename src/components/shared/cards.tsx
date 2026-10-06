@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CalendarDays, Clock, MapPin, Sparkles, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, Stars, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
+import { TruncatedText } from "@/components/ui/truncated-text";
 
 export function usd(n: number | string) {
   const num = typeof n === "string" ? parseFloat(n) : n;
@@ -248,9 +249,12 @@ export function ProviderCard({
 
         {/* Tagline / Description snippet */}
         {!compact && provider.tagline && provider.tagline.trim() && (
-          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-            {provider.tagline}
-          </p>
+          <TruncatedText
+            as="p"
+            lines={2}
+            text={provider.tagline}
+            className="mt-3 text-sm text-muted-foreground"
+          />
         )}
 
         {/* Service tags pills */}
@@ -412,9 +416,12 @@ export function BookingCard({
           {side === "customer" ? booking.provider : booking.customer}
         </p>
         {booking.serviceDescription && (
-          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-            {booking.serviceDescription}
-          </p>
+          <TruncatedText
+            as="p"
+            lines={2}
+            text={booking.serviceDescription}
+            className="mt-2 text-xs leading-relaxed text-muted-foreground"
+          />
         )}
 
         {isPriceUpdated && (

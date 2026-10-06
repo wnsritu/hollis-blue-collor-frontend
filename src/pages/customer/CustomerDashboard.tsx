@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { PageHeader, StatCard, StatusPill, Avatar, Stars } from "@/components/shared/primitives";
 import { getOrderDetails } from "@/services/order";
 import { getCustomerDashboardApi } from "@/services/dashboard/dashboard.service";
@@ -252,8 +253,8 @@ const CustomerDashboard = () => {
                 <h3 className="font-display text-base font-bold">Provider Information</h3>
                 <div className="mt-4 flex items-center gap-3">
                   <Avatar initials={normalizedOrder.providerName?.slice(0, 2).toUpperCase() || "PR"} />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{normalizedOrder.providerName}</p>
+                  <div className="min-w-0 flex-1">
+                    <TruncatedText as="p" text={normalizedOrder.providerName} className="font-semibold" />
                     <p className="text-xs text-muted-foreground">{normalizedOrder.categoryName}</p>
                   </div>
                 </div>
@@ -357,7 +358,7 @@ const CustomerDashboard = () => {
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{b.service_category || b.booking_number}</p>
+                      <TruncatedText as="p" text={b.service_category || b.booking_number} className="font-medium" />
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {b.booking_number || `JOB-${b.id}`} · {b.service_category || "Service"} · {b.booking_date || "Recent"}
                       </p>
@@ -375,7 +376,7 @@ const CustomerDashboard = () => {
                       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{n.categoryName || "Service Booking"}</p>
+                        <TruncatedText as="p" text={n.categoryName || "Service Booking"} className="font-medium" />
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {n.displayId} · {n.categoryName} · {n.formattedDate}
                         </p>

@@ -14,6 +14,7 @@ import {
 import { Logo, Avatar } from "@/components/shared/primitives";
 import { ProviderAvatarWithStoryRing } from "@/components/provider/ProviderAvatarWithStoryRing";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { cn } from "@/lib/utils";
 
 
@@ -229,11 +230,17 @@ export function DashboardShell({
             ) : (
               <Avatar initials={userInitials} size="sm" />
             )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{accountName}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {accountRole}
-              </p>
+            <div className="min-w-0 flex-1">
+              <TruncatedText
+                as="p"
+                text={accountName}
+                className="text-sm font-semibold"
+              />
+              <TruncatedText
+                as="p"
+                text={accountRole}
+                className="text-xs text-muted-foreground"
+              />
             </div>
           </div>
           {onSignOut && (
@@ -302,13 +309,17 @@ export function DashboardShell({
                       ) : (
                         <Avatar initials={userInitials} size="sm" />
                       )}
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">
-                          {accountName}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {accountRole}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <TruncatedText
+                          as="p"
+                          text={accountName}
+                          className="text-sm font-semibold"
+                        />
+                        <TruncatedText
+                          as="p"
+                          text={accountRole}
+                          className="text-xs text-muted-foreground"
+                        />
                       </div>
                     </div>
                     {onSignOut && (

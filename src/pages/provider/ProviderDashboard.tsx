@@ -23,6 +23,7 @@ import {
 import { useAuthSession } from "@/hooks/useAuth";
 import { PageHeader, StatCard, StatusPill, Avatar } from "@/components/shared/primitives";
 import { Button } from "@/components/ui/button";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { Panel } from "@/pages/customer/CustomerDashboard";
 
 const ProviderDashboard = () => {
@@ -286,11 +287,13 @@ const ProviderDashboard = () => {
                     key={a.id}
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{a.project_title || a.service_category}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {a.booking_date} · {(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot} · {a.customer?.full_name || "Customer"}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <TruncatedText as="p" text={a.project_title || a.service_category} className="text-sm font-medium" />
+                      <TruncatedText
+                        as="p"
+                        text={`${a.booking_date} · ${(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot} · ${a.customer?.full_name || "Customer"}`}
+                        className="text-xs text-muted-foreground"
+                      />
                     </div>
                     <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
                   </div>
@@ -325,16 +328,16 @@ const ProviderDashboard = () => {
                       className="rounded-xl border border-border p-3 space-y-1.5 hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <Avatar initials={custName.charAt(0) || "C"} size="sm" src={r.customer?.avatar} />
-                          <span className="text-sm font-semibold truncate">{custName}</span>
+                          <TruncatedText as="span" text={custName} className="text-sm font-semibold" />
                         </div>
                         <div className="flex items-center gap-1 text-amber-500 font-semibold text-xs shrink-0">
                           <Star size={13} className="fill-amber-500 text-amber-500" />
                           <span>{r.rating || 5.0}</span>
                         </div>
                       </div>
-                      {r.comment && <p className="text-xs text-muted-foreground line-clamp-2">{r.comment}</p>}
+                      {r.comment && <TruncatedText as="p" lines={2} text={r.comment} className="text-xs text-muted-foreground" />}
                     </div>
                   );
                 })

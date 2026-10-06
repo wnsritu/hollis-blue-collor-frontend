@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { PaginationController } from "@/components/ui/PaginationController";
 import { CreateProjectModal } from "@/components/projects/CreateProjectModal";
 import { projectApi } from "@/services/project";
@@ -161,9 +162,12 @@ export const CustomerProjects: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className="mt-3 font-display text-base font-bold leading-snug line-clamp-1 text-slate-900">
-                  {project.title}
-                </h3>
+                <TruncatedText
+                  as="h3"
+                  lines={1}
+                  text={project.title}
+                  className="mt-3 font-display text-base font-bold leading-snug text-slate-900"
+                />
 
                 {/* Subtitle: Provider/Category + submitted time */}
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -171,9 +175,12 @@ export const CustomerProjects: React.FC = () => {
                 </p>
 
                 {/* Description */}
-                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                  {project.description}
-                </p>
+                <TruncatedText
+                  as="p"
+                  lines={2}
+                  text={project.description}
+                  className="mt-2 text-xs text-muted-foreground leading-relaxed"
+                />
 
                 {/* Meta details row */}
                 <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">

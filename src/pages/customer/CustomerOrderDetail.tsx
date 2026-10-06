@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { Timeline } from "@/components/shared/Timeline";
 import { EmptyState, PageHeader, StatusPill, VerifiedBadge } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
@@ -930,9 +931,13 @@ function Detail({
       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
         <Icon size={16} />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="font-semibold text-foreground truncate">{value}</dd>
+        <TruncatedText
+          as="dd"
+          text={value}
+          className="font-semibold text-foreground"
+        />
       </div>
     </div>
   );

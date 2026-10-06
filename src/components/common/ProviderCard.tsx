@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import StarRating from "./StarRating";
 import { Button } from "@/components/ui/button";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import type { ProviderCardProps } from "@/types/components.types";
 
 const ProviderCard = ({
@@ -66,10 +67,12 @@ const ProviderCard = ({
           className="h-16 w-16 rounded-xl object-cover"
         />
         <div className="flex-1 min-w-0">
-          <Link to={profileUrl} onClick={handleProfileClick}>
-            <h3 className="font-heading text-base font-semibold text-foreground truncate hover:text-primary transition-colors cursor-pointer">
-              {name}
-            </h3>
+          <Link to={profileUrl} onClick={handleProfileClick} className="block min-w-0">
+            <TruncatedText
+              as="h3"
+              text={name}
+              className="font-heading text-base font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+            />
           </Link>
           <StarRating rating={rating} size={14} />
           {distance && distance !== "N/A" && (
