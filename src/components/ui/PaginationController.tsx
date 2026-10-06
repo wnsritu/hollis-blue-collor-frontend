@@ -9,6 +9,13 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PaginationControllerProps {
   currentPage: number;
@@ -109,18 +116,22 @@ export const PaginationController: React.FC<PaginationControllerProps> = ({
         {effectiveOnPageSizeChange && effectivePageSize !== undefined && (
           <div className="flex items-center gap-1.5 text-xs">
             <span>Per page:</span>
-            <select
-              value={effectivePageSize}
-              onChange={(e) => effectiveOnPageSizeChange(Number(e.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <Select
+              value={String(effectivePageSize)}
+              onValueChange={(val) => effectiveOnPageSizeChange(Number(val))}
               disabled={effectiveLoading}
             >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 w-[72px] bg-background text-xs px-2.5 py-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {pageSizeOptions.map((opt) => (
+                  <SelectItem key={opt} value={String(opt)} className="text-xs">
+                    {opt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 

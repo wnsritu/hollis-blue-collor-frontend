@@ -29,7 +29,8 @@ export function AdminCommission() {
       const res: any = await getPlatformSettings();
       const data = res?.data?.settings || res?.data || res?.settings || res;
       if (data) {
-        const comm = Number(data.admin_commission) || 5;
+        const rawComm = data.admin_commission !== undefined && data.admin_commission !== null ? Number(data.admin_commission) : 5;
+        const comm = isNaN(rawComm) ? 5 : rawComm;
         const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "0";
         setCommissionRate(comm);
         setRate([comm]);

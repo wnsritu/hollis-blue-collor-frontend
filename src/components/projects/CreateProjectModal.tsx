@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { parseGooglePlace } from "@/utils/googlePlaces";
@@ -43,6 +43,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   providerName,
   categoryName,
   subCategoryName,
+  hasActiveSubscription,
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
@@ -58,6 +59,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     enableReinitialize: true,
     onSubmit: async (values, { setSubmitting, resetForm }) => {
       try {
+        if (hasActiveSubscription === false) {
+          toast.error("This provider is currently unavailable for quote requests (No Active Subscription).");
+          return;
+        }
+
         const catId = initialCategoryId || Number(values.category_id);
         if (!catId) {
           toast.error("Please select a service category.");
@@ -186,6 +192,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               : "Describe what you need, set your budget, and matched verified local professionals will send you quotes."}
           </p>
         </DialogHeader>
+
+        {hasActiveSubscription === false && (
+          <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive font-medium flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>This provider is currently unavailable for quote requests (No Active Subscription).</span>
+          </div>
+        )}
 
         <form onSubmit={formik.handleSubmit} className="mt-4 space-y-5">
           {/* Title */}
@@ -508,7 +521,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={formik.isSubmitting}>
+            <Button type="submit" disabled={formik.isSubmitting || hasActiveSubscription === false}>
               {formik.isSubmitting ? (
                 <>
                   <Loader2 size={15} className="mr-2 animate-spin" /> Submitting...

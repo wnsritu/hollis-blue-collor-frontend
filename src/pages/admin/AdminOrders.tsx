@@ -555,9 +555,9 @@ export const AdminOrders: React.FC = () => {
                   {/* Admin Platform Revenue & Provider Distribution Section */}
                   {(() => {
                     const custTotal = Number(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0);
-                    const commRate = Number(selected.payment?.commission_rate ?? selected.pricing?.commission_rate ?? selected.pricing?.service_fee_rate ?? 5);
+                    const commRate = Number(selected.payment?.commission_rate ?? selected.pricing?.commission_rate ?? selected.pricing?.service_fee_rate ?? 0);
                     const commAmt = Number(selected.payment?.commission_amount ?? selected.pricing?.commission_amount ?? selected.pricing?.service_fee ?? Math.round(((custTotal * commRate) / 100) * 100) / 100);
-                    const platFee = Number(selected.payment?.platform_fee_amount ?? selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? 10);
+                    const platFee = Number(selected.payment?.platform_fee_amount ?? selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? 0);
                     const provAmt = Number(selected.payment?.provider_amount ?? selected.pricing?.provider_amount ?? Math.max(0, custTotal - commAmt - platFee));
 
                     return (

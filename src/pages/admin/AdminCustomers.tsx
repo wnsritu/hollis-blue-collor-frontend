@@ -29,6 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { adminApi } from "@/services/admin";
 import { getErrorMessage } from "@/services";
 import { formatDate as formatDateUtil } from "@/utils/date";
@@ -170,16 +177,16 @@ export function AdminCustomers() {
 
         <div className="flex items-center gap-2">
           <Filter size={15} className="text-muted-foreground" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Filter by account status"
-            className="h-10 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active Accounts</option>
-            <option value="inactive">Inactive / Suspended</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-10 w-[180px] bg-background">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active Accounts</SelectItem>
+              <SelectItem value="inactive">Inactive / Suspended</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

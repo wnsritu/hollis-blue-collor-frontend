@@ -43,7 +43,7 @@ const adminNav: NavItem[] = [
   { label: "Featured Listings", to: "/admin/featured-listings", icon: ListChecks },
   { label: "Commission", to: "/admin/commission", icon: Percent },
   { label: "Payout Queue", to: "/admin/payouts", icon: Banknote },
-  { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
+  // { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
   { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
   { label: "Reviews", to: "/admin/reviews", icon: Star },
   { label: "Reports", to: "/admin/reports", icon: Gauge },
