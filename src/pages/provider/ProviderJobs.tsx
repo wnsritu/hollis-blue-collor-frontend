@@ -96,104 +96,62 @@ export function ProviderJobs() {
     try {
       const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
       const queryParams: Record<string, unknown> = { page, limit };
-      if (tabToUse === "active") queryParams.status_tab = "in_progress";
+      if (tabToUse === "active") queryParams.status_tab = "active";
       else if (tabToUse === "completed") queryParams.status_tab = "completed";
       else if (tabToUse === "fixed") queryParams.job_type = "fixed";
       else if (tabToUse === "quote") queryParams.job_type = "quote";
 
-      const [aptRes, bookingRes] = await Promise.allSettled([
-        appointmentApi.listMine(queryParams),
-        bookingApi.list(queryParams),
-      ]);
+      const val: any = await appointmentApi.listMine(queryParams);
 
       let aptList: any[] = [];
       let totalItems = 0;
       let calculatedTotalPages = 1;
 
-      if (aptRes.status === "fulfilled") {
-        const val = aptRes.value as any;
-        const pagination =
-          val?.pagination ||
-          val?.data?.pagination ||
-          val?.meta?.pagination;
+      const pagination =
+        val?.pagination ||
+        val?.data?.pagination ||
+        val?.meta?.pagination;
 
-        if (pagination) {
-          totalItems = Number(pagination.total ?? pagination.total_records ?? pagination.totalCount ?? 0);
-          calculatedTotalPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
-        } else if (val?.total !== undefined) {
-          totalItems = Number(val.total);
-          calculatedTotalPages = Number(val.totalPages ?? val.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
-        } else if (val?.data && typeof val.data === "object" && !Array.isArray(val.data)) {
-          totalItems = Number(val.data.total ?? val.data.total_records ?? 0);
-          calculatedTotalPages = Number(val.data.totalPages ?? val.data.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
-        }
+      if (pagination) {
+        totalItems = Number(pagination.total ?? pagination.total_records ?? pagination.totalCount ?? 0);
+        calculatedTotalPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+      } else if (val?.total !== undefined) {
+        totalItems = Number(val.total);
+        calculatedTotalPages = Number(val.totalPages ?? val.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+      } else if (val?.data && typeof val.data === "object" && !Array.isArray(val.data)) {
+        totalItems = Number(val.data.total ?? val.data.total_records ?? 0);
+        calculatedTotalPages = Number(val.data.totalPages ?? val.data.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+      }
 
-        const rawData = val?.data || val;
-        if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
-          aptList = rawData.items;
-          if (!totalItems) {
-            totalItems = Number(rawData.total || 0);
-            calculatedTotalPages = Number(rawData.totalPages || Math.ceil(totalItems / limit) || 1);
-          }
-        } else if (Array.isArray(rawData)) {
-          aptList = rawData;
-        } else if (Array.isArray(val?.items)) {
-          aptList = val.items;
-        } else if (Array.isArray(val)) {
-          aptList = val;
-        }
-
+      const rawData = val?.data || val;
+      if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
+        aptList = rawData.items;
         if (!totalItems) {
-          totalItems = aptList.length;
-          calculatedTotalPages = Math.ceil(totalItems / limit) || 1;
+          totalItems = Number(rawData.total || 0);
+          calculatedTotalPages = Number(rawData.totalPages || Math.ceil(totalItems / limit) || 1);
         }
+      } else if (Array.isArray(rawData)) {
+        aptList = rawData;
+      } else if (Array.isArray(val?.items)) {
+        aptList = val.items;
+      } else if (Array.isArray(val)) {
+        aptList = val;
       }
 
-      let bookingList: any[] = [];
-      if (bookingRes.status === "fulfilled") {
-        const val = bookingRes.value as any;
-        const pagination =
-          val?.pagination ||
-          val?.data?.pagination ||
-          val?.meta?.pagination;
-
-        if (pagination) {
-          const bTotal = Number(pagination.total ?? pagination.total_records ?? 0);
-          const bPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(bTotal / limit) ?? 1);
-          if (bTotal > totalItems) {
-            totalItems = bTotal;
-            calculatedTotalPages = bPages;
-          }
-        } else if (val?.total !== undefined && val.total > totalItems) {
-          totalItems = Number(val.total);
-          calculatedTotalPages = Number(val.totalPages ?? Math.ceil(totalItems / limit) ?? 1);
-        }
-
-        bookingList =
-          val?.bookings ||
-          val?.data?.bookings ||
-          (Array.isArray(val?.data) ? val.data : Array.isArray(val) ? val : []);
-        if (!Array.isArray(bookingList)) bookingList = [];
+      if (!totalItems) {
+        totalItems = aptList.length;
+        calculatedTotalPages = Math.ceil(totalItems / limit) || 1;
       }
 
-      const map = new Map<number, any>();
-      for (const b of [...aptList, ...bookingList]) {
-        if (b && b.id) {
-          map.set(Number(b.id), b);
-        }
-      }
-
-      const combined = Array.from(map.values());
-
-      combined.sort((a, b) => {
+      aptList.sort((a, b) => {
         const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || 0).getTime() || Number(a.id) || 0;
         const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || 0).getTime() || Number(b.id) || 0;
         return timeB - timeA;
       });
 
-      setAppointments(combined);
-      setTotalCount(totalItems || combined.length);
-      setTotalPages(calculatedTotalPages || Math.ceil((totalItems || combined.length) / limit) || 1);
+      setAppointments(aptList);
+      setTotalCount(totalItems || aptList.length);
+      setTotalPages(calculatedTotalPages || Math.ceil((totalItems || aptList.length) / limit) || 1);
     } catch (err) {
       console.error("Failed to load jobs:", err);
       toast.error("Failed to load jobs.");
@@ -470,9 +428,9 @@ export function ProviderJobs() {
             const n = normalizeBooking(b);
             const isFixed = !n.isCustom;
             const price = Number(n.totalAmount ?? b.pricing?.customer_total ?? b.pricing?.total ?? b.total_amount ?? 0);
-            const commissionRate = Number(b.payment?.commission_rate ?? b.pricing?.commission_rate ?? b.pricing?.service_fee_rate ?? 5);
+            const commissionRate = Number(b.payment?.commission_rate ?? b.pricing?.commission_rate ?? b.pricing?.service_fee_rate ?? 10);
             const serviceFee = Number(b.payment?.commission_amount ?? b.pricing?.commission_amount ?? (b.pricing?.service_fee && b.pricing.service_fee > 0 ? b.pricing.service_fee : Math.round(((price * commissionRate) / 100) * 100) / 100));
-            const platformFee = Number(b.payment?.platform_fee_amount ?? b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? 10);
+            const platformFee = Number(b.payment?.platform_fee_amount ?? b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? 0);
             const providerPayable = Number(b.payment?.provider_amount ?? b.pricing?.provider_amount ?? Math.max(0, price - serviceFee - platformFee));
 
             const aptStatus = n.appointmentStatus;
@@ -743,12 +701,12 @@ export function ProviderJobs() {
                         {paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded"
                           ? "Partially Refunded"
                           : paymentStatusRaw === "refunded"
-                          ? "Refunded"
-                          : isPaid
-                          ? "Paid (Completed)"
-                          : paymentStatusRaw === "escrow"
-                          ? "Escrow Held"
-                          : "Pending Payment"}
+                            ? "Refunded"
+                            : isPaid
+                              ? "Paid (Completed)"
+                              : paymentStatusRaw === "escrow"
+                                ? "Escrow Held"
+                                : "Pending Payment"}
                       </span>
                     </div>
 
@@ -772,7 +730,7 @@ export function ProviderJobs() {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-[220px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
-                              Includes {commissionRate}% Commission ({usd(serviceFee)}) + Platform Flat Fee ({usd(platformFee)}).
+                              Includes {commissionRate}% Commission ({usd(serviceFee)}).
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

@@ -70,7 +70,7 @@ const SupportDisputeDetail = () => {
 
   if (!disputeData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-accent rounded-xl p-12 shadow-lg">
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-card border border-border rounded-xl p-12 shadow-sm">
         <h1 className="text-2xl font-extrabold text-foreground mb-4">
           🚀 Loading Dispute...
         </h1>

@@ -522,10 +522,15 @@ export const ProjectDetail: React.FC = () => {
                               {(prop.provider as any)?.verified === "verified" && <VerifiedBadge compact />}
                               <StatusPill status={prop.status || "submitted"} />
                             </div>
-                            {(prop.provider as any)?.rating && (
+                            {Number((prop.provider as any)?.rating) > 0 ? (
                               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                                <Stars rating={(prop.provider as any).rating} size={12} />
-                                <span>{(prop.provider as any).rating.toFixed(1)}</span>
+                                <Stars rating={Number((prop.provider as any).rating)} size={12} />
+                                <span>{Number((prop.provider as any).rating).toFixed(1)}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                <Stars rating={0} size={12} />
+                                <span>No reviews yet</span>
                               </div>
                             )}
                           </div>

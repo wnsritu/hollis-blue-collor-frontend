@@ -60,7 +60,17 @@ export const ProviderProfile: React.FC = () => {
     navigate(bookingPath);
   };
 
+  const hasActiveSubscription = Boolean(
+    provider?.has_active_subscription ||
+    (provider?.subscription && provider?.subscription?.status === "active") ||
+    (Array.isArray(provider?.subscriptions) && provider.subscriptions.some((s: any) => s.status === "active"))
+  );
+
   const handleRequestQuote = () => {
+    if (!hasActiveSubscription) {
+      toast.error("This provider cannot accept quote requests at this time.");
+      return;
+    }
     if (!isLoggedIn) {
       const currentPath = `/provider/${provider?.id || id}`;
       toast.error("Please log in to request a quote.");
@@ -543,9 +553,15 @@ export const ProviderProfile: React.FC = () => {
             </p>
 
             <div className="mt-5">
-              <Button size="lg" className="w-full shadow-sm" onClick={handleRequestQuote}>
-                Request a Quote
-              </Button>
+              {hasActiveSubscription ? (
+                <Button size="lg" className="w-full shadow-sm" onClick={handleRequestQuote}>
+                  Request a Quote
+                </Button>
+              ) : (
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 text-center text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  This provider is currently unavailable for quote requests (No Active Subscription).
+                </div>
+              )}
             </div>
 
             <ul className="mt-6 space-y-3 text-xs text-muted-foreground border-t border-border pt-5">

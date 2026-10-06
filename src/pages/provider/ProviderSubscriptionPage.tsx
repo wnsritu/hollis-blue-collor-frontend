@@ -7,6 +7,7 @@ import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import { subscriptionApi } from "@/services/payment";
 import StripeSubscriptionModal from "@/components/payment/StripeSubscriptionModal";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 
 export interface PlanData {
   id: number;
@@ -43,6 +44,7 @@ export interface UsageData {
 }
 
 export default function ProviderSubscriptionPage() {
+  const { refresh: refreshAccess } = useProviderAccess();
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
@@ -76,10 +78,10 @@ export default function ProviderSubscriptionPage() {
         subRes?.data?.subscription
           ? subRes.data
           : subRes?.data?.data?.subscription
-          ? subRes.data.data
-          : subRes?.subscription
-          ? subRes
-          : subRes?.data?.data || subRes?.data || subRes;
+            ? subRes.data.data
+            : subRes?.subscription
+              ? subRes
+              : subRes?.data?.data || subRes?.data || subRes;
 
       if (subPayload) {
         setSubscription(subPayload.subscription || null);
@@ -99,6 +101,13 @@ export default function ProviderSubscriptionPage() {
   useEffect(() => {
     loadSubscriptionData();
   }, [loadSubscriptionData]);
+
+  const handlePaymentSuccess = async () => {
+    toast.success("Subscription payment successful!");
+    setIsModalOpen(false);
+    await refreshAccess();
+    await loadSubscriptionData();
+  };
 
   // Open Checkout Modal for a target plan
   const handleSelectPlan = (plan: PlanData) => {
@@ -203,7 +212,7 @@ export default function ProviderSubscriptionPage() {
 
       {/* Available Plans Section */}
       <h2 className="mt-8 font-display text-xl font-bold text-foreground">Available plans</h2>
-      
+
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = currentPlan?.id === p.id || subscription?.plan_id === p.id;
@@ -213,11 +222,10 @@ export default function ProviderSubscriptionPage() {
           return (
             <div
               key={p.id}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all ${
-                isPopular
-                  ? "border-primary shadow-elevated ring-1 ring-primary/20"
-                  : "border-border"
-              }`}
+              className={`relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all ${isPopular
+                ? "border-primary shadow-elevated ring-1 ring-primary/20"
+                : "border-border"
+                }`}
             >
               {isPopular && (
                 <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-sm">
@@ -266,7 +274,7 @@ export default function ProviderSubscriptionPage() {
             setIsModalOpen(false);
             loadSubscriptionData();
             toast.success(`You are now subscribed to the ${selectedPlan.name} plan!`, {
-              description: "Your new proposal benefits are active immediately.",
+              // description: "Your new proposal benefits are active immediately.",
             });
           }}
         />

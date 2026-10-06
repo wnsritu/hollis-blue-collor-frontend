@@ -12,6 +12,11 @@ import {
   ArrowRight,
   CalendarX,
   PackageX,
+  Lock,
+  Sparkles,
+  ShieldAlert,
+  Mail,
+  Info,
 } from "lucide-react";
 import {
   getProviderDashboardApi,
@@ -21,6 +26,7 @@ import {
   ProviderDashboardStats,
 } from "@/services/dashboard/dashboard.service";
 import { useAuthSession } from "@/hooks/useAuth";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 import { PageHeader, StatCard, StatusPill, Avatar } from "@/components/shared/primitives";
 import { Button } from "@/components/ui/button";
 import { TruncatedText } from "@/components/ui/truncated-text";
@@ -28,6 +34,7 @@ import { Panel } from "@/pages/customer/CustomerDashboard";
 
 const ProviderDashboard = () => {
   const { user } = useAuthSession();
+  const { isUnsubscribed, isLimitReached, plan, limits, isSuspended, suspendReason } = useProviderAccess();
 
   const [jobsList, setJobsList] = useState<ProviderJob[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<ProviderAppointment[]>([]);
@@ -136,6 +143,70 @@ const ProviderDashboard = () => {
           </Button>
         }
       />
+
+      {isSuspended ? (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-destructive/20 text-destructive shadow-sm">
+                <ShieldAlert size={24} />
+              </div>
+              <div className="space-y-1 max-w-xl">
+                <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+                  Account Suspended by Administration
+                  <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-[10px] font-bold text-destructive uppercase tracking-wide">
+                    Suspended
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your provider account is currently suspended. Quote building, custom proposal creation, and customer messaging are restricted.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" variant="destructive" className="gap-1.5 font-semibold shadow-sm">
+                <a href="mailto:support@hollis.com?subject=Provider Account Suspension Appeal">
+                  <Mail size={14} /> Contact Support
+                </a>
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-destructive/20 bg-background/90 p-3.5 text-xs space-y-1.5 shadow-inner">
+            <div className="flex items-center gap-1.5 font-semibold text-destructive">
+              <Info size={14} />
+              <span>Suspension Reason:</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed pl-5 font-medium">
+              {suspendReason || "Account suspended by platform administration due to policy compliance review."}
+            </p>
+          </div>
+        </div>
+      ) : (isUnsubscribed || isLimitReached) && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 place-items-center rounded-xl bg-amber-500/20 text-amber-500">
+              <Lock size={20} />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">
+                {isUnsubscribed ? "Subscription Required to Send Proposals" : "Monthly Proposal Limit Reached"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isUnsubscribed
+                  ? "Subscribe to a plan to unlock sending quote proposals to custom customer requests."
+                  : `You have used ${limits.proposalsUsed} / ${limits.proposalLimit} proposals included in your ${plan?.name || "Starter"} plan.`}
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="gap-1.5 font-semibold">
+            <Link to="/provider/subscription">
+              <Sparkles size={14} /> {isUnsubscribed ? "Explore Subscription Plans" : "Upgrade Plan"}
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {/* 4 STAT CARDS SPLIT BY REQUEST TYPE */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
