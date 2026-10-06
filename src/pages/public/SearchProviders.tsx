@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { ProviderCard, usd } from "@/components/shared/cards";
 import { EmptyState } from "@/components/shared/primitives";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useSearchProviders } from "@/hooks/useSearchProviders";
 
 export const SearchProviders: React.FC = () => {
@@ -281,12 +282,15 @@ export const SearchProviders: React.FC = () => {
         <div className="min-w-0">
           {/* Results Top Bar */}
           <div className="mb-5 flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-sm text-muted-foreground">
+            <TruncatedText
+              as="p"
+              className="min-w-0 text-sm text-muted-foreground"
+            >
               <span className="font-semibold text-foreground">
                 {loading ? "Searching..." : providers.length}
               </span>{" "}
               {providers.length === 1 ? "professional matches" : "professionals match"} your search
-            </p>
+            </TruncatedText>
 
             <div className="flex shrink-0 items-center gap-2">
               {/* Mobile Filter Sheet */}

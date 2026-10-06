@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -511,9 +512,9 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   </span>
                 </span>
               )}
-              <span className="inline-flex items-center gap-2 text-muted-foreground">
+              <span className="inline-flex items-center gap-2 text-muted-foreground min-w-0">
                 <MapPin size={15} className="shrink-0 text-primary" />{" "}
-                <span className="truncate">{location}</span>
+                <TruncatedText as="span" text={location} className="max-w-[320px]" />
               </span>
             </div>
 
@@ -564,7 +565,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                         ) : (
                           <FileText size={13} className="text-primary" />
                         )}
-                        <span className="truncate max-w-[180px]">{name}</span>
+                        <TruncatedText as="span" text={name} className="max-w-[180px]" />
                         {fileUrl && <ExternalLink size={11} className="text-muted-foreground ml-0.5" />}
                       </a>
                     );

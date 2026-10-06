@@ -19,6 +19,7 @@ import { normalizeBooking, formatTimeSlotLabel } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import { getTodayDateString } from "@/utils/date";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { getBookingLifecycleCategory, canProviderPerformAction, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
 import { APPOINTMENT_FILTERS as FILTERS } from "@/constants/options";
 import { cn } from "@/lib/utils";
@@ -350,7 +351,7 @@ export const AppointmentsPage: React.FC = () => {
                 <div key={apt.id} className="rounded-2xl border border-border bg-card p-5 shadow-card">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-display font-bold">{n.serviceName}</p>
+                      <TruncatedText as="p" text={n.serviceName} className="font-display font-bold" />
                       <p className="mt-1 text-xs text-muted-foreground">
                         {n.displayId} · {n.customerName}
                       </p>
@@ -366,7 +367,7 @@ export const AppointmentsPage: React.FC = () => {
                       <Clock size={14} /> {(!n.formattedTime || n.formattedTime === "TBD" || n.formattedTime === "Time TBD") ? "Not Available" : n.formattedTime}
                     </span>
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <MapPin size={14} /> <span className="truncate">{n.address}</span>
+                      <MapPin size={14} className="shrink-0" /> <TruncatedText as="span" text={n.address} className="max-w-[280px]" />
                     </span>
                   </dl>
 
@@ -816,8 +817,8 @@ export const AppointmentsPage: React.FC = () => {
                     )}
                   </div>
                   {n.address && (
-                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground w-full">
-                      <MapPin size={13} className="shrink-0" /> <span className="truncate">{n.address}</span>
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground w-full min-w-0">
+                      <MapPin size={13} className="shrink-0" /> <TruncatedText as="span" text={n.address} className="max-w-[280px]" />
                     </p>
                   )}
 
