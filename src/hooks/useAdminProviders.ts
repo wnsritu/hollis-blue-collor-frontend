@@ -10,7 +10,7 @@ export function getCategoryName(cat: any): string {
 }
 
 export function getSubscriptionPlan(sub: any): string {
-  if (!sub) return "Pro Unlimited";
+  if (!sub) return "No Subscription";
   if (typeof sub === "string") return sub;
   if (typeof sub === "object") return sub.name || sub.title || sub.plan || "Pro Unlimited";
   return String(sub);

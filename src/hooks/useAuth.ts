@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { authStore } from "@/store/authStore";
+import { providerAccessStore } from "@/store/providerAccessStore";
 import { authApi } from "@/services/auth";
 import { setApiAuthHandlers } from "@/lib/api/interceptors";
 import { userApi } from "@/services/customer";
@@ -94,6 +95,7 @@ export function useAuthSession() {
     } catch {
       /* still clear local session */
     } finally {
+      providerAccessStore.reset();
       authStore.clearSession();
     }
   }, []);

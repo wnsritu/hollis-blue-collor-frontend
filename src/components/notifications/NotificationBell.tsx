@@ -195,7 +195,7 @@ export const NotificationBell: React.FC<{ className?: string }> = ({
                     <Icon size={15} />
                   </div>
 
-                  <div className="flex-1 min-w-0 pr-4">
+                  <div className="flex-1 min-w-0 pr-6">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <p
                         className={cn(
@@ -215,23 +215,23 @@ export const NotificationBell: React.FC<{ className?: string }> = ({
                     </p>
                   </div>
 
-                  {/* Actions / Unread marker */}
-                  <div className="absolute right-3 top-3.5 flex items-center gap-1">
-                    {isUnread && (
-                      <span className="size-2 rounded-full bg-primary shrink-0" />
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(item.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 rounded transition-opacity"
-                      aria-label="Delete notification"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {/* Unread marker (shifted down) */}
+                  {isUnread && (
+                    <span className="absolute right-3.5 top-[28px] size-2 rounded-full bg-primary shrink-0" />
+                  )}
+
+                  {/* Actions / Delete button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNotification(item.id);
+                    }}
+                    className="absolute right-2.5 top-2.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 rounded transition-opacity"
+                    aria-label="Delete notification"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               );
             })

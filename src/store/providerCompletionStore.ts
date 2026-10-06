@@ -2,6 +2,7 @@ import { computeProfileCompletion, type ProfileCompletionStatus } from "@/utils/
 import { providerApi } from "@/services/provider";
 import { getProviderAvailability } from "@/services/provider.service";
 import { authStore } from "@/store/authStore";
+import { providerAccessStore } from "@/store/providerAccessStore";
 
 export interface ProviderCompletionState {
   profile: any | null;
@@ -70,6 +71,17 @@ export const providerCompletionStore = {
       const profile = (profileRes as any)?.data || profileRes || null;
       const rawAvail = (availRes as any)?.data?.availability || (availRes as any)?.availability || availRes || null;
       const authUser = authStore.getState().user;
+
+      if (
+        profile &&
+        (Boolean(profile.is_suspended) ||
+          ["paused", "suspended", "inactive"].includes(String(profile.status).toLowerCase()))
+      ) {
+        const reason = profile.rejection_reason || profile.suspend_reason || "Account suspended by administration due to policy compliance review.";
+        providerAccessStore.setSuspended(true, reason);
+      } else if (profile && profile.status === "active") {
+        providerAccessStore.setSuspended(false);
+      }
 
       const completion = computeProfileCompletion(profile, authUser, rawAvail);
 

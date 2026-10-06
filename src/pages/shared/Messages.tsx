@@ -49,6 +49,7 @@ import {
 import { Avatar } from "@/components/shared/primitives";
 import { chatApi } from "@/services/chat";
 import { useAuthSession } from "@/hooks/useAuth";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 import { isCustomer } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,9 @@ export const Messages: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthSession();
+  const { isSuspended: providerIsSuspended } = useProviderAccess();
   const userIsCustomer = isCustomer(user?.role_id);
+  const isSuspended = !userIsCustomer && providerIsSuspended;
   const side = userIsCustomer ? "customer" : "provider";
 
   // State
@@ -310,7 +313,8 @@ export const Messages: React.FC = () => {
       fetchThreads();
       toast.success("Message sent");
     } catch (err: any) {
-      toast.error("Failed to send message.");
+      const errorMsg = err?.response?.data?.message || err?.message || "Failed to send message.";
+      toast.error(errorMsg);
     } finally {
       setSending(false);
     }
@@ -694,6 +698,15 @@ export const Messages: React.FC = () => {
 
             {/* INPUT CONTROLS */}
             <div className="border-t border-border p-3">
+              {isSuspended && (
+                <div className="mb-2 rounded-lg bg-destructive/10 border border-destructive/20 p-2.5 px-3 text-xs font-semibold text-destructive flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert size={16} className="shrink-0 text-destructive" />
+                    <span>Your provider account is suspended by administration. Messaging is disabled.</span>
+                  </div>
+                  <a href="mailto:support@hollis.com" className="underline hover:opacity-80">Contact Support</a>
+                </div>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -705,7 +718,7 @@ export const Messages: React.FC = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled={isThreadBlocked || isThreadReadOnly}
+                  disabled={isThreadBlocked || isThreadReadOnly || isSuspended}
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Attach file or image"
                   title="Attach file or image"
@@ -714,11 +727,13 @@ export const Messages: React.FC = () => {
                 </Button>
                 <Input
                   value={draft}
-                  disabled={isThreadBlocked || isThreadReadOnly}
+                  disabled={isThreadBlocked || isThreadReadOnly || isSuspended}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder={
-                    isBlockedByMe
+                    isSuspended
+                      ? "Your provider account has been suspended by administration."
+                      : isBlockedByMe
                       ? "User is blocked. Unblock to type…"
                       : isBlockedByOther
                       ? "You have been blocked by this user."
@@ -727,7 +742,7 @@ export const Messages: React.FC = () => {
                       : "Write a message…"
                   }
                 />
-                <Button onClick={handleSend} disabled={isThreadBlocked || isThreadReadOnly || sending} aria-label="Send message">
+                <Button onClick={handleSend} disabled={isThreadBlocked || isThreadReadOnly || isSuspended || sending} aria-label="Send message">
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </Button>
               </div>
