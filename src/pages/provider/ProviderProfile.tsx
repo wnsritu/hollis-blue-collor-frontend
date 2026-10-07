@@ -152,7 +152,6 @@ export const ProviderProfile: React.FC = () => {
   const featured = Boolean(provider?.is_featured || provider?.featured);
   const tagline = provider?.service_description || "";
   const about = provider?.service_description || "No business description provided yet.";
-  const rating = Number(provider?.rating) || 0;
   const city = provider?.city || "";
   const state = provider?.state || "";
   const country = provider?.country || "";
@@ -260,8 +259,17 @@ export const ProviderProfile: React.FC = () => {
 
   // Parse Reviews dynamically from API (embedded or fallback fetched)
   const rawProvReviews = Array.isArray(provider?.reviews) ? provider.reviews : [];
-  const reviewsList: any[] = rawProvReviews.length > 0 ? rawProvReviews : fetchedReviews;
-  const reviewsCount = Number(provider?.review_count ?? provider?.reviews_count ?? reviewsList.length);
+  const reviewsList: any[] = rawProvReviews.length > 0 ? rawProvReviews : (Array.isArray(fetchedReviews) ? fetchedReviews : []);
+  const reviewsCount = Math.max(
+    reviewsList.length,
+    Number(provider?.review_count || 0),
+    Number(provider?.reviews_count || 0)
+  );
+
+  const computedRatingFromList = reviewsList.length > 0
+    ? (reviewsList.reduce((acc: number, r: any) => acc + (Number(r.rating) || 0), 0) / reviewsList.length)
+    : 0;
+  const rating = Number(provider?.rating) > 0 ? Number(provider.rating) : computedRatingFromList;
 
   return (
     <div className="min-h-screen bg-background">
@@ -508,7 +516,9 @@ export const ProviderProfile: React.FC = () => {
                     <div key={r.id || idx} className="rounded-xl border border-border p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-semibold text-sm">{r.customer_name || r.user?.full_name || "Customer"}</span>
-                        <span className="text-xs text-muted-foreground">{r.createdAt ? formatDate(r.createdAt) : ""}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.created_at || r.createdAt ? formatDate(r.created_at || r.createdAt) : ""}
+                        </span>
                       </div>
                       <div className="mt-1">
                         <Stars rating={Number(r.rating) || 5} size={13} />

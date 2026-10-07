@@ -33,6 +33,8 @@ import type {
 } from "@/services/dashboard/dashboard.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { normalizeBooking } from "@/utils/bookingAdapter";
+import { format } from "date-fns";
+import { toValidDate } from "@/utils/date";
 
 export function Panel({
   title,
@@ -410,30 +412,35 @@ const CustomerDashboard = () => {
             <div className="space-y-3">
               {appointmentsList.length > 0 ? (
                 appointmentsList.slice(0, 4).map((a) => {
-                  const dateRaw = a.booking_date || "Upcoming";
-                  const parts = dateRaw.split(" ");
-                  const month = parts[0] || "NEXT";
-                  const day = (parts[1] || "").replace(",", "");
+                  const validD = toValidDate(a.booking_date);
+                  const monthName = validD ? format(validD, "MMM").toUpperCase() : "NEXT";
+                  const dayNumber = validD ? format(validD, "dd") : "•";
                   return (
                     <div
                       key={a.id}
-                      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3"
+                      className="flex items-center gap-3.5 rounded-xl border border-border/80 bg-card p-3.5 transition-colors hover:bg-muted/30 shadow-xs"
                     >
-                      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary-soft text-center leading-none">
-                        <span className="block text-[10px] font-semibold uppercase text-primary">
-                          {month}
+                      <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-center leading-tight shadow-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          {monthName}
                         </span>
-                        <span className="block font-display text-base font-bold text-primary">
-                          {day || "•"}
+                        <span className="font-display text-base font-extrabold text-foreground mt-0.5">
+                          {dayNumber}
                         </span>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{a.service_category || "Service Appointment"}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {a.provider?.business_name || "Provider"} · {(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {a.service_category || "Service Appointment"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground flex items-center gap-1.5">
+                          <span className="font-medium text-foreground/80">{a.provider?.business_name || "Provider"}</span>
+                          <span>•</span>
+                          <span>{(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot}</span>
                         </p>
                       </div>
-                      <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
+                      <div className="shrink-0">
+                        <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
+                      </div>
                     </div>
                   );
                 })
