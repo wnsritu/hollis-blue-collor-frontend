@@ -1,6 +1,7 @@
 import type { Appointment } from "@/types/api/appointment";
 import type { GenericBooking } from "@/components/shared/cards";
 import { formatDisplayDate, formatDisplayTime } from "@/utils/format";
+import { isPastDateTime } from "@/utils/date";
 
 export function formatTimeSlotLabel(slotIdOrName: any): string | null {
   if (!slotIdOrName) return null;
@@ -79,6 +80,7 @@ export interface NormalizedBooking {
     timeSlotId: number | null;
     timeSlotName?: string | null;
     reason?: string | null;
+    isExpired?: boolean;
   };
   dispute: {
     id: number | null;
@@ -364,13 +366,19 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const rescheduleTimeSlotName =
     formatTimeSlotLabel(rawRescheduleSlot) || (typeof rawRescheduleSlot === "string" ? rawRescheduleSlot : null);
 
+  const rescheduleDateVal = b.reschedule?.date ?? b.reschedule_date ?? null;
+  const isReschedulePast = Boolean(
+    rescheduleDateVal && isPastDateTime(rescheduleDateVal, rescheduleTimeSlotName)
+  );
+
   const reschedule = {
     requested: !isTerminalState && Boolean(b.reschedule?.requested ?? b.reschedule_requested_by ?? (normalizedRaw === "rescheduled")),
     requestedBy: b.reschedule?.requested_by ?? b.reschedule_requested_by ?? null,
-    date: b.reschedule?.date ?? b.reschedule_date ?? null,
+    date: rescheduleDateVal,
     timeSlotId: b.reschedule?.time_slot_id ?? b.reschedule_time_slot_id ?? b.proposed_time_slot_id ?? null,
     timeSlotName: rescheduleTimeSlotName,
     reason: b.reschedule?.reason ?? b.reschedule_reason ?? null,
+    isExpired: isReschedulePast,
   };
 
   // Dispute info

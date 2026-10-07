@@ -1,6 +1,6 @@
 import React from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, Clock, MapPin, Loader2, CalendarCheck, RefreshCw, Search, Wallet } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Loader2, CalendarCheck, RefreshCw, Search, Wallet, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -384,12 +384,25 @@ export const AppointmentsPage: React.FC = () => {
                   {/* Reschedule Requested Details Banner */}
                   {isRescheduled && (() => {
                     const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
+                    const isExpired = Boolean(n.reschedule.isExpired);
                     return (
-                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-foreground">
-                        <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
-                          <RefreshCw size={13} className="text-amber-500" />
+                      <div className={`mt-3 rounded-xl border p-3 text-xs text-foreground ${
+                        isExpired
+                          ? "border-destructive/30 bg-destructive/10"
+                          : "border-amber-500/30 bg-amber-500/10"
+                      }`}>
+                        <div className={`flex items-center gap-1.5 font-bold ${
+                          isExpired ? "text-destructive" : "text-amber-600 dark:text-amber-400"
+                        }`}>
+                          {isExpired ? (
+                            <AlertCircle size={13} className="text-destructive" />
+                          ) : (
+                            <RefreshCw size={13} className="text-amber-500" />
+                          )}
                           <span>
-                            {isRequester
+                            {isExpired
+                              ? "Reschedule Request Expired (Date/Time Passed)"
+                              : isRequester
                               ? "Reschedule Requested (Pending Confirmation)"
                               : `Reschedule Requested by ${userIsCustomer ? "Provider" : "Customer"}`}
                           </span>
@@ -398,14 +411,21 @@ export const AppointmentsPage: React.FC = () => {
                           {n.reschedule.date && (
                             <p>
                               <strong className="text-foreground">New Proposed Date &amp; Time:</strong>{" "}
-                              {formatDisplayDate(n.reschedule.date)}
+                              <span className={isExpired ? "line-through text-destructive/80" : ""}>
+                                {formatDisplayDate(n.reschedule.date)}
+                              </span>
                               {(() => {
                                 const slot = n.reschedule.timeSlotName || formatTimeSlotLabel(n.reschedule.timeSlotId);
                                 return slot ? ` at ${slot}` : "";
                               })()}
                             </p>
                           )}
-                          {n.reschedule.reason && (
+                          {isExpired && (
+                            <p className="text-destructive text-[11px] font-medium">
+                              This proposed date and time has passed. This booking is expired.
+                            </p>
+                          )}
+                          {n.reschedule.reason && !isExpired && (
                             <p>
                               <strong className="text-foreground">Reason:</strong> {n.reschedule.reason}
                             </p>
@@ -421,6 +441,13 @@ export const AppointmentsPage: React.FC = () => {
                         {isRescheduled ? (
                           (() => {
                             const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
+                            if (n.reschedule.isExpired) {
+                              return (
+                                <p className="text-xs font-semibold text-destructive py-1 flex items-center gap-1.5">
+                                  <AlertCircle size={14} /> Reschedule proposal expired (date/time has passed).
+                                </p>
+                              );
+                            }
                             if (isRequester) {
                               return (
                                 <p className="text-xs font-medium text-amber-600 dark:text-amber-400 py-1">
@@ -832,6 +859,13 @@ export const AppointmentsPage: React.FC = () => {
                 <div className="mt-6 space-y-2">
                   {isRescheduled ? (
                     (() => {
+                      if (n.reschedule.isExpired) {
+                        return (
+                          <div className="w-full text-center py-2 text-xs font-semibold text-destructive flex items-center justify-center gap-1.5 bg-destructive/10 rounded-xl border border-destructive/20 h-9">
+                            <AlertCircle size={14} /> Reschedule Expired
+                          </div>
+                        );
+                      }
                       const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
                       if (isRequester) {
                         return (

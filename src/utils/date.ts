@@ -153,3 +153,35 @@ export function isPastDate(input: DateInput): boolean {
   return checkDate.getTime() < today.getTime();
 }
 
+/**
+ * Checks if a given date and optional time slot string is in the past.
+ * If date is before today, returns true.
+ * If date is today, checks if the time slot has already passed.
+ */
+export function isPastDateTime(dateInput: DateInput, timeInput?: string | null): boolean {
+  const d = toValidDate(dateInput);
+  if (!d) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const checkDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (checkDate.getTime() < today.getTime()) return true;
+  if (checkDate.getTime() > today.getTime()) return false;
+
+  // Same day - parse time slot if available
+  if (!timeInput) return false;
+  const times = String(timeInput).split("-").map((t) => t.trim());
+  const targetTimeStr = times[1] || times[0];
+  const amPmMatch = targetTimeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (amPmMatch) {
+    let hours = parseInt(amPmMatch[1], 10);
+    const minutes = parseInt(amPmMatch[2], 10);
+    const mer = (amPmMatch[4] || "").toUpperCase();
+    if (mer === "PM" && hours < 12) hours += 12;
+    if (mer === "AM" && hours === 12) hours = 0;
+    const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+    return now.getTime() > slotTime.getTime();
+  }
+  return false;
+}
+
