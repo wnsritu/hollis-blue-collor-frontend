@@ -89,7 +89,7 @@ export const AdminReviews: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Reviews"
-        subtitle={`${reviews.length} customer reviews across the platform`}
+        subtitle={`${totalCount} customer reviews across the platform`}
       />
 
       <div className="flex flex-wrap items-center gap-3">

@@ -249,6 +249,7 @@ export function AdminPayouts() {
   // Release Modal State
   const [releaseModalPayout, setReleaseModalPayout] = useState<PayoutRecord | null>(null);
   const [releasingPayout, setReleasingPayout] = useState(false);
+  const [releasingAll, setReleasingAll] = useState(false);
 
   // Mark Paid Modal State
   const [markPaidModalPayout, setMarkPaidModalPayout] = useState<PayoutRecord | null>(null);
@@ -502,11 +503,70 @@ export function AdminPayouts() {
     return `****${str.slice(-4)}`;
   };
 
+  const handleReleaseAllPending = async () => {
+    const readyPayouts = eligiblePayouts.filter(
+      (p) => (p.status || "").toLowerCase() === "eligible"
+    );
+
+    if (readyPayouts.length === 0) {
+      toast.error("No eligible payouts ready for release.");
+      return;
+    }
+
+    const totalToRelease = readyPayouts.reduce(
+      (acc, p) => acc + Number(p.amount || 0),
+      0
+    );
+
+    setConfirmModal({
+      open: true,
+      title: "Release All Pending Payouts",
+      description: `Are you sure you want to release all ${readyPayouts.length} eligible payout(s) totaling ${usd(totalToRelease)} for processing?`,
+      confirmText: `Release ${readyPayouts.length} Payouts`,
+      variant: "default",
+      onConfirm: async () => {
+        setReleasingAll(true);
+        try {
+          let count = 0;
+          for (const p of readyPayouts) {
+            try {
+              await releasePayoutApi(p.id);
+              count++;
+            } catch (e) {
+              console.error(`Failed to release payout PO-${p.id}`, e);
+            }
+          }
+          toast.success(`Successfully released ${count} payout(s) for processing!`);
+          fetchPayouts();
+          fetchSummary();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || "Failed to release pending payouts.");
+        } finally {
+          setReleasingAll(false);
+        }
+      },
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Payout Queue & Provider Earnings"
-        subtitle="Review payout eligibility, manage provider on-hold balances, and execute manual payouts."
+        title="Payout Queue"
+        subtitle="Release full weekly earnings to providers based on completed services."
+        action={
+          <Button
+            onClick={handleReleaseAllPending}
+            disabled={releasingAll || eligiblePayouts.filter((p) => (p.status || "").toLowerCase() === "eligible").length === 0}
+            className="gap-2 bg-[#0B2A4A] text-white hover:bg-[#081F38] font-bold shadow-sm"
+          >
+            {releasingAll ? (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            )}
+            Release All Pending Payouts
+          </Button>
+        }
       />
 
       {/* Top Overview Stat Cards */}

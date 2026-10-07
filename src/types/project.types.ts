@@ -27,4 +27,5 @@ export interface CreateProjectModalProps {
   providerName?: string;
   categoryName?: string;
   subCategoryName?: string;
+  hasActiveSubscription?: boolean;
 }

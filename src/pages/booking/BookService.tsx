@@ -179,6 +179,14 @@ export default function BookService() {
     ? [enteredAddress, enteredCity].filter(Boolean).join(", ")
     : providerLocation;
 
+  const handleQuoteButtonClick = () => {
+    if (provider?.has_active_subscription === false) {
+      toast.error("This provider is currently unavailable for quote requests (No Active Subscription).");
+      return;
+    }
+    setQuoteModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-16">
       {/* Header Banner */}
@@ -242,7 +250,7 @@ export default function BookService() {
                       )}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setQuoteModalOpen(true)} className="hidden sm:flex gap-1.5 text-xs">
+                  <Button variant="outline" size="sm" onClick={handleQuoteButtonClick} className="hidden sm:flex gap-1.5 text-xs">
                     <HelpCircle size={14} /> Request a Quote
                   </Button>
                 </CardContent>
@@ -336,7 +344,7 @@ export default function BookService() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                 <Button
                   variant="outline"
-                  onClick={() => setQuoteModalOpen(true)}
+                  onClick={handleQuoteButtonClick}
                   className="w-full sm:w-auto text-xs gap-1.5"
                 >
                   <HelpCircle size={15} /> Need a Custom Quote?
@@ -827,6 +835,7 @@ export default function BookService() {
         providerName={businessName}
         categoryName={provider?.category?.name || "Services"}
         subCategoryName={provider?.service_type?.name}
+        hasActiveSubscription={provider?.has_active_subscription}
         onProjectCreated={() => {
           navigate("/projects");
         }}

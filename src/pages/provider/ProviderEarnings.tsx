@@ -54,17 +54,24 @@ export const ProviderEarnings: React.FC = () => {
   const payable = data?.payable_balance ?? data?.pending_payout ?? 0;
   const released = data?.released_payouts ?? data?.settled_payouts ?? 0;
 
+  const defaultMonths = (() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mStr = d.toLocaleString("en-US", { month: "short" });
+      months.push({
+        month: mStr,
+        revenue: i === 0 ? gross : 0,
+        commission: i === 0 ? commission : 0,
+      });
+    }
+    return months;
+  })();
+
   const revenueSeries = data?.revenue_series && data.revenue_series.length > 0
     ? data.revenue_series
-    : [
-        { month: "Feb", revenue: 0, commission: 0 },
-        { month: "Mar", revenue: 0, commission: 0 },
-        { month: "Apr", revenue: 0, commission: 0 },
-        { month: "May", revenue: 0, commission: 0 },
-        { month: "Jun", revenue: 0, commission: 0 },
-        { month: "Jul", revenue: 0, commission: 0 },
-        { month: "Aug", revenue: gross, commission: commission },
-      ];
+    : defaultMonths;
 
   const transactionsList = data?.transactions || [];
   const max = Math.max(...revenueSeries.map((r) => r.revenue || 1), 1);
@@ -81,40 +88,46 @@ export const ProviderEarnings: React.FC = () => {
       </div>
 
       <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
-        <h2 className="font-display text-lg font-bold">Monthly earnings trend</h2>
-        <div className="mt-6 flex h-52 items-end gap-3">
-          {revenueSeries.map((r) => {
-            const net = Math.max(0, r.revenue - r.commission);
-            const commHeight = max > 0 ? (r.commission / max) * 100 : 0;
-            const netHeight = max > 0 ? (net / max) * 100 : 0;
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-lg font-bold">Monthly Earnings Trend</h2>
+          <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-bold text-success">
+            {usd(data?.net_earnings ?? (gross - commission))} net
+          </span>
+        </div>
 
+        {(() => {
+          if (revenueSeries.length === 0) {
             return (
-              <div key={r.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                <div className="flex h-full w-full flex-col justify-end gap-0.5">
-                  <div
-                    className="w-full rounded-t-md bg-warning/70 transition-all duration-300"
-                    style={{ height: `${commHeight}%` }}
-                    title={`Commission ${usd(r.commission)}`}
-                  />
-                  <div
-                    className="w-full rounded-b-md bg-primary transition-all duration-300"
-                    style={{ height: `${netHeight}%` }}
-                    title={`Net ${usd(net)}`}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">{r.month}</span>
+              <div className="flex h-36 items-center justify-center rounded-2xl border border-border/60 bg-muted/30">
+                <p className="text-sm text-muted-foreground">No revenue data yet.</p>
               </div>
             );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-primary" /> Net to provider
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-warning/70" /> Platform commission
-          </span>
-        </div>
+          }
+          const maxRevenue = Math.max(...revenueSeries.map((s) => s.revenue), 1);
+          return (
+            <div
+              className="grid h-40 items-end gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4"
+              style={{ gridTemplateColumns: `repeat(${revenueSeries.length}, minmax(0, 1fr))` }}
+            >
+              {revenueSeries.map((item) => {
+                const heightPct = maxRevenue > 0 ? Math.max((item.revenue / maxRevenue) * 100, item.revenue > 0 ? 8 : 4) : 4;
+                return (
+                  <div key={item.month} className="group flex h-full flex-col items-center justify-end gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground opacity-70 group-hover:opacity-100">
+                      ${item.revenue > 0 ? item.revenue.toFixed(0) : "0"}
+                    </span>
+                    <div
+                      className="w-full max-w-[32px] rounded-t-lg bg-primary/85 transition-all group-hover:bg-primary"
+                      style={{ height: `${heightPct}%` }}
+                      title={`${item.month}: $${item.revenue.toFixed(2)} revenue, $${item.commission.toFixed(2)} commission`}
+                    />
+                    <span className="text-xs font-medium text-muted-foreground">{item.month}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </section>
 
       <section className="rounded-2xl border border-border bg-card shadow-card">

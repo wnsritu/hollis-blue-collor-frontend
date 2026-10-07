@@ -604,6 +604,7 @@ export const ProviderProfile: React.FC = () => {
         providerName={name}
         categoryName={mainCategoryName}
         subCategoryName={subCategoryName}
+        hasActiveSubscription={provider?.has_active_subscription}
         onProjectCreated={() => {
           navigate("/projects");
         }}

@@ -389,19 +389,19 @@ export function ProviderJobs() {
       />
 
       {/* Filter Tabs & Stats Bar */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList flex-wrap="true">
-            <TabsTrigger value="all">All Requests ({myBookings.length})</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming Jobs ({upcomingCount})</TabsTrigger>
-            <TabsTrigger value="active">Active Jobs ({activeCount})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
-            <TabsTrigger value="fixed">Fixed Services ({fixedCount})</TabsTrigger>
-            <TabsTrigger value="quote">Request a Quote ({quoteCount})</TabsTrigger>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="flex h-auto w-full flex-wrap items-center justify-start gap-1.5 rounded-xl bg-muted p-1.5 text-muted-foreground">
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-3 py-1.5">All Requests ({myBookings.length})</TabsTrigger>
+            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-3 py-1.5">Upcoming Jobs ({upcomingCount})</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm px-3 py-1.5">Active Jobs ({activeCount})</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs sm:text-sm px-3 py-1.5">Completed ({completedCount})</TabsTrigger>
+            <TabsTrigger value="fixed" className="text-xs sm:text-sm px-3 py-1.5">Fixed Services ({fixedCount})</TabsTrigger>
+            <TabsTrigger value="quote" className="text-xs sm:text-sm px-3 py-1.5">Request a Quote ({quoteCount})</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground shrink-0">
           <span className="flex items-center gap-1">
             <span className="size-2 rounded-full bg-primary" /> {fixedCount} Fixed Bookings
           </span>
@@ -543,12 +543,12 @@ export function ProviderJobs() {
                 : "Payment: Pending";
 
             return (
-              <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
-                <CardContent className="p-6">
+              <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card min-w-0">
+                <CardContent className="p-4 sm:p-6 min-w-0">
                   {/* Top Bar: Title & Status */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isFixed
                             ? "bg-primary/10 text-primary"
@@ -558,20 +558,20 @@ export function ProviderJobs() {
                           {isFixed ? <Tag size={12} /> : <FileText size={12} />}
                           {isFixed ? "Fixed Service" : "Request a Quote"}
                         </span>
-                        <span className="text-xs font-mono text-muted-foreground">
+                        <span className="text-xs font-mono font-semibold text-muted-foreground break-all">
                           {bookingRef}
                         </span>
                       </div>
-                      <h3 className="font-heading text-lg font-bold text-foreground mt-1">
+                      <h3 className="font-heading text-base sm:text-lg font-bold text-foreground mt-1.5 break-words">
                         {title}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">
                         Customer: <strong className="text-foreground">{customerName}</strong> ·{" "}
                         {address}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                       <StatusPill status={n.providerStatusLabel || aptStatus} />
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isPaid
@@ -589,11 +589,11 @@ export function ProviderJobs() {
 
                   {/* VISUAL ORDER LIFECYCLE STEPPER */}
                   {!isDeclined && (
-                    <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="mt-5 rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4 overflow-x-auto min-w-0 scrollbar-none">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
                         Order Lifecycle Status Progress
                       </p>
-                      <div className="grid grid-cols-6 gap-1 text-center">
+                      <div className="grid grid-cols-6 min-w-[500px] gap-1 text-center">
                         {steps.map((st, i) => {
                           const done = i <= stepIdx;
                           const active = i === stepIdx;
@@ -689,7 +689,7 @@ export function ProviderJobs() {
                   )}
 
                   {/* Details Breakdown */}
-                  <div className="mt-4 grid gap-3 sm:grid-cols-5 text-xs">
+                  <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 text-xs">
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Service Price</span>
                       <span className="font-bold text-foreground text-sm">{usd(price)}</span>
