@@ -151,17 +151,51 @@ const ProviderProfileSettings = () => {
     handleLicenseNumberChange,
     handleInsurancePolicyChange,
     handleBankFieldChange,
+    servicePricing,
+    providerStartingPrice,
   } = useProviderProfileSettings();
 
   const startingPrice = useMemo(() => {
-    if (availableServiceItems && availableServiceItems.length > 0) {
-      const prices = availableServiceItems
+    const validPrices: number[] = [];
+
+    // 1. Check provider's configured service pricing
+    if (servicePricing) {
+      try {
+        const pricingMap =
+          typeof servicePricing === "string"
+            ? JSON.parse(servicePricing)
+            : servicePricing;
+        if (pricingMap && typeof pricingMap === "object") {
+          Object.values(pricingMap).forEach((v: any) => {
+            if (v && (v.offered === true || v.offered === undefined)) {
+              const p = Number(v.price !== undefined ? v.price : v);
+              if (!isNaN(p) && p > 0) validPrices.push(p);
+            }
+          });
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+    }
+
+    // 2. Check provider's starting_price field
+    if (providerStartingPrice && providerStartingPrice > 0) {
+      validPrices.push(providerStartingPrice);
+    }
+
+    // 3. Fallback to catalog services if available
+    if (validPrices.length === 0 && availableServiceItems && availableServiceItems.length > 0) {
+      const catPrices = availableServiceItems
         .map((s: any) => Number(s.base_price || s.price || s.hourly_rate))
         .filter((p: number) => !isNaN(p) && p > 0);
-      if (prices.length > 0) return Math.min(...prices);
+      if (catPrices.length > 0) validPrices.push(...catPrices);
     }
-    return 120;
-  }, [availableServiceItems]);
+
+    if (validPrices.length > 0) {
+      return Math.min(...validPrices);
+    }
+    return 0;
+  }, [servicePricing, providerStartingPrice, availableServiceItems]);
 
   if (loading) {
     return (
@@ -866,7 +900,7 @@ const ProviderProfileSettings = () => {
                 <div className="flex justify-between items-center">
                   <dt className="text-muted-foreground">Starting Price</dt>
                   <dd className="font-bold text-primary text-sm">
-                    ${startingPrice}
+                    {startingPrice > 0 ? `$${startingPrice}` : "Not set"}
                   </dd>
                 </div>
 

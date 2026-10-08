@@ -102,6 +102,24 @@ export default function ProviderSubscriptionPage() {
     loadSubscriptionData();
   }, [loadSubscriptionData]);
 
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelSubscription = async () => {
+    if (!subscription?.id) return;
+    if (!window.confirm("Are you sure you want to cancel your current subscription?")) return;
+    try {
+      setCancelling(true);
+      await subscriptionApi.cancel({ subscription_id: subscription.id });
+      toast.success("Subscription cancelled successfully.");
+      await refreshAccess();
+      await loadSubscriptionData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to cancel subscription.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handlePaymentSuccess = async () => {
     toast.success("Subscription payment successful!");
     setIsModalOpen(false);
@@ -111,6 +129,10 @@ export default function ProviderSubscriptionPage() {
 
   // Open Checkout Modal for a target plan
   const handleSelectPlan = (plan: PlanData) => {
+    if (subscription?.status === "active") {
+      toast.error("You already have an active subscription. Cancel or wait until expiry before switching.");
+      return;
+    }
     setSelectedPlan(plan);
     setIsModalOpen(true);
   };
@@ -154,6 +176,7 @@ export default function ProviderSubscriptionPage() {
 
   const startDateFormatted = formatDate(subscription?.start_date || subscription?.createdAt);
   const nextBillingFormatted = formatDate(subscription?.end_date);
+  const hasActiveSubscription = subscription?.status === "active";
   const subStatus = subscription?.status
     ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)
     : "Inactive";
@@ -179,7 +202,20 @@ export default function ProviderSubscriptionPage() {
               {usd(Number(currentPlan?.price ?? 0))}/month · member since {startDateFormatted} · renews {nextBillingFormatted}
             </p>
           </div>
-          <StatusPill status={subStatus} />
+          <div className="flex flex-col items-end gap-2">
+            <StatusPill status={subStatus} />
+            {hasActiveSubscription && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive h-7 px-2"
+                disabled={cancelling}
+                onClick={handleCancelSubscription}
+              >
+                {cancelling ? "Cancelling…" : "Cancel Subscription"}
+              </Button>
+            )}
+          </div>
         </div>
 
         <Separator className="my-5" />
@@ -211,7 +247,14 @@ export default function ProviderSubscriptionPage() {
       </section>
 
       {/* Available Plans Section */}
-      <h2 className="mt-8 font-display text-xl font-bold text-foreground">Available plans</h2>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-xl font-bold text-foreground">Available plans</h2>
+        {hasActiveSubscription && (
+          <p className="text-xs text-muted-foreground font-medium">
+            Active plan is active until {nextBillingFormatted}. Cancel before switching to another plan.
+          </p>
+        )}
+      </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {plans.map((p) => {
@@ -254,10 +297,14 @@ export default function ProviderSubscriptionPage() {
               <Button
                 className="mt-5 w-full font-semibold"
                 variant={isCurrent ? "outline" : "secondary"}
-                disabled={isCurrent}
+                disabled={isCurrent || hasActiveSubscription}
                 onClick={() => handleSelectPlan(p)}
               >
-                {isCurrent ? "Current plan" : `Switch to ${p.name}`}
+                {isCurrent
+                  ? "Current plan"
+                  : hasActiveSubscription
+                  ? "Active plan in progress"
+                  : `Switch to ${p.name}`}
               </Button>
             </div>
           );

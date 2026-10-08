@@ -90,11 +90,12 @@ const Header = () => {
   const dashboardRoute = getLoggedInHomeRedirect(user);
 
   const displayUser = user || profile;
-  const rawPhoto =
-    (user as any)?.profile_image ||
-    (user as any)?.profile_photo ||
-    profile?.profile_image ||
-    profile?.profile_photo;
+  const userPhoto =
+    (user as any)?.profile_image !== undefined
+      ? (user as any)?.profile_image
+      : (user as any)?.profile_photo;
+  const profilePhoto = profile?.profile_image ?? profile?.profile_photo;
+  const rawPhoto = userPhoto !== undefined ? userPhoto : profilePhoto;
   const avatarUrl = resolveMediaUrl(rawPhoto);
 
   return (
