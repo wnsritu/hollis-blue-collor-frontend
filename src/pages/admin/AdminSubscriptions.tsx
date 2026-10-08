@@ -435,7 +435,7 @@ export function AdminSubscriptions() {
               <Label htmlFor="pn">Plan name *</Label>
               <Input
                 id="pn"
-                placeholder="e.g. Starter Pro"
+                placeholder="e.g. Growth"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />

@@ -118,10 +118,25 @@ export const getPayoutSummaryApi = () => {
   return apiClient.get("/admin/payouts/summary");
 };
 
+export const listWeeklyPayoutQueueApi = (params?: Record<string, any>) => {
+  return apiClient.get("/admin/payouts/weekly-queue", { params });
+};
+
+export const releaseWeeklyBatchApi = (data: { payout_ids: number[]; transfer_reference?: string; notes?: string }) => {
+  return apiClient.post("/admin/payouts/weekly-release", data);
+};
+
+export const releaseAllWeeklyApi = (data?: { transfer_reference?: string; notes?: string }) => {
+  return apiClient.post("/admin/payouts/release-all", data);
+};
+
 export const payoutApi = {
   getCommissionRates: () =>
     http.get<ApiSuccess<CommissionSettingsData>>(ENDPOINTS.payout.commissionRates),
   listEligible: listEligiblePayoutsApi,
+  listWeeklyQueue: listWeeklyPayoutQueueApi,
+  releaseWeeklyBatch: releaseWeeklyBatchApi,
+  releaseAllWeekly: releaseAllWeeklyApi,
   listOnHold: listOnHoldPayoutsApi,
   listHistory: listPayoutHistoryApi,
   process: processPayoutApi,
@@ -141,6 +156,9 @@ export default {
   confirmPaymentSubscription,
   listPaymentsApi,
   listEligiblePayoutsApi,
+  listWeeklyPayoutQueueApi,
+  releaseWeeklyBatchApi,
+  releaseAllWeeklyApi,
   listOnHoldPayoutsApi,
   listPayoutHistoryApi,
   processPayoutApi,
