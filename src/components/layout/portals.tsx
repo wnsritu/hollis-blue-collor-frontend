@@ -540,13 +540,9 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
           user?.profile_image ||
           user?.profile_photo;
 
-        if (photo) {
-          setFetchedAvatarUrl(
-            resolveMediaUrl(
-              String(photo)
-            ) || undefined
-          );
-        }
+        setFetchedAvatarUrl(
+          photo ? resolveMediaUrl(String(photo)) || undefined : undefined
+        );
       }
 
       await Promise.all([
@@ -642,12 +638,14 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   }
 
   const userPhoto =
-    (user?.profile_image as string | null | undefined) ||
-    user?.profile_photo;
+    user?.profile_image !== undefined
+      ? user.profile_image
+      : user?.profile_photo;
 
   const avatarUrl =
-    resolveMediaUrl(userPhoto) ||
-    fetchedAvatarUrl;
+    userPhoto !== undefined
+      ? (userPhoto ? resolveMediaUrl(userPhoto) || undefined : undefined)
+      : fetchedAvatarUrl;
 
   // Mark non-completion items as restricted when profile is incomplete
   const computedNav = providerNav.map((item) => {
@@ -794,13 +792,9 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
             user?.profile_image ||
             user?.profile_photo;
 
-          if (photo) {
-            setFetchedAvatarUrl(
-              resolveMediaUrl(
-                String(photo)
-              ) || undefined
-            );
-          }
+          setFetchedAvatarUrl(
+            photo ? resolveMediaUrl(String(photo)) || undefined : undefined
+          );
         } catch {
           if (
             !cancelled &&
@@ -833,12 +827,14 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
   };
 
   const userPhoto =
-    (user?.profile_image as string | null | undefined) ||
-    user?.profile_photo;
+    user?.profile_image !== undefined
+      ? user.profile_image
+      : user?.profile_photo;
 
   const avatarUrl =
-    resolveMediaUrl(userPhoto) ||
-    fetchedAvatarUrl;
+    userPhoto !== undefined
+      ? (userPhoto ? resolveMediaUrl(userPhoto) || undefined : undefined)
+      : fetchedAvatarUrl;
 
   return (
     <DashboardShell
