@@ -10,7 +10,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:api": "playwright test e2e/api",
+    "test:ui": "playwright test e2e/ui",
+    "test:flows": "playwright test e2e/flows",
+    "test:security": "playwright test e2e/security",
+    "test:smoke": "playwright test --grep @smoke"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

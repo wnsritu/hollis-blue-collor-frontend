@@ -9,13 +9,19 @@ const rawAssetBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.
 /** Normalize trailing slash */
 const stripTrailingSlash = (url: string) => url.replace(/\/+$/, "");
 
+/** Ensure absolute URL has protocol scheme */
+const ensureProtocol = (url: string) => {
+  if (!url) return "";
+  return /^https?:\/\//i.test(url) ? url : `http://${url}`;
+};
+
 /**
  * Axios base URL must point at the versioned API root, e.g.
  * `http://localhost:5000/api/v1`
  */
 function resolveApiBaseUrl(value: string): string {
   if (!value) return "";
-  const base = stripTrailingSlash(value);
+  const base = ensureProtocol(stripTrailingSlash(value));
   // Allow either `/api` or `/api/v1` in env; prefer `/api/v1`
   if (base.endsWith("/api/v1")) return base;
   if (base.endsWith("/api")) return `${base}/v1`;
@@ -31,7 +37,7 @@ export const env = {
   apiBaseUrl: resolveApiBaseUrl(rawApiBase),
 
   /** Static/media host (uploads, profile images) */
-  assetBaseUrl: stripTrailingSlash(rawAssetBase || rawApiBase.replace(/\/api(?:\/v1)?$/, "")),
+  assetBaseUrl: ensureProtocol(stripTrailingSlash(rawAssetBase || rawApiBase.replace(/\/api(?:\/v1)?$/, ""))),
 
   stripePublishableKey: (import.meta.env.VITE_STRIPE_PUBLIC_KEY as string | undefined) ?? "",
   googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "",

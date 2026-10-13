@@ -32,3 +32,11 @@ dist-ssr
 
 # Zip files
 *.zip
+
+# Playwright & E2E
+e2e/.auth/
+playwright/.auth/
+test-results/
+playwright-report/
+blob-report/
+.env.test
