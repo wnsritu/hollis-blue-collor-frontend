@@ -592,7 +592,7 @@ const ProviderProfileSettings = () => {
                   <Button
                     variant="outline"
                     onClick={saveFaqsOnly}
-                    disabled={saving}
+                    disabled={saving || faqs.length === 0}
                   >
                     Save FAQs
                   </Button>

@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { isPastDate, isSlotEarlierThanNow } from "@/utils/date";
 import type {
   CustomQuoteFormValues,
   CustomQuoteValidationErrors,
@@ -58,6 +59,21 @@ export const customQuoteValidationSchema = Yup.object().shape({
     .required("Quote expiry is required"),
 
   terms: Yup.string().trim().optional(),
+
+  proposedDate: Yup.string()
+    .optional()
+    .test("not-past-date", "Proposed date cannot be in the past", function (val) {
+      if (!val) return true;
+      return !isPastDate(val);
+    }),
+
+  proposedTimeSlot: Yup.string()
+    .optional()
+    .test("not-past-slot", "Selected time slot has already passed for today", function (val) {
+      const { proposedDate } = this.parent;
+      if (!proposedDate || !val) return true;
+      return !isSlotEarlierThanNow(proposedDate, val);
+    }),
 });
 
 export type CustomQuoteValidationSchema = typeof customQuoteValidationSchema;
@@ -161,7 +177,20 @@ export const proposalSubmissionValidationSchema = Yup.object().shape({
     .nullable()
     .transform((v, o) => (String(o).trim() === "" ? null : v)),
 
-  proposedTimeSlot: Yup.string().optional(),
+  proposedDate: Yup.string()
+    .optional()
+    .test("not-past-date", "Proposed date cannot be in the past", function (val) {
+      if (!val) return true;
+      return !isPastDate(val);
+    }),
+
+  proposedTimeSlot: Yup.string()
+    .optional()
+    .test("not-past-slot", "Selected time slot has already passed for today", function (val) {
+      const { proposedDate } = this.parent;
+      if (!proposedDate || !val) return true;
+      return !isSlotEarlierThanNow(proposedDate, val);
+    }),
 
   validDays: Yup.number()
     .typeError("Validity days must be a number")

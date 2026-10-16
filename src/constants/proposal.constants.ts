@@ -3,6 +3,20 @@ import type { CustomQuoteFormValues } from "@/types/proposal.types";
 export const DEFAULT_CUSTOM_QUOTE_TERMS =
   "Full payment held in escrow until completion. Includes quality assurance guarantee and post-service cleanup.";
 
+export interface ProposalTimeSlotOption {
+  value: string;
+  label: string;
+  start_time: string;
+  end_time: string;
+}
+
+export const PROPOSAL_TIME_SLOTS: ProposalTimeSlotOption[] = [
+  { value: "Morning Slot", label: "Morning Slot (06:00 AM - 10:00 AM)", start_time: "06:00:00", end_time: "10:00:00" },
+  { value: "Midday Slot", label: "Midday Slot (10:00 AM - 02:00 PM)", start_time: "10:00:00", end_time: "14:00:00" },
+  { value: "Afternoon Slot", label: "Afternoon Slot (02:00 PM - 06:00 PM)", start_time: "14:00:00", end_time: "18:00:00" },
+  { value: "Evening Slot", label: "Evening Slot (06:00 PM - 10:00 PM)", start_time: "18:00:00", end_time: "22:00:00" },
+];
+
 export const DEFAULT_CUSTOM_QUOTE_VALUES: CustomQuoteFormValues = {
   workDescription: "",
   labor: 150,
@@ -14,7 +28,7 @@ export const DEFAULT_CUSTOM_QUOTE_VALUES: CustomQuoteFormValues = {
   terms: DEFAULT_CUSTOM_QUOTE_TERMS,
   expires: "7 days",
   proposedDate: "",
-  proposedTimeSlot: "9:30 AM",
+  proposedTimeSlot: "Morning Slot",
 };
 
 export const PLATFORM_COMMISSION_PERCENT = 9;

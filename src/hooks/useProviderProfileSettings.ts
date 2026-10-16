@@ -658,6 +658,11 @@ export function useProviderProfileSettings() {
   };
 
   const saveFaqsOnly = async () => {
+    if (!faqs || faqs.length === 0) {
+      toast.error("Please add at least one FAQ before saving.");
+      return;
+    }
+
     try {
       setSaving(true);
       await providerApi.updateMyMarketplaceProfile({

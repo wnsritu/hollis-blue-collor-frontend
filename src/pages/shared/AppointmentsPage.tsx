@@ -647,13 +647,13 @@ export const AppointmentsPage: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleUpdateStatus(apt.id, "Requested")}
                           >
                             Request again
-                          </Button>
+                          </Button> */}
                           {n.isNoShow && (
                             <Button
                               size="sm"

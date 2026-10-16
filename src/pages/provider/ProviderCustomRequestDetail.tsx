@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useFormik } from "formik";
 import {
@@ -38,7 +38,7 @@ import { chatApi } from "@/services/chat";
 import { subscriptionApi } from "@/services/payment";
 import { useProviderAccess } from "@/hooks/useProviderAccess";
 import { proposalRules } from "@/rules/proposalRules";
-import { formatDate, getTodayDateString } from "@/utils/date";
+import { formatDate, getTodayDateString, isPastDate, isSlotEarlierThanNow } from "@/utils/date";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -53,6 +53,7 @@ import {
   REQUEST_TIMELINE_STEPS,
   mapProjectStatusToTimelineStep,
   getProjectTimelineStepStates,
+  PROPOSAL_TIME_SLOTS,
 } from "@/constants";
 import {
   customQuoteValidationSchema,
@@ -120,6 +121,25 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       const netQuoteAmount = calculateQuoteTotal(values);
       if (netQuoteAmount <= 0) {
         toast.error("Total quote amount must be greater than $0.");
+        return;
+      }
+
+      if (values.proposedDate && isPastDate(values.proposedDate)) {
+        toast.error("Proposed start date cannot be in the past.");
+        return;
+      }
+
+      if (
+        values.proposedDate &&
+        values.proposedTimeSlot &&
+        isSlotEarlierThanNow(values.proposedDate, values.proposedTimeSlot)
+      ) {
+        toast.error("Selected time slot has already passed for today. Please select an upcoming slot or a future date.");
+        return;
+      }
+
+      if (values.proposedDate && !values.proposedTimeSlot) {
+        toast.error("All time slots for today have already passed. Please select a future date.");
         return;
       }
 
@@ -361,6 +381,27 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       clearTimeout(timer);
     };
   }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount, netQuoteAmount]);
+
+  const availableProposalSlots = useMemo(() => {
+    if (!formik.values.proposedDate) {
+      return PROPOSAL_TIME_SLOTS;
+    }
+    return PROPOSAL_TIME_SLOTS.filter(
+      (slot) => !isSlotEarlierThanNow(formik.values.proposedDate, slot)
+    );
+  }, [formik.values.proposedDate]);
+
+  useEffect(() => {
+    if (!formik.values.proposedDate) return;
+
+    const isCurrentSlotInvalidOrPast =
+      !formik.values.proposedTimeSlot ||
+      !availableProposalSlots.some((s) => s.value === formik.values.proposedTimeSlot);
+
+    if (isCurrentSlotInvalidOrPast) {
+      formik.setFieldValue("proposedTimeSlot", availableProposalSlots[0]?.value || "");
+    }
+  }, [formik.values.proposedDate, availableProposalSlots, formik.values.proposedTimeSlot, formik.setFieldValue]);
 
   const commissionRate = priceBreakdown?.service_fee_rate ?? 0;
   const flatPlatformFee = priceBreakdown?.platform_fee ?? 0;
@@ -984,22 +1025,34 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                     <select
                       id="proposedTimeSlot"
                       name="proposedTimeSlot"
-                      value={formik.values.proposedTimeSlot || "Morning Slot"}
+                      value={formik.values.proposedTimeSlot || ""}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      disabled={availableProposalSlots.length === 0}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {[
-                        { value: "Morning Slot", label: "Morning Slot (06:00 AM - 10:00 AM)" },
-                        { value: "Midday Slot", label: "Midday Slot (10:00 AM - 02:00 PM)" },
-                        { value: "Afternoon Slot", label: "Afternoon Slot (02:00 PM - 06:00 PM)" },
-                        { value: "Evening Slot", label: "Evening Slot (06:00 PM - 10:00 PM)" },
-                      ].map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
+                      {availableProposalSlots.length === 0 ? (
+                        <option value="" disabled>
+                          No slots available today
                         </option>
-                      ))}
+                      ) : (
+                        availableProposalSlots.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {formik.values.proposedDate && availableProposalSlots.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        All time slots for today have passed. Please select a future start date.
+                      </p>
+                    )}
+                    {formik.touched.proposedTimeSlot && formik.errors.proposedTimeSlot && (
+                      <p className={CUSTOM_QUOTE_FORM_STYLES.errorText}>
+                        {formik.errors.proposedTimeSlot}
+                      </p>
+                    )}
                   </div>
                 </div>
 

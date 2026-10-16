@@ -39,6 +39,7 @@ import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { parseGooglePlace } from "@/utils/googlePlaces";
+import { isSlotEarlierThanNow } from "@/utils/date";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
 import { stripePromise } from "@/hooks/useStripeCardPayment";
@@ -116,6 +117,11 @@ export default function BookService() {
       }
       if (!selectedTimeSlotId) {
         toast.error("Please select an available time slot for this provider.");
+        return;
+      }
+      const chosenSlot = timeSlots.find((s) => Number(s.id) === selectedTimeSlotId);
+      if (chosenSlot && isSlotEarlierThanNow(selectedDate, chosenSlot)) {
+        toast.error("The selected time slot has already passed. Please select an upcoming slot.");
         return;
       }
       setStep(2);
@@ -433,27 +439,49 @@ export default function BookService() {
                       );
                     }
 
+                    const allSlotsPassed = availableSlots.length > 0 && availableSlots.every((s) => isSlotEarlierThanNow(selectedDate, s));
+
                     return (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-3">
+                        {allSlotsPassed && (
+                          <div className="p-3 text-center text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                            All time slots for this date have already passed. Please select an upcoming date above.
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {availableSlots.map((s) => {
                           const id = Number(s.id);
                           const label = formatSlotLabel(s);
                           const isSelected = selectedTimeSlotId === id;
+                          const isPast = isSlotEarlierThanNow(selectedDate, s);
+
                           return (
                             <button
                               key={id}
                               type="button"
+                              disabled={isPast}
                               onClick={() => {
+                                if (isPast) return;
                                 setSelectedTimeSlotId(id);
                                 setSelectedTimeSlotLabel(label);
                               }}
-                              className={`flex items-center justify-between rounded-xl border p-3.5 text-sm font-semibold transition-all ${isSelected
+                              className={`flex items-center justify-between rounded-xl border p-3.5 text-sm font-semibold transition-all ${
+                                isPast
+                                  ? "border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed opacity-60"
+                                  : isSelected
                                   ? "border-primary bg-primary-soft text-primary shadow-xs ring-2 ring-primary/20"
                                   : "border-border bg-card hover:border-primary/40 text-foreground cursor-pointer"
-                                }`}
+                              }`}
                             >
-                              <span>{label}</span>
-                              {isSelected && (
+                              <span className="flex items-center gap-2">
+                                <span>{label}</span>
+                                {isPast && (
+                                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/80">
+                                    Passed
+                                  </span>
+                                )}
+                              </span>
+                              {isSelected && !isPast && (
                                 <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
                                   <CheckCircle2 size={13} />
                                 </span>
@@ -461,6 +489,7 @@ export default function BookService() {
                             </button>
                           );
                         })}
+                        </div>
                       </div>
                     );
                   })()}
