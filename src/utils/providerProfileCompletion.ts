@@ -158,7 +158,9 @@ export function computeProfileCompletion(
       title: "Business Info",
       shortTitle: "Business Info",
       description: "Business name, service description, address, license & insurance",
-      completed: backendCompletion?.steps?.find((s: any) => s.id === "business_info")?.completed ?? businessInfoCompleted,
+      completed:
+        Boolean(backendCompletion?.steps?.find((s: any) => s.id === "business_info")?.completed) ||
+        businessInfoCompleted,
       route: "/provider/profile?tab=info",
       tabKey: "info",
       actionLabel: "Complete Info",
@@ -169,7 +171,9 @@ export function computeProfileCompletion(
       title: "Bank Account Details",
       shortTitle: "Bank Details",
       description: "Direct deposit bank account & routing information",
-      completed: backendCompletion?.steps?.find((s: any) => s.id === "bank_details")?.completed ?? bankDetailsCompleted,
+      completed:
+        Boolean(backendCompletion?.steps?.find((s: any) => s.id === "bank_details")?.completed) ||
+        bankDetailsCompleted,
       route: "/provider/profile?tab=bank",
       tabKey: "bank",
       actionLabel: "Add Bank",
@@ -180,7 +184,9 @@ export function computeProfileCompletion(
       title: "Frequently Asked Questions",
       shortTitle: "FAQs",
       description: "Helpful answers to common client questions",
-      completed: backendCompletion?.steps?.find((s: any) => s.id === "faqs")?.completed ?? faqsCompleted,
+      completed:
+        Boolean(backendCompletion?.steps?.find((s: any) => s.id === "faqs")?.completed) ||
+        faqsCompleted,
       route: "/provider/profile?tab=faqs",
       tabKey: "faqs",
       actionLabel: "Add FAQs",
@@ -191,7 +197,9 @@ export function computeProfileCompletion(
       title: "Services & Pricing",
       shortTitle: "Pricing",
       description: "Set rates for your offered services and packages",
-      completed: backendCompletion?.steps?.find((s: any) => s.id === "services_pricing")?.completed ?? servicesPricingCompleted,
+      completed:
+        Boolean(backendCompletion?.steps?.find((s: any) => s.id === "services_pricing")?.completed) ||
+        servicesPricingCompleted,
       route: "/provider/pricing",
       actionLabel: "Set Pricing",
       iconName: "Tags",
@@ -201,7 +209,9 @@ export function computeProfileCompletion(
       title: "Availability Schedule",
       shortTitle: "Availability",
       description: "Select your working days and bookable hours",
-      completed: backendCompletion?.steps?.find((s: any) => s.id === "availability")?.completed ?? availabilityCompleted,
+      completed:
+        Boolean(backendCompletion?.steps?.find((s: any) => s.id === "availability")?.completed) ||
+        availabilityCompleted,
       route: "/provider/availability",
       actionLabel: "Set Hours",
       iconName: "CalendarDays",
