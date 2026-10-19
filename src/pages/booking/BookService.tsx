@@ -32,12 +32,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Stepper } from "@/components/shared/Timeline";
 import { Avatar, VerifiedBadge } from "@/components/shared/primitives";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { parseGooglePlace } from "@/utils/googlePlaces";
+import { isSlotEarlierThanNow } from "@/utils/date";
 import { BOOK_SERVICE_STEPS as STEPS } from "@/constants/booking";
 import { useBookService } from "@/hooks/useBookService";
 import { stripePromise } from "@/hooks/useStripeCardPayment";
@@ -117,6 +119,11 @@ export default function BookService() {
         toast.error("Please select an available time slot for this provider.");
         return;
       }
+      const chosenSlot = timeSlots.find((s) => Number(s.id) === selectedTimeSlotId);
+      if (chosenSlot && isSlotEarlierThanNow(selectedDate, chosenSlot)) {
+        toast.error("The selected time slot has already passed. Please select an upcoming slot.");
+        return;
+      }
       setStep(2);
     },
   });
@@ -178,6 +185,14 @@ export default function BookService() {
     ? [enteredAddress, enteredCity].filter(Boolean).join(", ")
     : providerLocation;
 
+  const handleQuoteButtonClick = () => {
+    if (provider?.has_active_subscription === false) {
+      toast.error("This provider is currently unavailable for quote requests (No Active Subscription).");
+      return;
+    }
+    setQuoteModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-16">
       {/* Header Banner */}
@@ -208,14 +223,16 @@ export default function BookService() {
                 <CardContent className="p-5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="lg" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h2 className="font-bold text-base text-foreground truncate">{businessName}</h2>
+                        <TruncatedText as="h2" text={businessName} className="font-bold text-base text-foreground" />
                         {(provider.verified === "verified" || provider.verified === "approved") && <VerifiedBadge compact />}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {provider.category?.name || provider.service_type?.name || "Services"} • {providerLocation}
-                      </p>
+                      <TruncatedText
+                        as="p"
+                        text={`${provider.category?.name || provider.service_type?.name || "Services"} • ${providerLocation}`}
+                        className="text-xs text-muted-foreground"
+                      />
                       {ratingValue > 0 ? (
                         <div className="flex items-center gap-1 text-xs text-amber-500 mt-1">
                           <Star size={13} className="fill-amber-500 text-amber-500" />
@@ -239,7 +256,7 @@ export default function BookService() {
                       )}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setQuoteModalOpen(true)} className="hidden sm:flex gap-1.5 text-xs">
+                  <Button variant="outline" size="sm" onClick={handleQuoteButtonClick} className="hidden sm:flex gap-1.5 text-xs">
                     <HelpCircle size={14} /> Request a Quote
                   </Button>
                 </CardContent>
@@ -333,7 +350,7 @@ export default function BookService() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                 <Button
                   variant="outline"
-                  onClick={() => setQuoteModalOpen(true)}
+                  onClick={handleQuoteButtonClick}
                   className="w-full sm:w-auto text-xs gap-1.5"
                 >
                   <HelpCircle size={15} /> Need a Custom Quote?
@@ -422,27 +439,49 @@ export default function BookService() {
                       );
                     }
 
+                    const allSlotsPassed = availableSlots.length > 0 && availableSlots.every((s) => isSlotEarlierThanNow(selectedDate, s));
+
                     return (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-3">
+                        {allSlotsPassed && (
+                          <div className="p-3 text-center text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                            All time slots for this date have already passed. Please select an upcoming date above.
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {availableSlots.map((s) => {
                           const id = Number(s.id);
                           const label = formatSlotLabel(s);
                           const isSelected = selectedTimeSlotId === id;
+                          const isPast = isSlotEarlierThanNow(selectedDate, s);
+
                           return (
                             <button
                               key={id}
                               type="button"
+                              disabled={isPast}
                               onClick={() => {
+                                if (isPast) return;
                                 setSelectedTimeSlotId(id);
                                 setSelectedTimeSlotLabel(label);
                               }}
-                              className={`flex items-center justify-between rounded-xl border p-3.5 text-sm font-semibold transition-all ${isSelected
+                              className={`flex items-center justify-between rounded-xl border p-3.5 text-sm font-semibold transition-all ${
+                                isPast
+                                  ? "border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed opacity-60"
+                                  : isSelected
                                   ? "border-primary bg-primary-soft text-primary shadow-xs ring-2 ring-primary/20"
                                   : "border-border bg-card hover:border-primary/40 text-foreground cursor-pointer"
-                                }`}
+                              }`}
                             >
-                              <span>{label}</span>
-                              {isSelected && (
+                              <span className="flex items-center gap-2">
+                                <span>{label}</span>
+                                {isPast && (
+                                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/80">
+                                    Passed
+                                  </span>
+                                )}
+                              </span>
+                              {isSelected && !isPast && (
                                 <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
                                   <CheckCircle2 size={13} />
                                 </span>
@@ -450,6 +489,7 @@ export default function BookService() {
                             </button>
                           );
                         })}
+                        </div>
                       </div>
                     );
                   })()}
@@ -750,8 +790,8 @@ export default function BookService() {
               {/* Provider Info */}
               <div className="flex items-center gap-3 pb-3 border-b border-border/60">
                 <Avatar initials={initials} src={resolveMediaUrl(provider.logo_url || provider.user?.photo)} size="sm" />
-                <div className="min-w-0">
-                  <p className="font-bold text-xs text-foreground truncate">{businessName}</p>
+                <div className="min-w-0 flex-1">
+                  <TruncatedText as="p" text={businessName} className="font-bold text-xs text-foreground" />
                   <p className="text-[11px] text-muted-foreground">{providerLocation}</p>
                 </div>
               </div>
@@ -763,9 +803,9 @@ export default function BookService() {
                 ) : (
                   selectedItems.map((i) => (
                     <div key={i.id} className="flex justify-between items-center">
-                      <span className="text-foreground truncate max-w-[190px]">
+                      <TruncatedText as="span" className="text-foreground max-w-[190px]">
                         {i.name} <span className="text-muted-foreground font-semibold">(x{i.qty})</span>
-                      </span>
+                      </TruncatedText>
                       <span className="font-semibold text-foreground">${Number(i.price) * (i.qty || 1)}</span>
                     </div>
                   ))
@@ -775,48 +815,38 @@ export default function BookService() {
               {/* Date & Address Preview */}
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs text-muted-foreground">
                 {selectedDateObj && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <CalendarDays size={13} className="text-primary shrink-0" />
-                    <span className="truncate">{selectedDateObj.fullLabel}</span>
+                    <TruncatedText as="span" text={selectedDateObj.fullLabel} className="max-w-[200px]" />
                   </div>
                 )}
                 {selectedTimeSlotLabel && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Clock size={13} className="text-primary shrink-0" />
-                    <span className="truncate">{selectedTimeSlotLabel}</span>
+                    <TruncatedText as="span" text={selectedTimeSlotLabel} className="max-w-[200px]" />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <MapPin size={13} className="text-primary shrink-0" />
-                  <span className="truncate">{summaryLocation}</span>
+                  <TruncatedText as="span" text={summaryLocation} className="max-w-[200px]" />
                 </div>
               </div>
 
-              {/* Price Calculation Breakdown */}
+              {/* Price Calculation Breakdown (Customer Payment: Subtotal + Taxes = Total) */}
               <div className="pt-3 border-t border-border/60 space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal}`}</span>
+                  <span className="font-semibold text-foreground">{formattedPrices?.subtotal || `$${subtotal.toFixed(2)}`}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Service Fee {serviceFeeRate ? `(${serviceFeeRate}%)` : ""}</span>
-                  <span className="font-semibold text-foreground">{formattedPrices?.service_fee || `$${serviceFee}`}</span>
-                </div>
-                {(platformFee > 0 || formattedPrices?.platform_fee) && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Platform Fee</span>
-                    <span className="font-semibold text-foreground">{formattedPrices?.platform_fee || `$${platformFee}`}</span>
-                  </div>
-                )}
                 {taxAmount > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Taxes</span>
-                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount}`}</span>
+                    <span className="font-semibold text-foreground">{formattedPrices?.tax_amount || `$${taxAmount.toFixed(2)}`}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border/60">
                   <span>Total</span>
-                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal}`}</span>
+                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal.toFixed(2)}`}</span>
                 </div>
               </div>
             </CardContent>
@@ -834,6 +864,7 @@ export default function BookService() {
         providerName={businessName}
         categoryName={provider?.category?.name || "Services"}
         subCategoryName={provider?.service_type?.name}
+        hasActiveSubscription={provider?.has_active_subscription}
         onProjectCreated={() => {
           navigate("/projects");
         }}

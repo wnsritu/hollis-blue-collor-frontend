@@ -6,8 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import { subscriptionApi } from "@/services/payment";
-import { getWalletCoins } from "@/services/provider";
 import StripeSubscriptionModal from "@/components/payment/StripeSubscriptionModal";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 
 export interface PlanData {
   id: number;
@@ -44,6 +44,7 @@ export interface UsageData {
 }
 
 export default function ProviderSubscriptionPage() {
+  const { refresh: refreshAccess } = useProviderAccess();
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanData | null>(null);
@@ -53,7 +54,6 @@ export default function ProviderSubscriptionPage() {
     featured_credits_remaining: 0,
   });
 
-  const [coins, setCoins] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Stripe Checkout Modal state
@@ -63,14 +63,10 @@ export default function ProviderSubscriptionPage() {
   const loadSubscriptionData = useCallback(async () => {
     try {
       setLoading(true);
-      const [subRes, plansRes, coinsRes] = await Promise.all([
+      const [subRes, plansRes] = await Promise.all([
         subscriptionApi.getProviderSubscription().catch(() => null),
         subscriptionApi.getActivePublicPlans().catch(() => null),
-        getWalletCoins().catch(() => null),
       ]);
-
-      // Set coins
-      setCoins(coinsRes?.data?.available_balance || 0);
 
       // Set active plans
       const rawPlans = plansRes?.data?.data || plansRes?.data || [];
@@ -82,10 +78,10 @@ export default function ProviderSubscriptionPage() {
         subRes?.data?.subscription
           ? subRes.data
           : subRes?.data?.data?.subscription
-          ? subRes.data.data
-          : subRes?.subscription
-          ? subRes
-          : subRes?.data?.data || subRes?.data || subRes;
+            ? subRes.data.data
+            : subRes?.subscription
+              ? subRes
+              : subRes?.data?.data || subRes?.data || subRes;
 
       if (subPayload) {
         setSubscription(subPayload.subscription || null);
@@ -106,8 +102,37 @@ export default function ProviderSubscriptionPage() {
     loadSubscriptionData();
   }, [loadSubscriptionData]);
 
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelSubscription = async () => {
+    if (!subscription?.id) return;
+    if (!window.confirm("Are you sure you want to cancel your current subscription?")) return;
+    try {
+      setCancelling(true);
+      await subscriptionApi.cancel({ subscription_id: subscription.id });
+      toast.success("Subscription cancelled successfully.");
+      await refreshAccess();
+      await loadSubscriptionData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to cancel subscription.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    toast.success("Subscription payment successful!");
+    setIsModalOpen(false);
+    await refreshAccess();
+    await loadSubscriptionData();
+  };
+
   // Open Checkout Modal for a target plan
   const handleSelectPlan = (plan: PlanData) => {
+    if (subscription?.status === "active") {
+      toast.error("You already have an active subscription. Cancel or wait until expiry before switching.");
+      return;
+    }
     setSelectedPlan(plan);
     setIsModalOpen(true);
   };
@@ -151,6 +176,7 @@ export default function ProviderSubscriptionPage() {
 
   const startDateFormatted = formatDate(subscription?.start_date || subscription?.createdAt);
   const nextBillingFormatted = formatDate(subscription?.end_date);
+  const hasActiveSubscription = subscription?.status === "active";
   const subStatus = subscription?.status
     ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)
     : "Inactive";
@@ -176,7 +202,20 @@ export default function ProviderSubscriptionPage() {
               {usd(Number(currentPlan?.price ?? 0))}/month · member since {startDateFormatted} · renews {nextBillingFormatted}
             </p>
           </div>
-          <StatusPill status={subStatus} />
+          <div className="flex flex-col items-end gap-2">
+            <StatusPill status={subStatus} />
+            {hasActiveSubscription && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive h-7 px-2"
+                disabled={cancelling}
+                onClick={handleCancelSubscription}
+              >
+                {cancelling ? "Cancelling…" : "Cancel Subscription"}
+              </Button>
+            )}
+          </div>
         </div>
 
         <Separator className="my-5" />
@@ -208,8 +247,15 @@ export default function ProviderSubscriptionPage() {
       </section>
 
       {/* Available Plans Section */}
-      <h2 className="mt-8 font-display text-xl font-bold text-foreground">Available plans</h2>
-      
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-xl font-bold text-foreground">Available plans</h2>
+        {hasActiveSubscription && (
+          <p className="text-xs text-muted-foreground font-medium">
+            Active plan is active until {nextBillingFormatted}. Cancel before switching to another plan.
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = currentPlan?.id === p.id || subscription?.plan_id === p.id;
@@ -219,11 +265,10 @@ export default function ProviderSubscriptionPage() {
           return (
             <div
               key={p.id}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all ${
-                isPopular
-                  ? "border-primary shadow-elevated ring-1 ring-primary/20"
-                  : "border-border"
-              }`}
+              className={`relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all ${isPopular
+                ? "border-primary shadow-elevated ring-1 ring-primary/20"
+                : "border-border"
+                }`}
             >
               {isPopular && (
                 <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-sm">
@@ -252,10 +297,14 @@ export default function ProviderSubscriptionPage() {
               <Button
                 className="mt-5 w-full font-semibold"
                 variant={isCurrent ? "outline" : "secondary"}
-                disabled={isCurrent}
+                disabled={isCurrent || hasActiveSubscription}
                 onClick={() => handleSelectPlan(p)}
               >
-                {isCurrent ? "Current plan" : `Switch to ${p.name}`}
+                {isCurrent
+                  ? "Current plan"
+                  : hasActiveSubscription
+                  ? "Active plan in progress"
+                  : `Switch to ${p.name}`}
               </Button>
             </div>
           );
@@ -268,12 +317,11 @@ export default function ProviderSubscriptionPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           plan={selectedPlan}
-          coins={coins}
           onSuccess={() => {
             setIsModalOpen(false);
             loadSubscriptionData();
             toast.success(`You are now subscribed to the ${selectedPlan.name} plan!`, {
-              description: "Your new proposal benefits are active immediately.",
+              // description: "Your new proposal benefits are active immediately.",
             });
           }}
         />

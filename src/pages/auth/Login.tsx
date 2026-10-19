@@ -99,6 +99,8 @@ export function Login() {
       const { user } = await login({
         email: email.trim().toLowerCase(),
         password: password.trim(),
+        role: role,
+        role_id: expectedRoleId(role),
       });
 
       const roleId = Number(user?.role_id);

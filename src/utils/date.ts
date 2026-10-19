@@ -12,6 +12,14 @@ export function toValidDate(input: DateInput): Date | null {
     return isValid(input) ? input : null;
   }
   if (typeof input === "string") {
+    const ymdMatch = input.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10);
+      const month = parseInt(ymdMatch[2], 10) - 1;
+      const day = parseInt(ymdMatch[3], 10);
+      const localDate = new Date(year, month, day);
+      return isValid(localDate) ? localDate : null;
+    }
     // Try standard Date parsing, fallback to parseISO
     const d = new Date(input);
     if (isValid(d)) return d;
@@ -151,5 +159,111 @@ export function isPastDate(input: DateInput): boolean {
   const checkDate = new Date(d);
   checkDate.setHours(0, 0, 0, 0);
   return checkDate.getTime() < today.getTime();
+}
+
+/**
+ * Checks if a given date and optional time slot string is in the past.
+ * If date is before today, returns true.
+ * If date is today, checks if the time slot has already passed.
+ */
+export function isPastDateTime(dateInput: DateInput, timeInput?: string | null): boolean {
+  const d = toValidDate(dateInput);
+  if (!d) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const checkDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (checkDate.getTime() < today.getTime()) return true;
+  if (checkDate.getTime() > today.getTime()) return false;
+
+  // Same day - parse time slot if available
+  if (!timeInput) return false;
+  const times = String(timeInput).split("-").map((t) => t.trim());
+  const targetTimeStr = times[1] || times[0];
+  const amPmMatch = targetTimeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (amPmMatch) {
+    let hours = parseInt(amPmMatch[1], 10);
+    const minutes = parseInt(amPmMatch[2], 10);
+    const mer = (amPmMatch[4] || "").toUpperCase();
+    if (mer === "PM" && hours < 12) hours += 12;
+    if (mer === "AM" && hours === 12) hours = 0;
+    const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+    return now.getTime() > slotTime.getTime();
+  }
+  return false;
+}
+
+/**
+ * Checks if a time slot for a given date has already passed.
+ * - If date is before today, returns true.
+ * - If date is after today, returns false.
+ * - If date is today, checks if the slot end time has already passed.
+ */
+export function isSlotEarlierThanNow(dateInput: DateInput, slotInput: any): boolean {
+  const d = toValidDate(dateInput);
+  if (!d) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const checkDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (checkDate.getTime() < today.getTime()) return true;
+  if (checkDate.getTime() > today.getTime()) return false;
+
+  if (!slotInput) return false;
+
+  // Determine target time: for a range (e.g. 10:00 AM - 2:00 PM), use end_time so current window is available
+  let targetStr = "";
+  if (typeof slotInput === "object" && slotInput !== null) {
+    if (slotInput.end_time) {
+      targetStr = String(slotInput.end_time);
+    } else if (slotInput.slot_name && slotInput.slot_name.includes("-")) {
+      targetStr = slotInput.slot_name.split("-")[1].trim();
+    } else if (slotInput.name && slotInput.name.includes("-")) {
+      targetStr = slotInput.name.split("-")[1].trim();
+    } else if (slotInput.start_time) {
+      targetStr = String(slotInput.start_time);
+    } else if (slotInput.slot_name) {
+      targetStr = String(slotInput.slot_name);
+    } else if (slotInput.name) {
+      targetStr = String(slotInput.name);
+    }
+  } else if (typeof slotInput === "string") {
+    if (slotInput.includes("-")) {
+      targetStr = slotInput.split("-")[1].trim();
+    } else {
+      targetStr = slotInput.trim();
+    }
+  }
+
+  if (!targetStr) return false;
+
+  // Support standard slot names if string doesn't contain a direct timestamp
+  const lower = targetStr.toLowerCase();
+  if (lower.includes("morning") && !targetStr.includes(":")) targetStr = "10:00:00";
+  else if (lower.includes("midday") && !targetStr.includes(":")) targetStr = "14:00:00";
+  else if (lower.includes("afternoon") && !targetStr.includes(":")) targetStr = "18:00:00";
+  else if (lower.includes("evening") && !targetStr.includes(":")) targetStr = "22:00:00";
+
+  // Try parsing 12-hour AM/PM format (e.g. "10:00 AM", "02:00 PM")
+  const amPmMatch = targetStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (amPmMatch) {
+    let hours = parseInt(amPmMatch[1], 10);
+    const minutes = parseInt(amPmMatch[2], 10);
+    const mer = (amPmMatch[4] || "").toUpperCase();
+    if (mer === "PM" && hours < 12) hours += 12;
+    if (mer === "AM" && hours === 12) hours = 0;
+
+    const slotEndTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+    return now.getTime() >= slotEndTime.getTime();
+  }
+
+  // Try parsing 24-hour format (e.g. "10:00:00", "14:00")
+  const parts = targetStr.split(":").map(Number);
+  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    const slotEndTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], 0);
+    return now.getTime() >= slotEndTime.getTime();
+  }
+
+  return false;
 }
 

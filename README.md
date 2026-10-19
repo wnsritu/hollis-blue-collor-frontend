@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 # Welcome to Hollis Blue Collar Project
-=======
-# Welcome to your Hollis project
->>>>>>> 37b72138e71dda68e99590bedc5301feb4fd8f97
 
 ## Project info
 

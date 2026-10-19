@@ -24,6 +24,13 @@ import { useNavigate } from "react-router-dom";
 import { assignAgent, getDisputesApi, getSupportAgentsApi } from "@/services/support";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   BADGE_OPEN,
   BADGE_UNDER_REVIEW,
   BADGE_AGENT_REVIEWED,
@@ -266,51 +273,54 @@ const AdminDisputes = () => {
 
         {/* Status Filter */}
         <div className="w-full sm:w-44">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">All Statuses</option>
-            <option value="open">Open</option>
-            <option value="under_review">Under Review</option>
-            <option value="agent_reviewed">Agent Reviewed</option>
-            <option value="waiting_admin">Waiting Admin</option>
-            <option value="resolved">Resolved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <Select value={statusFilter || "all"} onValueChange={(val) => setStatusFilter(val === "all" ? "" : val)}>
+            <SelectTrigger className="h-10 bg-background text-sm">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
+              <SelectItem value="agent_reviewed">Agent Reviewed</SelectItem>
+              <SelectItem value="waiting_admin">Waiting Admin</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Final Decision Filter */}
         <div className="w-full sm:w-44">
-          <select
-            value={decisionFilter}
-            onChange={(e) => setDecisionFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">All Final Decisions</option>
-            <option value="pending">Pending</option>
-            <option value="refund">Refund</option>
-            <option value="partial_refund">Partial Refund</option>
-            <option value="release_payment">Release Payment</option>
-            <option value="reject_dispute">Reject Dispute</option>
-          </select>
+          <Select value={decisionFilter || "all"} onValueChange={(val) => setDecisionFilter(val === "all" ? "" : val)}>
+            <SelectTrigger className="h-10 bg-background text-sm">
+              <SelectValue placeholder="All Final Decisions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Final Decisions</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="refund">Refund</SelectItem>
+              <SelectItem value="partial_refund">Partial Refund</SelectItem>
+              <SelectItem value="release_payment">Release Payment</SelectItem>
+              <SelectItem value="reject_dispute">Reject Dispute</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Issue Type Filter */}
         <div className="w-full sm:w-44">
-          <select
-            value={issueFilter}
-            onChange={(e) => setIssueFilter(e.target.value)}
-            className="w-full h-10 px-3 text-sm rounded-md border border-input bg-background text-foreground shadow-xs focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">All Issue Types</option>
-            <option value="damaged_item">Damaged Item</option>
-            <option value="late_delivery">Late Delivery</option>
-            <option value="missing_item">Missing Item</option>
-            <option value="wrong_service">Wrong Service</option>
-            <option value="other">Other</option>
-          </select>
+          <Select value={issueFilter || "all"} onValueChange={(val) => setIssueFilter(val === "all" ? "" : val)}>
+            <SelectTrigger className="h-10 bg-background text-sm">
+              <SelectValue placeholder="All Issue Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Issue Types</SelectItem>
+              <SelectItem value="damaged_item">Damaged Item</SelectItem>
+              <SelectItem value="late_delivery">Late Delivery</SelectItem>
+              <SelectItem value="missing_item">Missing Item</SelectItem>
+              <SelectItem value="wrong_service">Wrong Service</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Reset Filters */}
@@ -337,7 +347,7 @@ const AdminDisputes = () => {
             </div>
           ) : disputes.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-4">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <AlertCircle size={24} />
               </div>
               <div>
@@ -455,7 +465,7 @@ const AdminDisputes = () => {
           )}
         </CardContent>
 
-        {totalPages > 1 && disputes?.length > 0 && (
+        {disputes?.length > 0 && (
           <div className="p-4 border-t border-border bg-card">
             <PaginationController
               currentPage={currentPage}

@@ -37,6 +37,8 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { providerApi } from "@/services/provider";
 import { customerApi, userApi } from "@/services/customer";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
+import { providerAccessStore } from "@/store/providerAccessStore";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
 
 /**
  * Check whether a provider has been verified/approved.
@@ -314,12 +316,9 @@ export const providerNav: NavItem[] = [
     matchPaths: ["/provider/jobs", "/provider/orders", "/provider/order"],
   },
   { to: "/messages", label: "Messages", icon: MessageSquare, matchPaths: ["/messages"] },
-  // { to: "/provider/earnings", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
-  // { to: "/provider/subscription", label: "Subscription", icon: CreditCard, exact: true },
-  // { to: "/provider/featured", label: "Featured Listings", icon: Sparkles, matchPaths: ["/provider/featured", "/provider/sponsored"] },
-  { to: "#", label: "Subscription", icon: CreditCard, exact: true },
-  { to: "#", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
-  { to: "#", label: "Featured Listings", icon: Sparkles, matchPaths: ["/provider/featured", "/provider/sponsored"] },
+  { to: "/provider/subscription", label: "Subscription", icon: CreditCard, exact: true },
+  { to: "/provider/earnings", label: "Earnings", icon: Wallet, matchPaths: ["/provider/earnings"] },
+  { to: "/provider/featured", label: "Featured Listings", icon: Sparkles, matchPaths: ["/provider/featured", "/provider/sponsored"] },
   {
     to: "/provider/profile",
     label: "Business Profile",
@@ -359,25 +358,13 @@ export const customerNav: NavItem[] = [
     matchPaths: ["/messages"],
   },
   {
-    to: "#",
+    to: "/customer/payments",
     label: "Payments",
     icon: CreditCard,
     matchPaths: ["/customer/payments", "/payments"],
   },
-  //  {
-  //   to: "/customer/payments",
-  //   label: "Payments",
-  //   icon: CreditCard,
-  //   matchPaths: ["/customer/payments", "/payments"],
-  // },
-  // {
-  //   to: "/customer/reviews",
-  //   label: "Reviews",
-  //   icon: Star,
-  //   matchPaths: ["/customer/reviews", "/rating"],
-  // },
   {
-    to: "#",
+    to: "/customer/reviews",
     label: "Reviews",
     icon: Star,
     matchPaths: ["/customer/reviews", "/rating"],
@@ -470,6 +457,8 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     fetchMe,
   } = useAuthSession();
 
+  const { isSuspended, suspendReason } = useProviderAccess();
+
   const {
     completion,
     isComplete,
@@ -478,7 +467,7 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     openModal,
     closeModal,
     updateFromData,
-  } = useProviderCompletion();
+  } = useProviderCompletion(true);
 
   const [accountName, setAccountName] =
     useState(
@@ -551,16 +540,15 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
           user?.profile_image ||
           user?.profile_photo;
 
-        if (photo) {
-          setFetchedAvatarUrl(
-            resolveMediaUrl(
-              String(photo)
-            ) || undefined
-          );
-        }
+        setFetchedAvatarUrl(
+          photo ? resolveMediaUrl(String(photo)) || undefined : undefined
+        );
       }
 
-      await fetchMe();
+      await Promise.all([
+        fetchMe(),
+        providerAccessStore.fetchSubscriptionAccess(),
+      ]);
 
       if (isManualCheck) {
         const verified =
@@ -650,12 +638,14 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
   }
 
   const userPhoto =
-    (user?.profile_image as string | null | undefined) ||
-    user?.profile_photo;
+    user?.profile_image !== undefined
+      ? user.profile_image
+      : user?.profile_photo;
 
   const avatarUrl =
-    resolveMediaUrl(userPhoto) ||
-    fetchedAvatarUrl;
+    userPhoto !== undefined
+      ? (userPhoto ? resolveMediaUrl(userPhoto) || undefined : undefined)
+      : fetchedAvatarUrl;
 
   // Mark non-completion items as restricted when profile is incomplete
   const computedNav = providerNav.map((item) => {
@@ -701,6 +691,19 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
         onOpenChange={(val) => !val && closeModal()}
         canDismiss={isAllowedPath}
       />
+      {isSuspended && (
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-semibold text-destructive flex flex-wrap items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={18} className="shrink-0 text-destructive" />
+            <span>
+              Your provider account is currently <strong>SUSPENDED</strong> by administration. Reason: <span className="font-normal italic">{suspendReason || "Policy compliance review"}</span>
+            </span>
+          </div>
+          <a href="mailto:support@hollis.com?subject=Provider Account Suspension Appeal" className="underline hover:opacity-80 font-bold shrink-0">
+            Contact Support
+          </a>
+        </div>
+      )}
       {children ?? <Outlet />}
     </DashboardShell>
   );
@@ -789,13 +792,9 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
             user?.profile_image ||
             user?.profile_photo;
 
-          if (photo) {
-            setFetchedAvatarUrl(
-              resolveMediaUrl(
-                String(photo)
-              ) || undefined
-            );
-          }
+          setFetchedAvatarUrl(
+            photo ? resolveMediaUrl(String(photo)) || undefined : undefined
+          );
         } catch {
           if (
             !cancelled &&
@@ -828,12 +827,14 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
   };
 
   const userPhoto =
-    (user?.profile_image as string | null | undefined) ||
-    user?.profile_photo;
+    user?.profile_image !== undefined
+      ? user.profile_image
+      : user?.profile_photo;
 
   const avatarUrl =
-    resolveMediaUrl(userPhoto) ||
-    fetchedAvatarUrl;
+    userPhoto !== undefined
+      ? (userPhoto ? resolveMediaUrl(userPhoto) || undefined : undefined)
+      : fetchedAvatarUrl;
 
   return (
     <DashboardShell

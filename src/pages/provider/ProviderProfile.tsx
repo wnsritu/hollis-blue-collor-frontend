@@ -30,15 +30,69 @@ import { providerApi } from "@/services/provider";
 import { ratingApi } from "@/services/rating";
 import { formatDate } from "@/utils/date";
 import toast from "react-hot-toast";
+import { useAuthSession } from "@/hooks/useAuth";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 export const ProviderProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthSession();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
+  const isLoggedIn = isAuthenticated || hasToken;
 
   const [provider, setProvider] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [fetchedReviews, setFetchedReviews] = useState<any[]>([]);
+
+  const handleBookService = (serviceName?: string) => {
+    const bookingPath = serviceName
+      ? `/book/${provider?.id || id}?serviceId=${encodeURIComponent(serviceName)}`
+      : `/book/${provider?.id || id}`;
+
+    if (!isLoggedIn) {
+      toast.error("Please log in to book services with this professional.");
+      navigate(`/login?redirect=${encodeURIComponent(bookingPath)}`, {
+        state: { from: bookingPath },
+      });
+      return;
+    }
+    navigate(bookingPath);
+  };
+
+  const hasActiveSubscription = Boolean(
+    provider?.has_active_subscription ||
+    (provider?.subscription && provider?.subscription?.status === "active") ||
+    (Array.isArray(provider?.subscriptions) && provider.subscriptions.some((s: any) => s.status === "active"))
+  );
+
+  const handleRequestQuote = () => {
+    if (!hasActiveSubscription) {
+      toast.error("This provider cannot accept quote requests at this time.");
+      return;
+    }
+    if (!isLoggedIn) {
+      const currentPath = `/provider/${provider?.id || id}`;
+      toast.error("Please log in to request a quote.");
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`, {
+        state: { from: currentPath },
+      });
+      return;
+    }
+    setQuoteModalOpen(true);
+  };
+
+  const handleMessage = () => {
+    if (!isLoggedIn) {
+      const currentPath = `/provider/${provider?.id || id}`;
+      toast.error("Please log in to message this professional.");
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`, {
+        state: { from: currentPath },
+      });
+      return;
+    }
+    toast("Direct messaging is enabled upon quote or booking.");
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -74,7 +128,7 @@ export const ProviderProfile: React.FC = () => {
           setFetchedReviews(list);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -98,7 +152,6 @@ export const ProviderProfile: React.FC = () => {
   const featured = Boolean(provider?.is_featured || provider?.featured);
   const tagline = provider?.service_description || "";
   const about = provider?.service_description || "No business description provided yet.";
-  const rating = Number(provider?.rating) || 0;
   const city = provider?.city || "";
   const state = provider?.state || "";
   const country = provider?.country || "";
@@ -179,7 +232,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedCerts)) {
         certsList = parsedCerts.map((c: any) => (typeof c === "string" ? c : c.name || String(c))).filter(Boolean);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse FAQs dynamically
@@ -190,7 +243,7 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedFaqs)) {
         faqsList = parsedFaqs.filter((f: any) => f && f.question && f.answer);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Portfolio dynamically
@@ -201,13 +254,22 @@ export const ProviderProfile: React.FC = () => {
       if (Array.isArray(parsedPort)) {
         portfolioList = parsedPort.filter((p: any) => p && p.url);
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Parse Reviews dynamically from API (embedded or fallback fetched)
   const rawProvReviews = Array.isArray(provider?.reviews) ? provider.reviews : [];
-  const reviewsList: any[] = rawProvReviews.length > 0 ? rawProvReviews : fetchedReviews;
-  const reviewsCount = Number(provider?.review_count ?? provider?.reviews_count ?? reviewsList.length);
+  const reviewsList: any[] = rawProvReviews.length > 0 ? rawProvReviews : (Array.isArray(fetchedReviews) ? fetchedReviews : []);
+  const reviewsCount = Math.max(
+    reviewsList.length,
+    Number(provider?.review_count || 0),
+    Number(provider?.reviews_count || 0)
+  );
+
+  const computedRatingFromList = reviewsList.length > 0
+    ? (reviewsList.reduce((acc: number, r: any) => acc + (Number(r.rating) || 0), 0) / reviewsList.length)
+    : 0;
+  const rating = Number(provider?.rating) > 0 ? Number(provider.rating) : computedRatingFromList;
 
   return (
     <div className="min-h-screen bg-background">
@@ -286,10 +348,10 @@ export const ProviderProfile: React.FC = () => {
 
             {/* Header Action Buttons */}
             <div className="flex flex-wrap items-center gap-2">
-              <TooltipProvider delayDuration={100}>
+              {/* <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="lg" className="gap-2">
+                    <Button variant="outline" size="lg" className="gap-2" onClick={handleMessage}>
                       <MessageSquare size={16} /> Message
                     </Button>
                   </TooltipTrigger>
@@ -297,9 +359,9 @@ export const ProviderProfile: React.FC = () => {
                     Direct messaging is enabled upon quote or booking
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
+              </TooltipProvider> */}
 
-              <Button size="lg" onClick={() => navigate(`/book/${provider.id}`)} className="gap-2 shadow-sm">
+              <Button size="lg" onClick={() => handleBookService()} className="gap-2 shadow-sm">
                 Book Services
               </Button>
             </div>
@@ -355,7 +417,7 @@ export const ProviderProfile: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => navigate(`/book/${provider.id}?serviceId=${encodeURIComponent(s.name)}`)}
+                        onClick={() => handleBookService(s.name)}
                         className="text-xs h-8 px-2.5"
                       >
                         Book
@@ -454,7 +516,9 @@ export const ProviderProfile: React.FC = () => {
                     <div key={r.id || idx} className="rounded-xl border border-border p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-semibold text-sm">{r.customer_name || r.user?.full_name || "Customer"}</span>
-                        <span className="text-xs text-muted-foreground">{r.createdAt ? formatDate(r.createdAt) : ""}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.created_at || r.createdAt ? formatDate(r.created_at || r.createdAt) : ""}
+                        </span>
                       </div>
                       <div className="mt-1">
                         <Stars rating={Number(r.rating) || 5} size={13} />
@@ -499,9 +563,15 @@ export const ProviderProfile: React.FC = () => {
             </p>
 
             <div className="mt-5">
-              <Button size="lg" className="w-full shadow-sm" onClick={() => setQuoteModalOpen(true)}>
-                Request a Quote
-              </Button>
+              {hasActiveSubscription ? (
+                <Button size="lg" className="w-full shadow-sm" onClick={handleRequestQuote}>
+                  Request a Quote
+                </Button>
+              ) : (
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 text-center text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  This provider is currently unavailable for quote requests (No Active Subscription).
+                </div>
+              )}
             </div>
 
             <ul className="mt-6 space-y-3 text-xs text-muted-foreground border-t border-border pt-5">
@@ -534,6 +604,7 @@ export const ProviderProfile: React.FC = () => {
         providerName={name}
         categoryName={mainCategoryName}
         subCategoryName={subCategoryName}
+        hasActiveSubscription={provider?.has_active_subscription}
         onProjectCreated={() => {
           navigate("/projects");
         }}

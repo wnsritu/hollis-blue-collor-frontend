@@ -8,6 +8,8 @@ export interface CustomQuoteFormValues {
   completion: string;
   terms: string;
   expires: string;
+  proposedDate?: string;
+  proposedTimeSlot?: string;
 }
 
 export interface CustomQuoteCalculation {
@@ -32,7 +34,12 @@ export interface CustomQuoteSubmitPayload {
   amount: number;
   currency: string;
   message: string;
+  discount?: number;
+  discount_amount?: number;
   estimated_duration_hours?: number;
+  proposed_date?: string;
+  proposed_time_slot_id?: number | string | null;
+  time_slot_name?: string;
   valid_until?: string;
   line_items: CustomQuoteLineItem[];
 }

@@ -6,7 +6,8 @@ import { AUTH_ENDPOINTS, FORGOT_PASSWORD_LEGACY_ENDPOINTS } from "@/apiEndPoints
 export const loginApi = (data: {
   email: string;
   password: string;
-  role: string;
+  role?: string;
+  role_id?: number;
 }) => {
   return apiClient.post(AUTH_ENDPOINTS.login, data);
 };

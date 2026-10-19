@@ -57,14 +57,6 @@ export const getAllProvider = (data: any) => {
   return apiClient.post("/provider/get-all-provider", data);
 };
 
-export const getAllCoinHistory = (data: any) => {
-  return apiClient.post("/coins/history", data);
-};
-
-export const addUpdateCoins = (data: any) => {
-  return apiClient.post("/coins/manage", data);
-};
-
 export const updateProfile = async (payload: any) => {
   const res = await apiClient.put("/user/update-profile", payload);
   return res.data;
@@ -160,6 +152,12 @@ export const adminApi = {
     id: number | string,
     payload: { status?: string; action?: string }
   ) => http.put<ApiSuccess>(ENDPOINTS.admin.updateChatReportStatus(id), payload),
+
+  getAuditLogs: (params?: Record<string, any>) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.auditLogs, params),
+
+  getAuditLogById: (id: number | string) =>
+    http.get<ApiSuccess>(ENDPOINTS.admin.auditLogById(id)),
 };
 
 export const availabilityApi = {

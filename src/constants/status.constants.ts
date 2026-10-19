@@ -69,7 +69,6 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   changesrequested: "warning",
   within48hours: "warning",
   inactive: "warning",
-  processing: "warning",
   disputed: "warning",
 
   // Indigo / Transit
@@ -97,6 +96,12 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   noshow: "danger",
   emergency: "danger",
   withdrawn: "danger",
+
+  // Payout Lifecycle Specifics
+  onhold: "warning",
+  on_hold: "warning",
+  eligible: "cyan",
+  processing: "purple",
 
   // Neutral
   draft: "neutral",

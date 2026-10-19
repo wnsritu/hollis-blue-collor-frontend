@@ -118,6 +118,10 @@ export function useProviderProfileSettings() {
   // Logo
   const [logoPreview, setLogoPreview] = useState("");
 
+  // Pricing
+  const [servicePricing, setServicePricing] = useState<any>(null);
+  const [providerStartingPrice, setProviderStartingPrice] = useState<number | null>(null);
+
   // Bank
   const [bank, setBank] = useState<BankForm>({
     bank_name: "",
@@ -330,6 +334,10 @@ export function useProviderProfileSettings() {
       setInsurancePolicy(provider?.insurance_policy || "");
       setCertifications(parseCerts(provider?.certifications));
       setFaqs(parseFaqs(provider?.faqs));
+      setServicePricing(provider?.service_pricing || provider?.pricing || null);
+      setProviderStartingPrice(
+        provider?.starting_price != null ? Number(provider.starting_price) : null
+      );
 
       if (provider?.latitude != null) setLat(Number(provider.latitude));
       if (provider?.longitude != null) setLng(Number(provider.longitude));
@@ -650,6 +658,11 @@ export function useProviderProfileSettings() {
   };
 
   const saveFaqsOnly = async () => {
+    if (!faqs || faqs.length === 0) {
+      toast.error("Please add at least one FAQ before saving.");
+      return;
+    }
+
     try {
       setSaving(true);
       await providerApi.updateMyMarketplaceProfile({
@@ -828,5 +841,7 @@ export function useProviderProfileSettings() {
     handleLicenseNumberChange,
     handleInsurancePolicyChange,
     handleBankFieldChange,
+    servicePricing,
+    providerStartingPrice,
   };
 }

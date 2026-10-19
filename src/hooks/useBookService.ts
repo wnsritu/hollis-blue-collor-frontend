@@ -15,7 +15,7 @@ import type {
   SelectedItem,
   CustomerBookingDetails,
 } from "@/types/booking.types";
-import { getUpcomingDays } from "@/utils/date";
+import { getUpcomingDays, isSlotEarlierThanNow } from "@/utils/date";
 import { isValidZip } from "@/validations/common/rules";
 
 const getUpcomingDates = (daysCount = 14) => getUpcomingDays(daysCount);
@@ -254,9 +254,11 @@ export function useBookService() {
         setTimeSlots(loadedSlots);
 
         const firstAvailableDate = dates.find((d) => {
-          if (!activeSchedule) return true;
-          const slotsForDay = activeSchedule[d.dayOfWeekLong] || [];
-          return slotsForDay.length > 0;
+          const slotIdsForDay = activeSchedule ? activeSchedule[d.dayOfWeekLong] || [] : null;
+          const slotsForDay = slotIdsForDay
+            ? loadedSlots.filter((s: any) => slotIdsForDay.includes(Number(s.id)))
+            : loadedSlots;
+          return slotsForDay.some((s: any) => !isSlotEarlierThanNow(d.iso, s));
         });
 
         const initialDateIso = firstAvailableDate?.iso || dates[0]?.iso || "";
@@ -268,9 +270,14 @@ export function useBookService() {
           ? loadedSlots.filter((s: any) => initialActiveSlotIds.includes(Number(s.id)))
           : loadedSlots;
 
-        if (validSlotsForInitialDay.length > 0) {
-          setSelectedTimeSlotId(Number(validSlotsForInitialDay[0].id));
-          setSelectedTimeSlotLabel(formatSlotLabel(validSlotsForInitialDay[0]));
+        const nonPastSlots = validSlotsForInitialDay.filter((s: any) => !isSlotEarlierThanNow(initialDateIso, s));
+
+        if (nonPastSlots.length > 0) {
+          setSelectedTimeSlotId(Number(nonPastSlots[0].id));
+          setSelectedTimeSlotLabel(formatSlotLabel(nonPastSlots[0]));
+        } else {
+          setSelectedTimeSlotId(null);
+          setSelectedTimeSlotLabel("");
         }
       } catch (err) {
         console.error("FETCH BOOKING DATA ERROR:", err);
@@ -292,10 +299,12 @@ export function useBookService() {
       ? timeSlots.filter((s) => activeSlotIds.includes(Number(s.id)))
       : timeSlots;
 
-    if (availableForDate.length > 0) {
-      if (!selectedTimeSlotId || !availableForDate.some((s) => Number(s.id) === selectedTimeSlotId)) {
-        setSelectedTimeSlotId(Number(availableForDate[0].id));
-        setSelectedTimeSlotLabel(formatSlotLabel(availableForDate[0]));
+    const validUpcomingSlots = availableForDate.filter((s) => !isSlotEarlierThanNow(selectedDate, s));
+
+    if (validUpcomingSlots.length > 0) {
+      if (!selectedTimeSlotId || !validUpcomingSlots.some((s) => Number(s.id) === selectedTimeSlotId)) {
+        setSelectedTimeSlotId(Number(validUpcomingSlots[0].id));
+        setSelectedTimeSlotLabel(formatSlotLabel(validUpcomingSlots[0]));
       }
     } else {
       setSelectedTimeSlotId(null);
@@ -381,11 +390,11 @@ export function useBookService() {
 
   const rawSubtotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0);
   const subtotal = priceBreakdown?.subtotal ?? rawSubtotal;
-  const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 10;
-  const serviceFee = priceBreakdown?.service_fee ?? Math.round(rawSubtotal * 0.1);
+  const serviceFeeRate = priceBreakdown?.service_fee_rate ?? 0;
+  const serviceFee = priceBreakdown?.service_fee ?? 0;
   const platformFee = priceBreakdown?.platform_fee ?? 0;
-  const grandTotal = priceBreakdown?.total ?? (subtotal + serviceFee + platformFee);
   const taxAmount = priceBreakdown?.tax_amount ?? 0;
+  const grandTotal = priceBreakdown?.customer_payment_amount ?? priceBreakdown?.total ?? Math.round((subtotal + taxAmount) * 100) / 100;
   const formattedPrices = priceBreakdown?.formatted || null;
 
   const selectedDateObj = dates.find((d) => d.iso === selectedDate);
@@ -408,6 +417,11 @@ export function useBookService() {
       toast.error("Please select a time slot available for this provider.");
       return;
     }
+    const chosenSlot = timeSlots.find((s) => Number(s.id) === selectedTimeSlotId);
+    if (chosenSlot && isSlotEarlierThanNow(selectedDate, chosenSlot)) {
+      toast.error("The selected time slot has already passed. Please select an upcoming slot.");
+      return;
+    }
     if (!details.address || !details.city) {
       toast.error("Please enter complete service address details (Street, City).");
       return;
@@ -423,6 +437,12 @@ export function useBookService() {
     if (!isAuthenticated) {
       toast.error("Please log in to finalize your booking.");
       navigate("/login?redirect=" + encodeURIComponent(window.location.pathname));
+      return;
+    }
+
+    const chosenSlot = timeSlots.find((s) => Number(s.id) === selectedTimeSlotId);
+    if (chosenSlot && isSlotEarlierThanNow(selectedDate, chosenSlot)) {
+      toast.error("The selected time slot has already passed. Please select an upcoming slot.");
       return;
     }
 

@@ -11,6 +11,8 @@ import { ROLES } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { getLoggedInHomeRedirect } from "@/utils/postLoginNavigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -88,11 +90,12 @@ const Header = () => {
   const dashboardRoute = getLoggedInHomeRedirect(user);
 
   const displayUser = user || profile;
-  const rawPhoto =
-    (user as any)?.profile_image ||
-    (user as any)?.profile_photo ||
-    profile?.profile_image ||
-    profile?.profile_photo;
+  const userPhoto =
+    (user as any)?.profile_image !== undefined
+      ? (user as any)?.profile_image
+      : (user as any)?.profile_photo;
+  const profilePhoto = profile?.profile_image ?? profile?.profile_photo;
+  const rawPhoto = userPhoto !== undefined ? userPhoto : profilePhoto;
   const avatarUrl = resolveMediaUrl(rawPhoto);
 
   return (
@@ -128,7 +131,10 @@ const Header = () => {
                 <Link to={dashboardRoute}>Dashboard</Link>
               </Button>
 
+              <NotificationBell />
+
               <div className="relative">
+
                 <button
                   type="button"
                   onClick={() => setProfileOpen(!profileOpen)}

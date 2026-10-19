@@ -15,3 +15,4 @@ export * from "./checkbox";
 export * from "./table";
 export * from "./FormField";
 export * from "./ImageUpload";
+export * from "./truncated-text";

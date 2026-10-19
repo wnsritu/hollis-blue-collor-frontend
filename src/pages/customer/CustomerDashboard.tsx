@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { PageHeader, StatCard, StatusPill, Avatar, Stars } from "@/components/shared/primitives";
 import { getOrderDetails } from "@/services/order";
 import { getCustomerDashboardApi } from "@/services/dashboard/dashboard.service";
@@ -32,6 +33,8 @@ import type {
 } from "@/services/dashboard/dashboard.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import { normalizeBooking } from "@/utils/bookingAdapter";
+import { format } from "date-fns";
+import { toValidDate } from "@/utils/date";
 
 export function Panel({
   title,
@@ -252,8 +255,8 @@ const CustomerDashboard = () => {
                 <h3 className="font-display text-base font-bold">Provider Information</h3>
                 <div className="mt-4 flex items-center gap-3">
                   <Avatar initials={normalizedOrder.providerName?.slice(0, 2).toUpperCase() || "PR"} />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{normalizedOrder.providerName}</p>
+                  <div className="min-w-0 flex-1">
+                    <TruncatedText as="p" text={normalizedOrder.providerName} className="font-semibold" />
                     <p className="text-xs text-muted-foreground">{normalizedOrder.categoryName}</p>
                   </div>
                 </div>
@@ -357,7 +360,7 @@ const CustomerDashboard = () => {
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{b.service_category || b.booking_number}</p>
+                      <TruncatedText as="p" text={b.service_category || b.booking_number} className="font-medium" />
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {b.booking_number || `JOB-${b.id}`} · {b.service_category || "Service"} · {b.booking_date || "Recent"}
                       </p>
@@ -375,7 +378,7 @@ const CustomerDashboard = () => {
                       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{n.categoryName || "Service Booking"}</p>
+                        <TruncatedText as="p" text={n.categoryName || "Service Booking"} className="font-medium" />
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {n.displayId} · {n.categoryName} · {n.formattedDate}
                         </p>
@@ -409,30 +412,35 @@ const CustomerDashboard = () => {
             <div className="space-y-3">
               {appointmentsList.length > 0 ? (
                 appointmentsList.slice(0, 4).map((a) => {
-                  const dateRaw = a.booking_date || "Upcoming";
-                  const parts = dateRaw.split(" ");
-                  const month = parts[0] || "NEXT";
-                  const day = (parts[1] || "").replace(",", "");
+                  const validD = toValidDate(a.booking_date);
+                  const monthName = validD ? format(validD, "MMM").toUpperCase() : "NEXT";
+                  const dayNumber = validD ? format(validD, "dd") : "•";
                   return (
                     <div
                       key={a.id}
-                      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border p-3"
+                      className="flex items-center gap-3.5 rounded-xl border border-border/80 bg-card p-3.5 transition-colors hover:bg-muted/30 shadow-xs"
                     >
-                      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary-soft text-center leading-none">
-                        <span className="block text-[10px] font-semibold uppercase text-primary">
-                          {month}
+                      <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-center leading-tight shadow-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          {monthName}
                         </span>
-                        <span className="block font-display text-base font-bold text-primary">
-                          {day || "•"}
+                        <span className="font-display text-base font-extrabold text-foreground mt-0.5">
+                          {dayNumber}
                         </span>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{a.service_category || "Service Appointment"}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {a.provider?.business_name || "Provider"} · {a.time_slot || "Time TBD"}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {a.service_category || "Service Appointment"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground flex items-center gap-1.5">
+                          <span className="font-medium text-foreground/80">{a.provider?.business_name || "Provider"}</span>
+                          <span>•</span>
+                          <span>{(!a.time_slot || a.time_slot === "Time TBD" || a.time_slot === "TBD") ? "Not Available" : a.time_slot}</span>
                         </p>
                       </div>
-                      <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
+                      <div className="shrink-0">
+                        <StatusPill status={a.appointment_status || a.status || "Confirmed"} />
+                      </div>
                     </div>
                   );
                 })

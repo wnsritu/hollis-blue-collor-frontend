@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
+import { TruncatedText } from "@/components/ui/truncated-text";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { CreateProjectModal } from "@/components/projects/CreateProjectModal";
 import { projectApi } from "@/services/project";
 import type { Project } from "@/types/api/project";
@@ -20,12 +22,48 @@ export const CustomerProjects: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
   const fetchProjects = async () => {
     setLoading(true);
     try {
-      const res = await projectApi.listMine();
-      const list = (res as any)?.data || res || [];
-      setProjects(Array.isArray(list) ? list : []);
+      const res = await projectApi.listMine({ page, limit });
+      const val = res as any;
+      const pagination =
+        val?.pagination ||
+        val?.data?.pagination ||
+        val?.meta?.pagination;
+
+      let list: any[] = [];
+      if (Array.isArray(val?.data)) list = val.data;
+      else if (Array.isArray(val?.items)) list = val.items;
+      else if (Array.isArray(val?.data?.items)) list = val.data.items;
+      else if (Array.isArray(val?.data?.data)) list = val.data.data;
+      else if (Array.isArray(val)) list = val;
+
+      setProjects(list);
+
+      const total = Number(
+        pagination?.total ??
+        pagination?.total_records ??
+        val?.total ??
+        val?.data?.total ??
+        list.length
+      );
+
+      const pages = Number(
+        (pagination?.totalPages ??
+        pagination?.total_pages ??
+        val?.totalPages ??
+        val?.data?.totalPages ??
+        Math.ceil(total / limit)) || 1
+      );
+
+      setTotalCount(total);
+      setTotalPages(pages);
     } catch (err) {
       console.error("Failed to load custom requests", err);
       toast.error("Failed to load custom requests.");
@@ -36,7 +74,7 @@ export const CustomerProjects: React.FC = () => {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [page, limit]);
 
   const formatSubmittedTime = (createdAt?: string) => {
     if (!createdAt) return "recently";
@@ -100,12 +138,12 @@ export const CustomerProjects: React.FC = () => {
               project.status === "matching" || project.status === "open"
                 ? "Quote Pending"
                 : project.status === "proposals_received"
-                ? "Quotes Received"
-                : project.status === "accepted" || project.status === "scheduled"
-                ? "Scheduled"
-                : project.status === "completed"
-                ? "Completed"
-                : project.status || "Quote Pending";
+                  ? "Quotes Received"
+                  : project.status === "accepted" || project.status === "scheduled"
+                    ? "Scheduled"
+                    : project.status === "completed"
+                      ? "Completed"
+                      : project.status || "Quote Pending";
 
             return (
               <div
@@ -124,9 +162,12 @@ export const CustomerProjects: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className="mt-3 font-display text-base font-bold leading-snug line-clamp-1 text-slate-900">
-                  {project.title}
-                </h3>
+                <TruncatedText
+                  as="h3"
+                  lines={1}
+                  text={project.title}
+                  className="mt-3 font-display text-base font-bold leading-snug text-slate-900"
+                />
 
                 {/* Subtitle: Provider/Category + submitted time */}
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -134,9 +175,12 @@ export const CustomerProjects: React.FC = () => {
                 </p>
 
                 {/* Description */}
-                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                  {project.description}
-                </p>
+                <TruncatedText
+                  as="p"
+                  lines={2}
+                  text={project.description}
+                  className="mt-2 text-xs text-muted-foreground leading-relaxed"
+                />
 
                 {/* Meta details row */}
                 <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
@@ -162,6 +206,20 @@ export const CustomerProjects: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 

@@ -9,3 +9,4 @@ export { default as HeroSection } from "./HeroSection";
 export { default as DashboardWidgets } from "./DashboardWidgets";
 export { default as ConfirmDialog } from "./ConfirmDialog";
 export * from "./ConfirmDialog";
+export { TruncatedText } from "@/components/ui/truncated-text";

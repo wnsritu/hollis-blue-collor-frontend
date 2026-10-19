@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { ProviderCard, usd } from "@/components/shared/cards";
 import { EmptyState } from "@/components/shared/primitives";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useSearchProviders } from "@/hooks/useSearchProviders";
 
 export const SearchProviders: React.FC = () => {
@@ -211,7 +212,7 @@ export const SearchProviders: React.FC = () => {
           <h1 className="font-display text-2xl font-bold">Find a professional</h1>
           <form onSubmit={(e) => {
             e.preventDefault();
-            fetchProviders(query, location, selectedCoords);
+            fetchProviders(query, location, selectedCoords, true);
           }} className="mt-4 grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
             <div className="relative min-w-0">
               <SearchIcon
@@ -236,16 +237,15 @@ export const SearchProviders: React.FC = () => {
                   setLocation(val);
                   if (!val) {
                     setSelectedCoords(null);
+                    fetchProviders(query, "", null, true);
                   }
                 }}
                 onSelect={(place) => {
                   const addr = place.address || location;
                   setLocation(addr);
-                  if (place.lat && place.lng) {
-                    const coords = { lat: place.lat, lng: place.lng };
-                    setSelectedCoords(coords);
-                    fetchProviders(query, addr, coords);
-                  }
+                  const coords = place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null;
+                  setSelectedCoords(coords);
+                  fetchProviders(query, addr, coords, true);
                 }}
                 placeholder="Enter City, ZIP code or Address..."
                 className="h-11 bg-card pl-9 pr-10"
@@ -261,8 +261,8 @@ export const SearchProviders: React.FC = () => {
             </div>
             <Button
               type="submit"
-              disabled={loading}
-              className="h-11 transition-all font-semibold"
+              disabled={loading || (!query.trim() && !location.trim())}
+              className="h-11 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : "Search"}
             </Button>
@@ -282,12 +282,15 @@ export const SearchProviders: React.FC = () => {
         <div className="min-w-0">
           {/* Results Top Bar */}
           <div className="mb-5 flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-sm text-muted-foreground">
+            <TruncatedText
+              as="p"
+              className="min-w-0 text-sm text-muted-foreground"
+            >
               <span className="font-semibold text-foreground">
                 {loading ? "Searching..." : providers.length}
               </span>{" "}
               {providers.length === 1 ? "professional matches" : "professionals match"} your search
-            </p>
+            </TruncatedText>
 
             <div className="flex shrink-0 items-center gap-2">
               {/* Mobile Filter Sheet */}

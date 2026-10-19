@@ -9,6 +9,7 @@ import {
   DollarSign,
   Edit3,
   FileText,
+  Info,
   MapPin,
   MessageSquare,
   Navigation,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,15 +33,24 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
+import { PaginationController } from "@/components/ui/PaginationController";
 import { appointmentApi, bookingApi } from "@/services/booking";
 import { chatApi } from "@/services/chat";
 import { ratingApi } from "@/services/rating";
 import type { Appointment } from "@/types/api/appointment";
 import { normalizeBooking } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
+import {
+  getBookingLifecycleCategory,
+  canProviderPerformAction,
+  formatUpcomingTimeNotice,
+  getScheduledStartDateTime,
+} from "@/utils/bookingLifecycle";
 
 const usd = (val: number) =>
   `$${val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -48,7 +59,17 @@ export function ProviderJobs() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed" | "fixed" | "quote">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "completed" | "fixed" | "quote">("all");
+
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   // State for Price Update Modal
   const [selectedBookingForPrice, setSelectedBookingForPrice] = useState<any | null>(null);
@@ -56,6 +77,13 @@ export function ProviderJobs() {
   const [counterNote, setCounterNote] = useState("");
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+  // State for Decline Job Modal
+  const [selectedBookingForDecline, setSelectedBookingForDecline] = useState<any | null>(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [customDeclineReason, setCustomDeclineReason] = useState("");
+  const [declineError, setDeclineError] = useState("");
+  const [submittingDecline, setSubmittingDecline] = useState(false);
 
   // State for View Review Modal
   const [viewReviewModalBooking, setViewReviewModalBooking] = useState<any | null>(null);
@@ -67,53 +95,63 @@ export function ProviderJobs() {
     setLoading(true);
     try {
       const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
-      const queryParams: Record<string, unknown> = { limit: 100 };
-      if (tabToUse === "active") queryParams.status_tab = "in_progress";
+      const queryParams: Record<string, unknown> = { page, limit };
+      if (tabToUse === "active") queryParams.status_tab = "active";
       else if (tabToUse === "completed") queryParams.status_tab = "completed";
       else if (tabToUse === "fixed") queryParams.job_type = "fixed";
       else if (tabToUse === "quote") queryParams.job_type = "quote";
 
-      const [aptRes, bookingRes] = await Promise.allSettled([
-        appointmentApi.listMine(queryParams),
-        bookingApi.list(queryParams),
-      ]);
+      const val: any = await appointmentApi.listMine(queryParams);
 
       let aptList: any[] = [];
-      if (aptRes.status === "fulfilled") {
-        const val = aptRes.value;
-        aptList = (val as any)?.data || val || [];
-        if (!Array.isArray(aptList)) aptList = [];
+      let totalItems = 0;
+      let calculatedTotalPages = 1;
+
+      const pagination =
+        val?.pagination ||
+        val?.data?.pagination ||
+        val?.meta?.pagination;
+
+      if (pagination) {
+        totalItems = Number(pagination.total ?? pagination.total_records ?? pagination.totalCount ?? 0);
+        calculatedTotalPages = Number(pagination.totalPages ?? pagination.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+      } else if (val?.total !== undefined) {
+        totalItems = Number(val.total);
+        calculatedTotalPages = Number(val.totalPages ?? val.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
+      } else if (val?.data && typeof val.data === "object" && !Array.isArray(val.data)) {
+        totalItems = Number(val.data.total ?? val.data.total_records ?? 0);
+        calculatedTotalPages = Number(val.data.totalPages ?? val.data.total_pages ?? Math.ceil(totalItems / limit) ?? 1);
       }
 
-      let bookingList: any[] = [];
-      if (bookingRes.status === "fulfilled") {
-        const val = bookingRes.value;
-        bookingList =
-          (val as any)?.bookings ||
-          (val as any)?.data?.bookings ||
-          (val as any)?.data ||
-          val ||
-          [];
-        if (!Array.isArray(bookingList)) bookingList = [];
-      }
-
-      const map = new Map<number, any>();
-      for (const b of [...aptList, ...bookingList]) {
-        if (b && b.id) {
-          map.set(Number(b.id), b);
+      const rawData = val?.data || val;
+      if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
+        aptList = rawData.items;
+        if (!totalItems) {
+          totalItems = Number(rawData.total || 0);
+          calculatedTotalPages = Number(rawData.totalPages || Math.ceil(totalItems / limit) || 1);
         }
+      } else if (Array.isArray(rawData)) {
+        aptList = rawData;
+      } else if (Array.isArray(val?.items)) {
+        aptList = val.items;
+      } else if (Array.isArray(val)) {
+        aptList = val;
       }
 
-      const combined = Array.from(map.values());
+      if (!totalItems) {
+        totalItems = aptList.length;
+        calculatedTotalPages = Math.ceil(totalItems / limit) || 1;
+      }
 
-      // Sort newest created first (senior developer approach)
-      combined.sort((a, b) => {
+      aptList.sort((a, b) => {
         const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || 0).getTime() || Number(a.id) || 0;
         const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || 0).getTime() || Number(b.id) || 0;
         return timeB - timeA;
       });
 
-      setAppointments(combined);
+      setAppointments(aptList);
+      setTotalCount(totalItems || aptList.length);
+      setTotalPages(calculatedTotalPages || Math.ceil((totalItems || aptList.length) / limit) || 1);
     } catch (err) {
       console.error("Failed to load jobs:", err);
       toast.error("Failed to load jobs.");
@@ -124,26 +162,31 @@ export function ProviderJobs() {
 
   useEffect(() => {
     fetchActiveJobs();
-  }, [activeTab]);
+  }, [page, limit, activeTab]);
 
   // Classify direct fixed services vs request a quote / project flow
   const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
 
   const isCompletedJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["completed", "delivered", "reviewed", "finished", "work completed"].includes(apt);
+    return getBookingLifecycleCategory(b) === "COMPLETED";
   };
 
   const isCancelledJob = (b: any) => {
-    const apt = String(b.appointment_status || b.status || "").toLowerCase();
-    return ["cancelled", "canceled", "rejected", "no-show"].includes(apt);
+    return getBookingLifecycleCategory(b) === "CANCELLED";
   };
 
-  const isActiveJob = (b: any) => !isCompletedJob(b) && !isCancelledJob(b);
+  const isUpcomingJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "UPCOMING";
+  };
+
+  const isActiveJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "ACTIVE";
+  };
 
   const myBookings = appointments;
 
   const filteredBookings = myBookings.filter((b: any) => {
+    if (activeTab === "upcoming") return isUpcomingJob(b);
     if (activeTab === "active") return isActiveJob(b);
     if (activeTab === "completed") return isCompletedJob(b);
     if (activeTab === "fixed") return !isQuoteJob(b);
@@ -151,23 +194,81 @@ export function ProviderJobs() {
     return true;
   });
 
+  const upcomingCount = myBookings.filter(isUpcomingJob).length;
   const activeCount = myBookings.filter(isActiveJob).length;
   const completedCount = myBookings.filter(isCompletedJob).length;
   const fixedCount = myBookings.filter((b) => !isQuoteJob(b)).length;
   const quoteCount = myBookings.filter((b) => isQuoteJob(b)).length;
 
-  const handleUpdateStatus = async (bookingId: number, nextStatus: string, legacyStatus?: string) => {
+  const handleUpdateStatus = async (
+    bookingId: number,
+    nextStatus: string,
+    legacyStatus?: string,
+    reason?: string,
+    targetBooking?: any
+  ) => {
+    if (targetBooking) {
+      const check = canProviderPerformAction(targetBooking, nextStatus);
+      if (!check.allowed) {
+        toast.error(check.reason || "This job cannot be started before the scheduled service time.");
+        return;
+      }
+    }
+
     setActionLoadingId(bookingId);
     try {
       await appointmentApi.updateStatus(bookingId, {
         appointment_status: nextStatus,
         status: legacyStatus || nextStatus,
+        reason: reason || undefined,
+        cancellation_reason: reason || undefined,
       } as any);
       toast.success(`Job status updated to ${nextStatus}.`);
       await fetchActiveJobs();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update status.");
     } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenDeclineModal = (booking: any) => {
+    setSelectedBookingForDecline(booking);
+    setDeclineReason("");
+    setCustomDeclineReason("");
+    setDeclineError("");
+  };
+
+  const handleConfirmDecline = async () => {
+    if (!selectedBookingForDecline) return;
+
+    const finalReason =
+      declineReason === "Other"
+        ? customDeclineReason.trim()
+        : (declineReason.trim() || customDeclineReason.trim());
+
+    if (!finalReason) {
+      setDeclineError("Please select or enter a reason for declining this job.");
+      return;
+    }
+
+    setSubmittingDecline(true);
+    setActionLoadingId(selectedBookingForDecline.id);
+    try {
+      await appointmentApi.updateStatus(selectedBookingForDecline.id, {
+        appointment_status: "Cancelled",
+        status: "cancelled",
+        reason: finalReason,
+        cancellation_reason: finalReason,
+      } as any);
+
+      toast.success("Job request declined successfully.");
+      setSelectedBookingForDecline(null);
+      await fetchActiveJobs();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to decline job.");
+    } finally {
+      setSubmittingDecline(false);
       setActionLoadingId(null);
     }
   };
@@ -288,18 +389,19 @@ export function ProviderJobs() {
       />
 
       {/* Filter Tabs & Stats Bar */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList flex-wrap="true">
-            <TabsTrigger value="all">All Requests ({myBookings.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedCount})</TabsTrigger>
-            <TabsTrigger value="fixed">Fixed Services ({fixedCount})</TabsTrigger>
-            <TabsTrigger value="quote">Request a Quote ({quoteCount})</TabsTrigger>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="flex h-auto w-full flex-wrap items-center justify-start gap-1.5 rounded-xl bg-muted p-1.5 text-muted-foreground">
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-3 py-1.5">All Requests ({myBookings.length})</TabsTrigger>
+            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-3 py-1.5">Upcoming Jobs ({upcomingCount})</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm px-3 py-1.5">Active Jobs ({activeCount})</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs sm:text-sm px-3 py-1.5">Completed ({completedCount})</TabsTrigger>
+            <TabsTrigger value="fixed" className="text-xs sm:text-sm px-3 py-1.5">Fixed Services ({fixedCount})</TabsTrigger>
+            <TabsTrigger value="quote" className="text-xs sm:text-sm px-3 py-1.5">Request a Quote ({quoteCount})</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground shrink-0">
           <span className="flex items-center gap-1">
             <span className="size-2 rounded-full bg-primary" /> {fixedCount} Fixed Bookings
           </span>
@@ -325,10 +427,11 @@ export function ProviderJobs() {
           {filteredBookings.map((b: any) => {
             const n = normalizeBooking(b);
             const isFixed = !n.isCustom;
-            const price = Number(n.totalAmount ?? b.pricing?.total ?? b.total_amount ?? 0);
-            const serviceFee = Number(b.pricing?.service_fee ?? (n.serviceFee > 0 ? n.serviceFee : Math.round(price * 0.1)));
-            const providerPayable = Math.max(0, price - serviceFee);
-            const commissionRate = price > 0 ? Math.round((serviceFee / price) * 100) : 10;
+            const price = Number(n.totalAmount ?? b.pricing?.customer_total ?? b.pricing?.total ?? b.total_amount ?? 0);
+            const commissionRate = Number(b.payment?.commission_rate ?? b.pricing?.commission_rate ?? b.pricing?.service_fee_rate ?? 10);
+            const serviceFee = Number(b.payment?.commission_amount ?? b.pricing?.commission_amount ?? (b.pricing?.service_fee && b.pricing.service_fee > 0 ? b.pricing.service_fee : Math.round(((price * commissionRate) / 100) * 100) / 100));
+            const platformFee = Number(b.payment?.platform_fee_amount ?? b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? 0);
+            const providerPayable = Number(b.payment?.provider_amount ?? b.pricing?.provider_amount ?? Math.max(0, price - serviceFee - platformFee));
 
             const aptStatus = n.appointmentStatus;
             const isPriceUpdated = n.isPriceUpdated;
@@ -349,7 +452,7 @@ export function ProviderJobs() {
             if (b.notes && String(b.notes).trim().startsWith("{")) {
               try {
                 notesObj = JSON.parse(b.notes);
-              } catch (e) {}
+              } catch (e) { }
             }
             const counterNote = notesObj?.counter_note || (!String(b.notes).trim().startsWith("{") ? b.notes : null);
             const originalPrice = Number(
@@ -394,9 +497,9 @@ export function ProviderJobs() {
               n.address && n.address !== "Address not provided"
                 ? n.address
                 : b.service_address?.address ||
-                  b.pickup_address ||
-                  b.delivery_address ||
-                  "Address provided upon booking";
+                b.pickup_address ||
+                b.delivery_address ||
+                "Address provided upon booking";
 
             const bookingRef = b.booking_number || (n.displayId.startsWith("#") ? n.displayId : `#${n.displayId}`);
 
@@ -427,52 +530,56 @@ export function ProviderJobs() {
               paymentStatusRaw === "completed" ||
               Boolean(b.paid);
 
+            const isPaymentCompleted =
+              isPaid ||
+              paymentStatusRaw === "escrow" ||
+              paymentStatusRaw === "held" ||
+              paymentStatusRaw === "authorized";
+
             const paymentBadgeText = isPaid
               ? "Payment: Paid"
               : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
-              ? "Payment: Escrow Held"
-              : "Payment: Pending";
+                ? "Payment: Escrow Held"
+                : "Payment: Pending";
 
             return (
-              <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card">
-                <CardContent className="p-6">
+              <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card min-w-0">
+                <CardContent className="p-4 sm:p-6 min-w-0">
                   {/* Top Bar: Title & Status */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            isFixed
-                              ? "bg-primary/10 text-primary"
-                              : "bg-amber-500/10 text-amber-600"
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isFixed
+                            ? "bg-primary/10 text-primary"
+                            : "bg-amber-500/10 text-amber-600"
+                            }`}
                         >
                           {isFixed ? <Tag size={12} /> : <FileText size={12} />}
                           {isFixed ? "Fixed Service" : "Request a Quote"}
                         </span>
-                        <span className="text-xs font-mono text-muted-foreground">
+                        <span className="text-xs font-mono font-semibold text-muted-foreground break-all">
                           {bookingRef}
                         </span>
                       </div>
-                      <h3 className="font-heading text-lg font-bold text-foreground mt-1">
+                      <h3 className="font-heading text-base sm:text-lg font-bold text-foreground mt-1.5 break-words">
                         {title}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">
                         Customer: <strong className="text-foreground">{customerName}</strong> ·{" "}
                         {address}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                       <StatusPill status={n.providerStatusLabel || aptStatus} />
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          isPaid
-                            ? "bg-success-soft text-success border border-success/20"
-                            : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isPaid
+                          ? "bg-success-soft text-success border border-success/20"
+                          : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
                             ? "bg-blue-500/10 text-blue-600 border border-blue-200"
                             : "bg-amber-500/10 text-amber-700 border border-amber-200"
-                        }`}
+                          }`}
                       >
                         <DollarSign size={12} />
                         {paymentBadgeText}
@@ -482,35 +589,33 @@ export function ProviderJobs() {
 
                   {/* VISUAL ORDER LIFECYCLE STEPPER */}
                   {!isDeclined && (
-                    <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="mt-5 rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4 overflow-x-auto min-w-0 scrollbar-none">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
                         Order Lifecycle Status Progress
                       </p>
-                      <div className="grid grid-cols-6 gap-1 text-center">
+                      <div className="grid grid-cols-6 min-w-[500px] gap-1 text-center">
                         {steps.map((st, i) => {
                           const done = i <= stepIdx;
                           const active = i === stepIdx;
                           return (
                             <div key={st} className="flex flex-col items-center">
                               <div
-                                className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
-                                  done
-                                    ? active
-                                      ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
-                                      : "bg-primary text-primary-foreground"
-                                    : "bg-muted text-muted-foreground"
-                                }`}
+                                className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${done
+                                  ? active
+                                    ? "bg-amber-500 text-white ring-2 ring-amber-500/30"
+                                    : "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
+                                  }`}
                               >
                                 {done ? <Check size={12} /> : i + 1}
                               </div>
                               <span
-                                className={`mt-1.5 text-[10px] font-semibold truncate max-w-full ${
-                                  active
-                                    ? "text-amber-600 font-bold"
-                                    : done
+                                className={`mt-1.5 text-[10px] font-semibold truncate max-w-full ${active
+                                  ? "text-amber-600 font-bold"
+                                  : done
                                     ? "text-foreground"
                                     : "text-muted-foreground opacity-60"
-                                }`}
+                                  }`}
                               >
                                 {st}
                               </span>
@@ -547,6 +652,15 @@ export function ProviderJobs() {
                   )}
 
                   {/* Status Informational Banners */}
+                  {isUpcomingJob(b) && isConfirmed && (
+                    <div className="mt-4 rounded-xl border border-blue-200 bg-blue-500/10 p-3 text-xs text-blue-900 flex items-center gap-2">
+                      <Clock size={15} className="text-blue-600 shrink-0" />
+                      <span>
+                        <strong>Upcoming Job:</strong> {formatUpcomingTimeNotice(b)}
+                      </span>
+                    </div>
+                  )}
+
                   {isEnRoute && (
                     <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-500/10 p-3 text-xs text-indigo-900 flex items-center gap-2">
                       <Navigation size={15} className="text-indigo-600 shrink-0" />
@@ -575,7 +689,7 @@ export function ProviderJobs() {
                   )}
 
                   {/* Details Breakdown */}
-                  <div className="mt-4 grid gap-3 sm:grid-cols-5 text-xs">
+                  <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 text-xs">
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Service Price</span>
                       <span className="font-bold text-foreground text-sm">{usd(price)}</span>
@@ -583,8 +697,16 @@ export function ProviderJobs() {
 
                     <div className="rounded-xl bg-muted/40 p-3">
                       <span className="text-muted-foreground block text-[11px]">Payment Status</span>
-                      <span className={`font-bold text-xs ${isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
-                        {isPaid ? "Paid (Completed)" : paymentStatusRaw === "escrow" ? "Escrow Held" : "Pending Payment"}
+                      <span className={`font-bold text-xs ${paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded" || paymentStatusRaw === "refunded" ? "text-purple-700 font-extrabold" : isPaid ? "text-success font-extrabold" : "text-amber-700"}`}>
+                        {paymentStatusRaw === "partially_refunded" || paymentStatusRaw === "partially refunded"
+                          ? "Partially Refunded"
+                          : paymentStatusRaw === "refunded"
+                            ? "Refunded"
+                            : isPaid
+                              ? "Paid (Completed)"
+                              : paymentStatusRaw === "escrow"
+                                ? "Escrow Held"
+                                : "Pending Payment"}
                       </span>
                     </div>
 
@@ -598,11 +720,23 @@ export function ProviderJobs() {
                     </div>
 
                     <div className="rounded-xl bg-muted/40 p-3">
-                      <span className="text-muted-foreground block text-[11px]">
-                        Service Fee ({commissionRate}%)
+                      <span className="text-muted-foreground block text-[11px] inline-flex items-center gap-1">
+                        Platform Deductions
+                        <TooltipProvider>
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info size={12} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[220px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                              Includes {commissionRate}% Commission ({usd(serviceFee)}).
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </span>
-                      <span className="font-semibold text-foreground text-xs">
-                        {usd(serviceFee)}
+                      <span className="font-semibold text-foreground text-xs block mt-0.5">
+                        {usd(serviceFee + platformFee)}
                       </span>
                     </div>
 
@@ -642,8 +776,8 @@ export function ProviderJobs() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleUpdateStatus(b.id, "Cancelled", "cancelled")}
-                            className="gap-1 text-xs text-destructive hover:bg-destructive/10"
+                            onClick={() => handleOpenDeclineModal(b)}
+                            className="gap-1 text-xs text-destructive hover:bg-destructive/10 border-destructive/30"
                             disabled={actionLoadingId === b.id}
                           >
                             <XCircle size={14} /> Decline
@@ -659,52 +793,122 @@ export function ProviderJobs() {
                             <DollarSign size={14} /> Update Price
                           </Button> */}
 
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
-                            className="gap-1 text-xs"
-                            disabled={actionLoadingId === b.id}
-                          >
-                            <CheckCircle2 size={14} /> Accept Job
-                          </Button>
+                          {isPaymentCompleted ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateStatus(b.id, "Confirmed", "accepted")}
+                              className="gap-1 text-xs"
+                              disabled={actionLoadingId === b.id}
+                            >
+                              <CheckCircle2 size={14} /> Accept Job
+                            </Button>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip delayDuration={150}>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs opacity-70 bg-amber-500/10 text-amber-800 border-amber-300 dark:text-amber-300 cursor-not-allowed font-semibold"
+                                      disabled
+                                    >
+                                      <Clock size={14} /> Awaiting Customer Payment
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg max-w-xs">
+                                  Job can only be accepted after the customer completes payment.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </>
                       )}
 
                       {/* Step 2: Start Travel when Confirmed */}
-                      {isConfirmed && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "En Route", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Navigation size={14} /> Start Travel (En Route)
-                        </Button>
-                      )}
+                      {isConfirmed && (() => {
+                        const check = canProviderPerformAction(b, "En Route");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "En Route", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Navigation size={14} /> Start Travel (En Route)
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 3: Mark Arrived when En Route */}
-                      {isEnRoute && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <MapPin size={14} /> Mark Arrived at Location
-                        </Button>
-                      )}
+                      {isEnRoute && (() => {
+                        const check = canProviderPerformAction(b, "Arrived");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "Arrived", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <MapPin size={14} /> Mark Arrived at Location
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 4: Start Work when Arrived */}
-                      {isArrived && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process")}
-                          className="gap-1 text-xs"
-                          disabled={actionLoadingId === b.id}
-                        >
-                          <Play size={14} /> Start Work
-                        </Button>
-                      )}
+                      {isArrived && (() => {
+                        const check = canProviderPerformAction(b, "In Progress");
+                        return (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateStatus(b.id, "In Progress", "in_process", undefined, b)}
+                                    className="gap-1 text-xs"
+                                    disabled={actionLoadingId === b.id || !check.allowed}
+                                  >
+                                    <Play size={14} /> Start Work
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {!check.allowed && (
+                                <TooltipContent side="top" className="max-w-[260px] text-xs bg-slate-900 text-white p-2 rounded-lg shadow-lg">
+                                  {check.reason}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
 
                       {/* Step 5: Complete Work when In Progress */}
                       {isInProgress && (
@@ -743,6 +947,20 @@ export function ProviderJobs() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {totalCount > 0 && (
+        <div className="mt-6">
+          <PaginationController
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={limit}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
+            loading={loading}
+          />
         </div>
       )}
 
@@ -997,6 +1215,116 @@ export function ProviderJobs() {
                 Close
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* DECLINE JOB MODAL */}
+      {selectedBookingForDecline && (
+        <Dialog
+          open={Boolean(selectedBookingForDecline)}
+          onOpenChange={() => setSelectedBookingForDecline(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-destructive">
+                <XCircle size={18} /> Decline Job Request
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Please provide a reason for declining job{" "}
+                <strong>
+                  {selectedBookingForDecline.booking_number || `#${selectedBookingForDecline.id}`}
+                </strong>
+                . This reason will be shared with the customer.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-xs font-bold text-foreground mb-1.5 block">
+                  Select Reason for Declining <span className="text-destructive">*</span>
+                </Label>
+                <div className="grid gap-2">
+                  {[
+                    "Fully booked / Not available at requested time",
+                    "Outside my operating service area",
+                    "Unable to fulfill requested scope of work",
+                    "Personal / Schedule conflict",
+                    "Other",
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setDeclineReason(preset);
+                        if (preset !== "Other") setCustomDeclineReason("");
+                        if (declineError) setDeclineError("");
+                      }}
+                      className={cn(
+                        "rounded-xl border p-2.5 text-left text-xs transition-all font-medium",
+                        declineReason === preset
+                          ? "border-destructive bg-destructive/10 font-bold text-destructive ring-1 ring-destructive/30"
+                          : "border-border bg-card hover:border-destructive/40 text-foreground"
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(declineReason === "Other" || (declineReason && declineReason !== "Other")) && (
+                <div className="grid gap-2">
+                  <Label htmlFor="decline_reason_input" className="text-xs font-bold text-foreground">
+                    {declineReason === "Other" ? "Specify Reason" : "Additional Notes (optional)"}{" "}
+                    {declineReason === "Other" && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Textarea
+                    id="decline_reason_input"
+                    rows={3}
+                    placeholder="Enter reason for declining this job request..."
+                    value={customDeclineReason}
+                    onChange={(e) => {
+                      setCustomDeclineReason(e.target.value);
+                      if (declineError) setDeclineError("");
+                    }}
+                    className={cn(
+                      "text-xs",
+                      declineError && "border-destructive focus-visible:ring-destructive"
+                    )}
+                  />
+                </div>
+              )}
+
+              {declineError && (
+                <p className="text-xs font-medium text-destructive">{declineError}</p>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedBookingForDecline(null)}
+                disabled={submittingDecline}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmDecline}
+                disabled={submittingDecline}
+                className="gap-1.5"
+              >
+                {submittingDecline ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <XCircle size={14} />
+                )}
+                Confirm Decline
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

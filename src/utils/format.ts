@@ -56,13 +56,13 @@ export const formatStatus = (status: string) => {
 };
 
 export const formatDisplayDate = (dateStr?: string | null): string => {
-  if (!dateStr) return "Date TBD";
+  if (!dateStr || dateStr === "Date TBD" || dateStr === "Date to be confirmed") return "Date Pending";
   const formatted = formatDate(dateStr, "MMM d, yyyy");
   return formatted || String(dateStr);
 };
 
 export const formatDisplayTime = (timeStr?: string | null): string => {
-  if (!timeStr) return "TBD";
+  if (!timeStr || ["TBD", "Time TBD", "Time to be confirmed"].includes(timeStr)) return "Not Available";
   if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
   const parts = timeStr.split(":");
   if (parts.length >= 2) {

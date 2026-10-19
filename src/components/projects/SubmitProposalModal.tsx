@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useFormik } from "formik";
 import {
   Dialog,
@@ -11,15 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Lock, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { proposalApi } from "@/services/project";
+import { subscriptionApi } from "@/services/payment";
+import { useProviderAccess } from "@/hooks/useProviderAccess";
+import { proposalRules } from "@/rules/proposalRules";
 import {
   proposalSubmissionValidationSchema,
   type ProposalSubmissionFormValues,
   type ProposalLineItem,
 } from "@/validations/proposal";
-import { getTodayDateString } from "@/utils/date";
+import { getTodayDateString, isPastDate, isSlotEarlierThanNow } from "@/utils/date";
+import { PROPOSAL_TIME_SLOTS } from "@/constants";
 
 interface SubmitProposalModalProps {
   open: boolean;
@@ -36,11 +41,27 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
   projectTitle,
   onProposalSubmitted,
 }) => {
+  const { can, limits, plan, isUnsubscribed, isLimitReached, refresh } = useProviderAccess();
+
+  useEffect(() => {
+    if (open) {
+      refresh();
+    }
+  }, [open, refresh]);
+
+  const canCreateProposal = proposalRules.canCreate({
+    hasCapability: can("createProposal"),
+  });
+  const isProposalBlocked = !canCreateProposal;
+  const proposalLimit = limits.proposalLimit;
+  const proposalsRemaining = limits.proposalsRemaining;
+
   const formik = useFormik<ProposalSubmissionFormValues>({
     initialValues: {
       message: "",
       estimatedHours: "",
       proposedDate: "",
+      proposedTimeSlot: "Morning Slot",
       validDays: "7",
       lineItems: [{ description: "Labor & Service", quantity: 1, unit_price: 150 }],
     },
@@ -56,6 +77,25 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
         return;
       }
 
+      if (values.proposedDate && isPastDate(values.proposedDate)) {
+        toast.error("Proposed start date cannot be in the past.");
+        return;
+      }
+
+      if (
+        values.proposedDate &&
+        values.proposedTimeSlot &&
+        isSlotEarlierThanNow(values.proposedDate, values.proposedTimeSlot)
+      ) {
+        toast.error("Selected time slot has already passed for today. Please select an upcoming slot or a future date.");
+        return;
+      }
+
+      if (values.proposedDate && !values.proposedTimeSlot) {
+        toast.error("All time slots for today have already passed. Please select a future date.");
+        return;
+      }
+
       setSubmitting(true);
       try {
         const validUntilDate = new Date();
@@ -67,6 +107,8 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
           message: values.message.trim(),
           estimated_duration_hours: values.estimatedHours ? Number(values.estimatedHours) : undefined,
           proposed_date: values.proposedDate || undefined,
+          proposed_time_slot_id: values.proposedTimeSlot || undefined,
+          time_slot_name: values.proposedTimeSlot || undefined,
           valid_until: validUntilDate.toISOString(),
           line_items: values.lineItems.map((item) => ({
             description: item.description || "Service item",
@@ -92,6 +134,27 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
       }
     },
   });
+
+  const availableProposalSlots = useMemo(() => {
+    if (!formik.values.proposedDate) {
+      return PROPOSAL_TIME_SLOTS;
+    }
+    return PROPOSAL_TIME_SLOTS.filter(
+      (slot) => !isSlotEarlierThanNow(formik.values.proposedDate, slot)
+    );
+  }, [formik.values.proposedDate]);
+
+  useEffect(() => {
+    if (!formik.values.proposedDate) return;
+
+    const isCurrentSlotInvalidOrPast =
+      !formik.values.proposedTimeSlot ||
+      !availableProposalSlots.some((s) => s.value === formik.values.proposedTimeSlot);
+
+    if (isCurrentSlotInvalidOrPast) {
+      formik.setFieldValue("proposedTimeSlot", availableProposalSlots[0]?.value || "");
+    }
+  }, [formik.values.proposedDate, availableProposalSlots, formik.values.proposedTimeSlot, formik.setFieldValue]);
 
   const handleAddLineItem = () => {
     formik.setFieldValue("lineItems", [
@@ -139,6 +202,52 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
             Project: <span className="font-semibold text-foreground">{projectTitle}</span>
           </p>
         </DialogHeader>
+
+        {isProposalBlocked ? (
+          <div className="space-y-6 py-6 text-center">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm">
+              <Lock size={28} />
+            </div>
+
+            <div className="space-y-2 max-w-md mx-auto">
+              <h3 className="font-display text-lg font-bold text-foreground">
+                {isUnsubscribed ? "Subscription Required to Send Proposals" : "Monthly Proposal Limit Reached"}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {isUnsubscribed
+                  ? "An active subscription plan is required to send proposals to customers. Choose a plan to unlock proposal submissions."
+                  : `You have used all ${proposalLimit} proposals included in your ${plan?.name || "Starter"} plan this month. Upgrade your plan to submit unlimited proposals.`}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/30 p-4 max-w-sm mx-auto text-xs space-y-2 text-left">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current Plan:</span>
+                <span className="font-semibold text-foreground">{plan?.name || "No Active Plan"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Proposals Remaining:</span>
+                <span className="font-bold text-amber-500">{proposalsRemaining ?? 0}</span>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 gap-2 pt-2 border-t flex flex-col sm:flex-row justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button asChild className="gap-2 font-semibold">
+                <Link to="/provider/subscription" onClick={() => onOpenChange(false)}>
+                  <Sparkles size={15} />
+                  {isUnsubscribed ? "Explore Subscription Plans" : "Upgrade Subscription Plan"}
+                </Link>
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
 
         <form onSubmit={formik.handleSubmit} className="mt-4 space-y-5">
           {/* Work Message / Scope */}
@@ -307,6 +416,43 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="propSlot" className="text-xs font-medium">
+                Proposed Time Slot
+              </Label>
+              <select
+                id="propSlot"
+                name="proposedTimeSlot"
+                value={formik.values.proposedTimeSlot || ""}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                disabled={availableProposalSlots.length === 0}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {availableProposalSlots.length === 0 ? (
+                  <option value="" disabled>
+                    No slots available today
+                  </option>
+                ) : (
+                  availableProposalSlots.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))
+                )}
+              </select>
+              {formik.values.proposedDate && availableProposalSlots.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  All time slots for today have passed. Please select a future start date.
+                </p>
+              )}
+              {formik.touched.proposedTimeSlot && formik.errors.proposedTimeSlot && (
+                <p className="text-xs font-medium text-destructive mt-1">
+                  {formik.errors.proposedTimeSlot}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="valDays" className="text-xs font-medium">
                 Quote Valid For (Days) <span className="text-destructive">*</span>
               </Label>
@@ -353,6 +499,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -18,7 +18,6 @@ const AdminDisputes = lazy(() => import("@/pages/admin/AdminDisputes"));
 const AdminDisputeDetail = lazy(() => import("@/pages/admin/AdminDisputeDetail"));
 const AdminReviews = lazy(() => import("@/pages/admin/AdminReviews"));
 const AdminSponsored = lazy(() => import("@/pages/admin/AdminSponsored"));
-const AdminCoins = lazy(() => import("@/pages/admin/AdminCoins"));
 const AdminFeaturedPricing = lazy(() => import("@/pages/admin/AdminFeaturedPricing"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminPayouts = lazy(() => import("@/pages/admin/AdminPayouts"));
@@ -31,6 +30,7 @@ const AdminConversation = lazy(() => import("@/pages/admin/AdminConversation"));
 const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
 const SupportAgentsPage = lazy(() => import("@/pages/admin/SupportAgentsPage"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+const AdminAuditLogs = lazy(() => import("@/pages/admin/AdminAuditLogs"));
 
 
 // Support pages
@@ -91,20 +91,18 @@ export const PrivateRoutes = () => (
       <Route path="disputes/:id" element={<AdminDisputeDetail />} />
       <Route path="reviews" element={<AdminReviews />} />
       <Route path="sponsored" element={<AdminSponsored />} />
-      <Route path="coins" element={<AdminCoins />} />
-      <Route path="featured" element={<Navigate to="/admin/featured-plans" replace />} />
       <Route path="reports" element={<AdminReports />} />
       <Route path="payouts" element={<AdminPayouts />} />
       <Route path="commission" element={<AdminCommission />} />
       <Route path="subscriptions" element={<AdminSubscriptions />} />
       <Route path="featured-plans" element={<AdminFeaturedPlans />} />
       <Route path="featured-listings" element={<AdminFeaturedListings />} />
-      <Route path="transactions" element={<Navigate to="/admin/payouts" replace />} />
       <Route path="messages" element={<AdminMessages />} />
       <Route path="messages/:id" element={<AdminConversation />} />
       <Route path="profile" element={<AdminProfile />} />
       <Route path="support-agents" element={<SupportAgentsPage />} />
       <Route path="settings" element={<AdminSettings />} />
+      <Route path="audit-logs" element={<AdminAuditLogs />} />
     </Route>
 
     {/* ================= SUPPORT ================= */}
@@ -134,8 +132,6 @@ export const PrivateRoutes = () => (
       }
     >
       <Route path={routeMap.CUSTOMER_DASHBOARD.path} element={<CustomerDashboard />} />
-      <Route path="/orders" element={<Navigate to="/customer/bookings" replace />} />
-      <Route path="orders" element={<Navigate to="/customer/bookings" replace />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path="/customer/order/:id" element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />

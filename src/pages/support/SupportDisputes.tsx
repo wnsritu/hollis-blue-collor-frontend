@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { getChatMessages } from "@/services/chat";
 import PaginationController from "@/components/ui/PaginationController";
 import { Input } from "@/components/ui/input";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import {
   BADGE_OPEN,
   BADGE_UNDER_REVIEW,
@@ -327,7 +328,7 @@ const SupportDisputes = () => {
             </div>
           ) : disputes.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-4">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <AlertCircle size={24} />
               </div>
               <div>
@@ -383,9 +384,7 @@ const SupportDisputes = () => {
                             {d?.customer?.name || "Customer"}
                           </div>
                           {d?.customer?.email && (
-                            <div className="text-xs text-muted-foreground truncate max-w-[160px]">
-                              {d.customer.email}
-                            </div>
+                            <TruncatedText as="div" text={d.customer.email} className="text-xs text-muted-foreground max-w-[160px]" />
                           )}
                         </TableCell>
 
@@ -402,9 +401,7 @@ const SupportDisputes = () => {
                             {d?.issue_type ? d.issue_type.replace(/_/g, " ") : "-"}
                           </span>
                           {d?.customer_description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[200px]" title={d.customer_description}>
-                              {d.customer_description}
-                            </p>
+                            <TruncatedText as="p" text={d.customer_description} className="text-xs text-muted-foreground max-w-[200px]" />
                           )}
                         </TableCell>
 
@@ -489,7 +486,7 @@ const SupportDisputes = () => {
         </CardContent>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {disputes?.length > 0 && (
           <div className="p-4 border-t border-border bg-card">
             <PaginationController
               currentPage={currentPage}

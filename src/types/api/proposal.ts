@@ -27,7 +27,8 @@ export type Proposal = {
   message?: string | null;
   estimated_duration_hours?: number | null;
   proposed_date?: string | null;
-  proposed_time_slot_id?: number | null;
+  proposed_time_slot_id?: number | string | null;
+  time_slot_name?: string | null;
   valid_until?: string | null;
   submitted_at?: string | null;
   responded_at?: string | null;
@@ -43,7 +44,8 @@ export type CreateProposalPayload = {
   message?: string | null;
   estimated_duration_hours?: number | null;
   proposed_date?: string | null;
-  proposed_time_slot_id?: number | null;
+  proposed_time_slot_id?: number | string | null;
+  time_slot_name?: string | null;
   valid_until?: string | null;
   expiration_date?: string | null;
   status?: "draft" | "submitted";

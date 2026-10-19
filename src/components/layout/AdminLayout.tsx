@@ -13,6 +13,7 @@ import {
   Sparkles,
   Star,
   Users,
+  ClipboardList,
   // Future tabs — uncomment when ready to show client:
   AlertTriangle,
   MessageSquare,
@@ -37,31 +38,18 @@ const adminNav: NavItem[] = [
     ],
   },
   { label: "Service Bookings", to: "/admin/orders", icon: Briefcase },
-  // { label: "Subscriptions", to: "/admin/subscriptions", icon: CreditCard },
-  { label: "Subscriptions", to: "#", icon: CreditCard },
-
-  { label: "Featured Plans", to: "#", icon: Sparkles },
-  // { label: "Featured Plans", to: "/admin/featured-plans", icon: Sparkles },
-
-  { label: "Featured Listings", to: "#", icon: ListChecks },
-  // { label: "Featured Listings", to: "/admin/featured-listings", icon: ListChecks },
-
-  // { label: "Commission", to: "/admin/commission", icon: Percent },
-  { label: "Commission", to: "#", icon: Percent },
-
-  // { label: "Payout Queue", to: "/admin/payouts", icon: Banknote },
-  { label: "Payout Queue", to: "#", icon: Banknote },
-
+  { label: "Subscriptions", to: "/admin/subscriptions", icon: CreditCard },
+  { label: "Featured Plans", to: "/admin/featured-plans", icon: Sparkles },
+  { label: "Featured Listings", to: "/admin/featured-listings", icon: ListChecks },
+  { label: "Commission", to: "/admin/commission", icon: Percent },
+  { label: "Payout Queue", to: "/admin/payouts", icon: Banknote },
   // { label: "Disputes", to: "/admin/disputes", icon: AlertTriangle },
   { label: "Messages & Chat", to: "/admin/messages", icon: MessageSquare },
-  // { label: "Reviews", to: "/admin/reviews", icon: Star },
-  { label: "Reviews", to: "#", icon: Star },
-
-  // { label: "Reports", to: "/admin/reports", icon: Gauge },
-  { label: "Reports", to: "#", icon: Gauge },
-
+  { label: "Reviews", to: "/admin/reviews", icon: Star },
+  { label: "Reports", to: "/admin/reports", icon: Gauge },
   // { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
+  { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
 ];
 
 

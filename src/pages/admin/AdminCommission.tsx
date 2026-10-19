@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ export function AdminCommission() {
   const [saving, setSaving] = useState(false);
   const [commissionRate, setCommissionRate] = useState(5);
   const [rate, setRate] = useState([5]);
-  const [platformFee, setPlatformFee] = useState("10");
+  const [platformFee, setPlatformFee] = useState("0");
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -29,8 +29,9 @@ export function AdminCommission() {
       const res: any = await getPlatformSettings();
       const data = res?.data?.settings || res?.data || res?.settings || res;
       if (data) {
-        const comm = Number(data.admin_commission) || 5;
-        const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "10";
+        const rawComm = data.admin_commission !== undefined && data.admin_commission !== null ? Number(data.admin_commission) : 5;
+        const comm = isNaN(rawComm) ? 5 : rawComm;
+        const fee = data.platform_fee !== undefined ? String(data.platform_fee) : "0";
         setCommissionRate(comm);
         setRate([comm]);
         setPlatformFee(fee);
@@ -48,17 +49,20 @@ export function AdminCommission() {
   }, []);
 
   const handleSave = async () => {
+    const finalRate = Math.max(0, Math.min(100, Number(rate[0]) || 0));
+    const finalFee = Math.max(0, Number(platformFee) || 0);
+
     setSaving(true);
     try {
       const payload = {
-        admin_commission: rate[0],
-        platform_fee: Number(platformFee) || 0,
+        admin_commission: finalRate,
+        platform_fee: finalFee,
       };
       await updatePlatformSettings(payload);
-      setCommissionRate(rate[0]);
-      toast.success(`Platform settings saved successfully!`, {
-        description: `Commission set to ${rate[0]}% and platform fee set to ${usd(Number(platformFee) || 0)}.`,
-      });
+      setCommissionRate(finalRate);
+      setRate([finalRate]);
+      setPlatformFee(String(finalFee));
+      toast.success(`Platform settings saved successfully! Commission: ${finalRate}%.`);
     } catch (err: any) {
       console.error("Failed to save settings:", err);
       toast.error(err?.response?.data?.message || err?.message || "Failed to update platform settings.");
@@ -67,8 +71,12 @@ export function AdminCommission() {
     }
   };
 
+  const safeRate = Math.max(0, Math.min(100, Number(rate[0]) || 0));
+  const safeFlatFee = Math.max(0, Number(platformFee) || 0);
+
   const mockGrossVolume = 14500;
-  const projected = Math.round(((mockGrossVolume * rate[0]) / 100) * 100) / 100;
+  const projected = Math.round(((mockGrossVolume * safeRate) / 100) * 100) / 100;
+  const paidToProviders = Math.max(0, Math.round((mockGrossVolume - projected - safeFlatFee) * 100) / 100);
 
   if (loading) {
     return (
@@ -90,12 +98,12 @@ export function AdminCommission() {
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="font-display text-lg font-bold">Global Commission Rate</h2>
-            <span className="font-display text-4xl font-extrabold text-primary">{rate[0]}%</span>
+            <span className="font-display text-4xl font-extrabold text-primary">{safeRate}%</span>
           </div>
           <Slider
             className="mt-6"
-            value={rate}
-            onValueChange={(val) => setRate(val)}
+            value={[safeRate]}
+            onValueChange={(val) => setRate([Math.max(0, Math.min(100, val[0]))])}
             min={0}
             max={30}
             step={0.5}
@@ -107,24 +115,68 @@ export function AdminCommission() {
 
           <Separator className="my-6" />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 max-w-md">
+            {/* Commented out as per SOW requirement - single percentage-based commission model.
             <div className="grid gap-2">
               <Label htmlFor="platformFee">Platform Flat Fee ($)</Label>
               <Input
                 id="platformFee"
                 type="number"
+                min="0"
+                step="1"
                 value={platformFee}
-                onChange={(e) => setPlatformFee(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault();
+                }}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                  const val = parseFloat(cleaned);
+                  if (isNaN(val) || val < 0) {
+                    setPlatformFee(cleaned === "" ? "" : "0");
+                  } else {
+                    setPlatformFee(cleaned);
+                  }
+                }}
+                onBlur={() => {
+                  const val = parseFloat(platformFee);
+                  if (isNaN(val) || val < 0) {
+                    setPlatformFee("0");
+                  } else {
+                    setPlatformFee(String(val));
+                  }
+                }}
               />
             </div>
+            */}
             <div className="grid gap-2">
               <Label htmlFor="exact">Exact Rate (%)</Label>
               <Input
                 id="exact"
                 type="number"
+                min="0"
+                max="100"
                 step="0.5"
-                value={rate[0]}
-                onChange={(e) => setRate([Number(e.target.value)])}
+                value={safeRate}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault();
+                }}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                  const val = parseFloat(cleaned);
+                  if (isNaN(val) || val < 0) {
+                    setRate([0]);
+                  } else {
+                    setRate([Math.min(100, val)]);
+                  }
+                }}
+                onBlur={() => {
+                  const val = Number(rate[0]);
+                  if (isNaN(val) || val < 0) {
+                    setRate([0]);
+                  } else if (val > 100) {
+                    setRate([100]);
+                  }
+                }}
               />
             </div>
           </div>
@@ -144,7 +196,7 @@ export function AdminCommission() {
           </Button>
 
           <div className="mt-6 rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-            Changing the commission rate or platform fee updates active calculations across the marketplace.
+            Changing the commission rate updates active calculations across the marketplace.
           </div>
         </section>
 
@@ -155,10 +207,10 @@ export function AdminCommission() {
               {[
                 ["Processed Monthly Volume", usd(mockGrossVolume)],
                 ["Current Active Rate", `${commissionRate}%`],
-                ["New Proposed Rate", `${rate[0]}%`],
-                ["Platform Flat Fee", usd(Number(platformFee) || 0)],
+                ["New Proposed Rate", `${safeRate}%`],
+                // ["Platform Flat Fee", usd(safeFlatFee)], // Commented out flat fee row
                 ["Projected Commission", usd(projected)],
-                ["Paid to Providers", usd(mockGrossVolume - projected)],
+                ["Paid to Providers", usd(paidToProviders)],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -173,23 +225,25 @@ export function AdminCommission() {
             <p className="mt-2 text-sm text-muted-foreground">On a {usd(1000)} job:</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li className="flex justify-between">
-                <span className="text-muted-foreground">Platform Commission ({rate[0]}%)</span>
+                <span className="text-muted-foreground">Platform Commission ({safeRate}%)</span>
                 <span className="font-semibold text-primary">
-                  {usd(splitAmount(1000, rate[0]).commission)}
+                  {usd(splitAmount(1000, safeRate).commission)}
                 </span>
               </li>
-              {Number(platformFee) > 0 && (
+              {/* Commented out Platform Flat Fee line in Example Split
+              {safeFlatFee > 0 && (
                 <li className="flex justify-between">
                   <span className="text-muted-foreground">Platform Flat Fee</span>
                   <span className="font-semibold text-primary">
-                    {usd(Number(platformFee))}
+                    {usd(safeFlatFee)}
                   </span>
                 </li>
               )}
+              */}
               <li className="flex justify-between pt-1 border-t border-border">
                 <span className="text-muted-foreground">Provider Pay</span>
                 <span className="font-semibold text-green-600">
-                  {usd(splitAmount(1000, rate[0]).payable)}
+                  {usd(Math.max(0, 1000 - splitAmount(1000, safeRate).commission - safeFlatFee))}
                 </span>
               </li>
             </ul>
