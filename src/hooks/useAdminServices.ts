@@ -197,6 +197,7 @@ export function useAdminServices() {
     try {
       await catalogApi.updateService(editingService.serviceId, {
         name: editName.trim(),
+        description: editDesc.trim(),
       });
       toast.success("Service updated successfully.");
       setEditingService(null);

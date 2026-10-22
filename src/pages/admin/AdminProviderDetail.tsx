@@ -201,7 +201,7 @@ export function AdminProviderDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowSuspendModal(true)}
+                onClick={isSuspended ? handleQuickUnsuspend : () => setShowSuspendModal(true)}
                 disabled={submitting}
                 className={`gap-1 text-xs ${
                   isSuspended
@@ -729,7 +729,7 @@ export function AdminProviderDetail() {
             </Button>
             <Button
               variant={isSuspended ? "default" : "destructive"}
-              onClick={handleConfirmSuspend}
+              onClick={isSuspended ? handleQuickUnsuspend : handleConfirmSuspend}
               disabled={submitting}
             >
               {isSuspended ? "Lift Suspension" : "Confirm Suspension"}

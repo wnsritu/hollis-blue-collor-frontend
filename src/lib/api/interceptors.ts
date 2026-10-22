@@ -58,15 +58,27 @@ export const attachInterceptors = (client: AxiosInstance) => {
     async (error) => {
       const original = error.config as RetriableConfig | undefined;
       const status = error.response?.status;
+      const respData = error.response?.data;
+      const errorCode = respData?.code;
+      const errorMessage = String(respData?.message || "").toLowerCase();
 
-      if (status === 401 && original && !original._retry) {
-        const url = String(original.url ?? "");
+      const isAccountSuspended =
+        errorCode === "ACCOUNT_SUSPENDED" ||
+        errorCode === "ACCOUNT_DEACTIVATED" ||
+        respData?.is_suspended === true ||
+        errorMessage.includes("account has been suspended") ||
+        errorMessage.includes("account is currently suspended") ||
+        errorMessage.includes("account has been deactivated");
+
+      if (isAccountSuspended || (status === 401 && original && !original._retry)) {
+        const url = String(original?.url ?? "");
         const isAuthRoute =
           url.includes("/auth/login") ||
           url.includes("/auth/register") ||
           url.includes("/auth/refresh-token");
 
-        if (!isAuthRoute && tokenStorage.getRefreshToken()) {
+        // If explicitly suspended, do not attempt token refresh - expire immediately
+        if (!isAccountSuspended && !isAuthRoute && tokenStorage.getRefreshToken()) {
           original._retry = true;
           try {
             refreshPromise =

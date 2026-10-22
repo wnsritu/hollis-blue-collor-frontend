@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster as HotToaster } from "react-hot-toast";
@@ -7,6 +7,38 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/ScrollToTop";
 import PageTitleUpdater from "@/components/PageTitleUpdater";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { authApi } from "@/services/auth";
+import { tokenStorage } from "@/utils/tokenStorage";
+
+const SessionHeartbeat = () => {
+  useEffect(() => {
+    const checkSession = async () => {
+      const token = tokenStorage.getAccessToken();
+      if (!token) return;
+      if (
+        window.location.pathname.startsWith("/login") ||
+        window.location.pathname.startsWith("/register")
+      ) {
+        return;
+      }
+      try {
+        await authApi.me();
+      } catch {
+        // Interceptor automatically clears token and redirects on 401/ACCOUNT_SUSPENDED
+      }
+    };
+
+    const interval = setInterval(checkSession, 15000);
+    window.addEventListener("focus", checkSession);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkSession);
+    };
+  }, []);
+
+  return null;
+};
 
 const queryClient = new QueryClient();
 
@@ -70,6 +102,7 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
         />
         <SonnerToaster position="top-right" />
         <BrowserRouter>
+          <SessionHeartbeat />
           <NotificationProvider>
             <ScrollToTop />
             <PageTitleUpdater />
