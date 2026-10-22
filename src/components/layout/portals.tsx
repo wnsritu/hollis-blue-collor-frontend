@@ -39,6 +39,7 @@ import { customerApi, userApi } from "@/services/customer";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { providerAccessStore } from "@/store/providerAccessStore";
 import { useProviderAccess } from "@/hooks/useProviderAccess";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 /**
  * Check whether a provider has been verified/approved.
@@ -612,13 +613,22 @@ export function ProviderPortal({ children }: { children?: ReactNode }) {
     location.pathname.startsWith(p)
   );
 
+  // If provider account is suspended, clear token and immediately redirect to login
+  useEffect(() => {
+    if (isSuspended) {
+      toast.error("Your provider account has been suspended by administration.");
+      tokenStorage.clearSession();
+      navigate("/login", { replace: true });
+    }
+  }, [isSuspended, navigate]);
+
   // If provider profile is incomplete, restrict access and redirect to profile
   useEffect(() => {
-    if (!loading && !isComplete && !isAllowedPath && !isRejected) {
+    if (!loading && !isComplete && !isAllowedPath && !isRejected && !isSuspended) {
       navigate("/provider/profile", { replace: true });
       openModal(location.pathname);
     }
-  }, [loading, isComplete, isAllowedPath, isRejected, navigate, openModal, location.pathname]);
+  }, [loading, isComplete, isAllowedPath, isRejected, isSuspended, navigate, openModal, location.pathname]);
 
   /**
    * Only block completely with restricted screen if rejected by admin
@@ -817,6 +827,21 @@ export function CustomerPortal({ children }: { children?: ReactNode }) {
     user?.profile_image,
     user?.profile_photo,
   ]);
+
+  const userStatus = String(user?.status || "").toLowerCase();
+  const isCustomerSuspended =
+    userStatus === "suspended" ||
+    userStatus === "inactive" ||
+    userStatus === "blocked";
+
+  // If customer account is suspended, clear token and immediately redirect to login
+  useEffect(() => {
+    if (isCustomerSuspended) {
+      toast.error("Your account has been suspended by administration.");
+      tokenStorage.clearSession();
+      navigate("/login", { replace: true });
+    }
+  }, [isCustomerSuspended, navigate]);
 
   const handleSignOut = async () => {
     await logout();

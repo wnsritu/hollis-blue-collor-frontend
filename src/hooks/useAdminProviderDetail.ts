@@ -85,6 +85,43 @@ export function useAdminProviderDetail() {
     }
   };
 
+  const providerId = provider?.id || id;
+  const fullName = String(
+    provider?.user?.full_name ||
+      `${provider?.user?.first_name || ""} ${provider?.user?.last_name || ""}`.trim() ||
+      provider?.fullName ||
+      provider?.name ||
+      "Provider Owner"
+  );
+  const businessName = String(provider?.business_name || provider?.name || fullName);
+  const email = String(provider?.user?.email || provider?.email || "—");
+  const phone = String(provider?.user?.phone || provider?.phone || "—");
+  const rawCat = provider?.category;
+  const categoryName = typeof rawCat === "object" ? (rawCat?.name || "General Service") : String(rawCat || "General Service");
+  const rawSubCat =
+    provider?.sub_category ||
+    provider?.subcategory ||
+    (Array.isArray(provider?.service_types) && provider.service_types.length > 0
+      ? provider.service_types[0]
+      : null);
+  const subCategoryName =
+    typeof rawSubCat === "object"
+      ? (rawSubCat?.name || "")
+      : (provider?.category?.service_types?.[0]?.name || String(rawSubCat || ""));
+  const emailVerified = provider?.user?.email_verified !== false && provider?.emailVerified !== false;
+  const dbStatus = String(provider?.status || "").toLowerCase();
+  const dbVerified = String(provider?.verified || "").toLowerCase();
+  const userStatus = String(provider?.user?.status || "").toLowerCase();
+
+  const isVerified = dbVerified === "verified" || dbVerified === "approved";
+  const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
+  const isSuspended =
+    dbStatus === "paused" ||
+    dbStatus === "suspended" ||
+    dbStatus === "inactive" ||
+    userStatus === "suspended" ||
+    userStatus === "inactive";
+
   const handleConfirmApprove = async () => {
     try {
       setSubmitting(true);
@@ -126,6 +163,10 @@ export function useAdminProviderDetail() {
   };
 
   const handleConfirmSuspend = async () => {
+    if (isSuspended) {
+      await handleQuickUnsuspend();
+      return;
+    }
     try {
       setSubmitting(true);
       const payload = suspendReason.trim() ? { reason: suspendReason.trim() } : undefined;
@@ -145,7 +186,8 @@ export function useAdminProviderDetail() {
     try {
       setSubmitting(true);
       await adminApi.unsuspendProvider(id!);
-      toast.success("Account status reactivated!");
+      setShowSuspendModal(false);
+      toast.success(`Account activated for ${businessName || "Provider"}.`);
       await fetchProviderDetails(id!);
     } catch (err: any) {
       console.error("Unsuspend error:", err);
@@ -173,37 +215,6 @@ export function useAdminProviderDetail() {
       setSubmitting(false);
     }
   };
-
-  const providerId = provider?.id || id;
-  const fullName = String(
-    provider?.user?.full_name ||
-      `${provider?.user?.first_name || ""} ${provider?.user?.last_name || ""}`.trim() ||
-      provider?.fullName ||
-      provider?.name ||
-      "Provider Owner"
-  );
-  const businessName = String(provider?.business_name || provider?.name || fullName);
-  const email = String(provider?.user?.email || provider?.email || "—");
-  const phone = String(provider?.user?.phone || provider?.phone || "—");
-  const rawCat = provider?.category;
-  const categoryName = typeof rawCat === "object" ? (rawCat?.name || "General Service") : String(rawCat || "General Service");
-  const rawSubCat =
-    provider?.sub_category ||
-    provider?.subcategory ||
-    (Array.isArray(provider?.service_types) && provider.service_types.length > 0
-      ? provider.service_types[0]
-      : null);
-  const subCategoryName =
-    typeof rawSubCat === "object"
-      ? (rawSubCat?.name || "")
-      : (provider?.category?.service_types?.[0]?.name || String(rawSubCat || ""));
-  const emailVerified = provider?.user?.email_verified !== false && provider?.emailVerified !== false;
-  const dbStatus = String(provider?.status || "").toLowerCase();
-  const dbVerified = String(provider?.verified || "").toLowerCase();
-
-  const isVerified = dbVerified === "verified" || dbVerified === "approved";
-  const isRejected = dbVerified === "rejected" || dbStatus === "rejected";
-  const isSuspended = dbStatus === "paused" || dbStatus === "suspended";
 
   const licenseDocUrl = resolveMediaUrl(
     provider?.license_document_url || provider?.license_document || provider?.licenseDocumentUrl

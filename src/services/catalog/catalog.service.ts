@@ -23,12 +23,14 @@ export interface ServiceItemModel {
 
 export interface CreateServiceItemPayload {
   name: string;
+  description?: string;
   service_type_id: number;
   category_id: number;
 }
 
 export interface UpdateServiceItemPayload {
   name?: string;
+  description?: string;
   service_type_id?: number;
   category_id?: number;
 }
