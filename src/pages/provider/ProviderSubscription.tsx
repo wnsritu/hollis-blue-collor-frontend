@@ -164,11 +164,14 @@ export const ProviderSubscription = () => {
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>
                     <ul className="mt-4 flex-1 space-y-2 text-sm">
-                      {p.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-success" /> {f}
-                        </li>
-                      ))}
+                      <li className="flex items-start gap-2">
+                        <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-success" />
+                        <span>
+                          {p.proposal_limit != null
+                            ? `${p.proposal_limit} proposals per month`
+                            : "Unlimited proposals"}
+                        </span>
+                      </li>
                     </ul>
                     <Button
                       className="mt-5"
