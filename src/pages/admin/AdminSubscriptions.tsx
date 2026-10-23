@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader, StatCard, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import {
   adminListSubscriptionPlans,
   adminGetSubscriptionOverview,
@@ -143,12 +144,7 @@ export function AdminSubscriptions() {
       description: "",
       proposal_limit: "10",
       isUnlimited: false,
-      featuresList: [
-        "Proposals per month",
-        "Customer messaging",
-        "Standard profile listing",
-        "Email support",
-      ],
+      featuresList: [],
     });
     setNewFeatureInput("");
     setOpen(true);
@@ -334,20 +330,13 @@ export function AdminSubscriptions() {
               key={p.id}
               className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card hover:border-primary/30 transition-all"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-display text-lg font-bold text-foreground">{p.name}</h3>
-                  {p.proposal_limit != null ? (
-                    <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block mt-1">
-                      {p.proposal_limit} proposals/mo
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block mt-1">
-                      Unlimited proposals
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
+              <div className="flex items-center justify-between gap-2 min-h-[32px]">
+                <TruncatedText
+                  as="h3"
+                  text={p.name}
+                  className="font-display text-lg font-bold text-foreground leading-snug flex-1"
+                />
+                <div className="flex items-center gap-1 shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -359,6 +348,19 @@ export function AdminSubscriptions() {
                   </Button>
                   <StatusPill status={p.active ? "Active" : "Inactive"} />
                 </div>
+              </div>
+
+              {/* Proposal Limit Badge */}
+              <div className="mt-1.5 flex items-center min-h-[26px]">
+                {p.proposal_limit != null ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    {p.proposal_limit} proposals/mo
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    Unlimited proposals
+                  </span>
+                )}
               </div>
 
               <div className="mt-3 grid gap-1.5">
@@ -382,23 +384,20 @@ export function AdminSubscriptions() {
                 />
               </div>
 
-              {p.description ? (
-                <p className="mt-3 text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                  {p.description}
-                </p>
-              ) : null}
+              <p className="mt-3 text-xs text-muted-foreground leading-relaxed line-clamp-2 min-h-[32px]">
+                {p.description || ""}
+              </p>
 
               <div className="mt-4 pt-3 border-t border-border flex-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Features ({p.features.length})
-                </p>
-                <ul className="space-y-1.5 text-xs text-muted-foreground max-h-[140px] overflow-y-auto pr-1">
-                  {p.features.map((f, idx) => (
-                    <li key={idx} className="flex items-start gap-1.5">
-                      <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 shrink-0" />
-                      <span className="leading-snug">{f}</span>
-                    </li>
-                  ))}
+                <ul className="space-y-1.5 text-xs text-foreground/90">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <span>
+                      {p.proposal_limit != null
+                        ? `${p.proposal_limit} proposals per month`
+                        : "Unlimited proposals"}
+                    </span>
+                  </li>
                 </ul>
               </div>
 
@@ -494,38 +493,40 @@ export function AdminSubscriptions() {
                 </div>
               </div>
 
-              {!form.isUnlimited && (
-                <div className="mt-1">
-                  <Input
-                    id="pl"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="10"
-                    onKeyDown={(e) => {
-                      if (e.key === "-" || e.key === "e") e.preventDefault();
-                    }}
-                    value={form.proposal_limit}
-                    onChange={(e) => {
-                      const val = e.target.value.replace("-", "");
-                      setForm({ ...form, proposal_limit: val });
-                    }}
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Maximum number of proposal quotes this plan user can send per billing cycle.
-                  </p>
-                </div>
-              )}
+              <div className="mt-1">
+                <Input
+                  id="pl"
+                  type={form.isUnlimited ? "text" : "number"}
+                  min="0"
+                  step="1"
+                  placeholder={form.isUnlimited ? "Unlimited Proposals" : "10"}
+                  disabled={form.isUnlimited}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "e") e.preventDefault();
+                  }}
+                  value={form.isUnlimited ? "Unlimited" : form.proposal_limit}
+                  onChange={(e) => {
+                    const val = e.target.value.replace("-", "");
+                    setForm({ ...form, proposal_limit: val });
+                  }}
+                  className={form.isUnlimited ? "bg-muted text-muted-foreground" : ""}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {form.isUnlimited
+                    ? "Plan has no proposal restrictions. Uncheck 'Unlimited Proposals' above to enter a monthly limit."
+                    : "Maximum number of proposal quotes this plan user can send per billing cycle."}
+                </p>
+              </div>
             </div>
 
-            {/* Rich Feature Builder UI */}
+            {/* Rich Feature Builder UI - Commented out as requested */}
+            {/*
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
                 <Label className="font-semibold">Plan Features ({form.featuresList.length})</Label>
                 <span className="text-[11px] text-muted-foreground">Add features or pick presets</span>
               </div>
 
-              {/* Added Features Chip List */}
               <div className="min-h-[60px] p-2.5 rounded-xl border border-border bg-background space-y-1.5">
                 {form.featuresList.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-3 italic">
@@ -553,7 +554,6 @@ export function AdminSubscriptions() {
                 )}
               </div>
 
-              {/* Add Custom Feature Input */}
               <div className="flex items-center gap-2 mt-1">
                 <Input
                   placeholder="Type a feature and press Enter or paste list..."
@@ -579,7 +579,6 @@ export function AdminSubscriptions() {
                 </Button>
               </div>
 
-              {/* Quick Feature Presets */}
               <div className="mt-2 space-y-1.5">
                 <p className="text-[11px] font-medium text-muted-foreground">Quick Feature Presets:</p>
                 <div className="flex flex-wrap gap-1">
@@ -604,6 +603,7 @@ export function AdminSubscriptions() {
                 </div>
               </div>
             </div>
+            */}
           </div>
 
           <DialogFooter className="mt-4">
