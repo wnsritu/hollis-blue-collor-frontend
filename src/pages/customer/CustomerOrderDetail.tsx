@@ -35,7 +35,7 @@ import { getOrderDetails } from "@/services/order";
 import { appointmentApi } from "@/services/booking";
 import { ratingApi } from "@/services/rating";
 import { chatApi } from "@/services/chat";
-import { BOOKING_FLOW, getBookingTimelineStepStates } from "@/constants";
+import { BOOKING_FLOW, getBookingFlow, getBookingTimelineStepStates } from "@/constants";
 import { normalizeBooking, getTimelineStep, getBookingStatusDisplay } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
 import StripeBookingModal from "@/components/payment/StripeBookingModal";
@@ -205,11 +205,35 @@ export const CustomerOrderDetail: React.FC = () => {
   const rawPaymentStatus = String(booking?.payment_status || booking?.payment?.payment_status || normalized.paymentStatus || "").toLowerCase();
   const isPartiallyRefunded = rawPaymentStatus === "partially_refunded" || rawPaymentStatus === "partially refunded" || Boolean(normalized.isPartiallyRefunded);
   const isRefunded = rawPaymentStatus === "refunded" || Boolean(normalized.isRefunded);
+  const isPartiallyPaid =
+    rawPaymentStatus === "partially_paid" ||
+    rawPaymentStatus === "partially paid" ||
+    Boolean(normalized.isPartiallyPaid);
+  const remainingBalanceNum = Number(
+    booking?.remaining_balance ?? normalized.remainingBalance ?? 0
+  );
+  const initialPaymentAmountNum = Number(
+    booking?.initial_payment_amount ?? normalized.initialPaymentAmount ?? 0
+  );
+  const totalPaidAmountNum = Number(
+    booking?.total_paid_amount ??
+      normalized.totalPaidAmount ??
+      (isPaid
+        ? totalAmountNum
+        : isPartiallyPaid
+        ? initialPaymentAmountNum
+        : 0)
+  );
+  const hasRemainingBalance = remainingBalanceNum > 0.009;
+  const isFullyCompletedAndPaid = isCompleted || reviewed;
   const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
-    isPaid,
+    isPaid: isPaid || isCompleted,
     isReviewed: reviewed,
+    isPartiallyPaid: isPartiallyPaid && !isCompleted,
+    isFullyCompletedAndPaid,
   });
-  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed);
+  const timelineSteps = getBookingFlow(isPartiallyPaid, isFullyCompletedAndPaid);
+  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed, isPartiallyPaid, isFullyCompletedAndPaid);
 
   const serviceName = normalized.serviceName;
   const categoryName = normalized.categoryName;
@@ -358,15 +382,23 @@ export const CustomerOrderDetail: React.FC = () => {
                   </span>
                 );
               }
+              if (isPartiallyPaid && !isCompleted) {
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-700 border border-purple-200">
+                    <DollarSign size={13} /> Payment: Partially Paid ({usd(totalPaidAmountNum)} paid · {usd(remainingBalanceNum)} due)
+                  </span>
+                );
+              }
+              const isDisplayPaid = isPaid || isCompleted;
               return (
                 <span
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${isPaid
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${isDisplayPaid
                     ? "bg-success-soft text-success border border-success/20"
                     : "bg-amber-500/10 text-amber-700 border border-amber-200"
                     }`}
                 >
                   <DollarSign size={13} />
-                  {isPaid ? "Payment: Paid" : "Payment: Pending"}
+                  {isDisplayPaid ? "Payment: Paid" : "Payment: Pending"}
                 </span>
               );
             })()}
@@ -378,13 +410,31 @@ export const CustomerOrderDetail: React.FC = () => {
             )}
 
             {!isPaid && !isCancelled && (
-              <Button
-                size="sm"
-                onClick={() => setShowPaymentModal(true)}
-                className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <CreditCard size={14} /> Pay Now ({usd(totalAmountNum)})
-              </Button>
+              <>
+                {isPartiallyPaid && hasRemainingBalance ? (
+                  isCompleted ? (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowPaymentModal(true)}
+                      className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <CreditCard size={14} /> Pay Remaining Balance ({usd(remainingBalanceNum)})
+                    </Button>
+                  ) : (
+                    <span className="text-xs font-medium text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-lg border border-border">
+                      Remaining balance ({usd(remainingBalanceNum)}) due after completion
+                    </span>
+                  )
+                ) : !isPartiallyPaid ? (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowPaymentModal(true)}
+                    className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <CreditCard size={14} /> Pay Now ({usd(totalAmountNum)})
+                  </Button>
+                ) : null}
+              </>
             )}
           </div>
         </div>
@@ -776,9 +826,9 @@ export const CustomerOrderDetail: React.FC = () => {
           <section className={`${CARD_SECTION_SHADOW} space-y-4 overflow-hidden min-w-0`}>
             <h2 className="font-display text-base sm:text-lg font-bold mb-4">Order Lifecycle Status</h2>
             <Timeline
-              steps={BOOKING_FLOW}
+              steps={timelineSteps}
               current={currentTimelineStep}
-              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep)}
+              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid)}
             />
           </section>
 
@@ -792,7 +842,9 @@ export const CustomerOrderDetail: React.FC = () => {
                 className={`text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
                   isPartiallyRefunded || isRefunded
                     ? "bg-purple-500/10 text-purple-700 border border-purple-200"
-                    : isPaid
+                    : isPartiallyPaid && !isCompleted
+                    ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                    : isPaid || isCompleted
                     ? "bg-success-soft text-success border border-success/20"
                     : "bg-amber-500/10 text-amber-700 border border-amber-200"
                 }`}
@@ -801,7 +853,9 @@ export const CustomerOrderDetail: React.FC = () => {
                   ? "Partially Refunded"
                   : isRefunded
                   ? "Refunded"
-                  : isPaid
+                  : isPartiallyPaid && !isCompleted
+                  ? "Partially Paid"
+                  : isPaid || isCompleted
                   ? "Paid"
                   : "Pending"}
               </span>
@@ -838,6 +892,23 @@ export const CustomerOrderDetail: React.FC = () => {
                   {usd(isPaid && isPriceUpdated ? paidTotalAmount : (totalAmountNum > 0 ? totalAmountNum : subtotalNum))}
                 </span>
               </div>
+
+              {(isPartiallyPaid || (normalized.isPartialPayment && remainingBalanceNum > 0)) && (
+                <div className="rounded-lg bg-primary/5 border border-primary/20 p-2.5 space-y-1.5 mt-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-medium">Upfront Deposit ({normalized.partialPaymentPercentage || Math.round((initialPaymentAmountNum / totalAmountNum) * 100)}%):</span>
+                    <span className="font-bold text-foreground">{usd(initialPaymentAmountNum)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-medium">Remaining Balance:</span>
+                    <span className="font-bold text-primary">{usd(remainingBalanceNum)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs pt-1 border-t border-border/40">
+                    <span className="text-muted-foreground font-medium">Total Paid to Date:</span>
+                    <span className="font-bold text-foreground">{usd(totalPaidAmountNum)}</span>
+                  </div>
+                </div>
+              )}
             </dl>
 
             {/* Payment Details Box */}
@@ -848,6 +919,8 @@ export const CustomerOrderDetail: React.FC = () => {
                   className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
                     isPartiallyRefunded || isRefunded
                       ? "bg-purple-500/10 text-purple-700 border border-purple-200"
+                      : isPartiallyPaid
+                      ? "bg-purple-500/10 text-purple-700 border border-purple-200"
                       : isPaid
                       ? "bg-success-soft text-success"
                       : "bg-amber-500/10 text-amber-700"
@@ -857,11 +930,32 @@ export const CustomerOrderDetail: React.FC = () => {
                     ? "Partially Refunded"
                     : isRefunded
                     ? "Refunded"
+                    : isPartiallyPaid
+                    ? "Partially Paid"
                     : isPaid
                     ? "Paid (Success)"
                     : "Pending Payment"}
                 </span>
               </div>
+
+              {isPartiallyPaid && (
+                <>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                    <span>Deposit Status:</span>
+                    <span className="font-semibold text-success">Paid ({usd(initialPaymentAmountNum)})</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                    <span>Remaining Balance:</span>
+                    <span className="font-bold text-primary">{usd(remainingBalanceNum)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                    <span>Final Payment Stage:</span>
+                    <span className={`font-semibold ${isCompleted ? "text-success" : "text-amber-600"}`}>
+                      {isCompleted ? "Unlocked (Completed)" : "Awaiting Completion"}
+                    </span>
+                  </div>
+                </>
+              )}
 
               {isPaid && booking.payment?.payment_method_type && (
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
@@ -885,16 +979,45 @@ export const CustomerOrderDetail: React.FC = () => {
                   <span className="font-semibold text-foreground">{formattedPaymentDate}</span>
                 </div>
               )}
+
+              {normalized.finalPaymentDate && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border">
+                  <span>Final Payment Date:</span>
+                  <span className="font-semibold text-foreground">{formatDisplayDate(normalized.finalPaymentDate)}</span>
+                </div>
+              )}
             </div>
 
             {/* Pay Now Action Button if Payment Pending */}
             {!isPaid && !isCancelled && (
-              <Button
-                className="w-full gap-2 mt-2"
-                onClick={() => setShowPaymentModal(true)}
-              >
-                <CreditCard size={15} /> Complete Payment ({usd(totalAmountNum)})
-              </Button>
+              <>
+                {isPartiallyPaid && hasRemainingBalance ? (
+                  isCompleted ? (
+                    <Button
+                      className="w-full gap-2 mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
+                      onClick={() => setShowPaymentModal(true)}
+                    >
+                      <CreditCard size={15} /> Pay Remaining Balance ({usd(remainingBalanceNum)})
+                    </Button>
+                  ) : (
+                    <div className="rounded-xl border border-blue-200 bg-blue-500/10 p-3 mt-2 text-xs text-blue-900 dark:text-blue-200">
+                      <p className="font-semibold flex items-center gap-1.5">
+                        <Info size={14} className="text-blue-600 shrink-0" /> Balance due after completion
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Your upfront deposit of {usd(initialPaymentAmountNum)} is confirmed. The remaining balance of {usd(remainingBalanceNum)} will be payable after the service is marked Completed.
+                      </p>
+                    </div>
+                  )
+                ) : !isPartiallyPaid ? (
+                  <Button
+                    className="w-full gap-2 mt-2"
+                    onClick={() => setShowPaymentModal(true)}
+                  >
+                    <CreditCard size={15} /> Complete Payment ({usd(totalAmountNum)})
+                  </Button>
+                ) : null}
+              </>
             )}
           </section>
         </div>

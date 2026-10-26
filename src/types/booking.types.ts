@@ -36,6 +36,7 @@ export interface OfferedService {
   category_id?: number;
   price?: number | string;
   unit?: string;
+  partial_payment_percentage?: number;
 }
 
 export interface SelectedItem {
@@ -47,6 +48,7 @@ export interface SelectedItem {
   price: number | string;
   unit?: string;
   service_id?: number;
+  partial_payment_percentage?: number;
 }
 
 export interface CustomerBookingDetails {

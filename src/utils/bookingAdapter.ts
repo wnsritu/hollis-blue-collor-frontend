@@ -53,6 +53,14 @@ export interface NormalizedBooking {
   isPaid: boolean;
   isRefunded: boolean;
   isPartiallyRefunded: boolean;
+  isPartiallyPaid?: boolean;
+  isPartialPayment?: boolean;
+  partialPaymentPercentage?: number;
+  initialPaymentAmount?: number;
+  remainingBalance?: number;
+  totalPaidAmount?: number;
+  finalPaymentDate?: string | null;
+  finalPaymentIntentId?: string | null;
   paymentStatus: string;
   paymentDate: string | null;
   receiptUrl: string | null;
@@ -136,6 +144,14 @@ export function normalizeBooking(b: any): NormalizedBooking {
       isPaid: false,
       isRefunded: false,
       isPartiallyRefunded: false,
+      isPartiallyPaid: false,
+      isPartialPayment: false,
+      partialPaymentPercentage: 100,
+      initialPaymentAmount: 0,
+      remainingBalance: 0,
+      totalPaidAmount: 0,
+      finalPaymentDate: null,
+      finalPaymentIntentId: null,
       paymentStatus: "pending",
       paymentDate: null,
       receiptUrl: null,
@@ -324,13 +340,66 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const currency = b.pricing?.currency || b.payment?.currency || "USD";
 
   // Payment
-  const paymentStatus = b.payment?.payment_status || b.payment_status || "pending";
-  const normPayStatus = String(paymentStatus).toLowerCase();
-  const isRefunded = normPayStatus === "refunded";
-  const isPartiallyRefunded = normPayStatus === "partially_refunded" || normPayStatus === "partially refunded";
-  const isPaid = ["paid", "success", "succeeded", "completed", "refunded", "partially_refunded", "partially refunded"].includes(normPayStatus) || Boolean(b.paid);
+  const rootPayStatus = String(b.payment_status || "").toLowerCase().trim();
+  const paymentObjStatus = String(b.payment?.payment_status || b.payment?.status || "").toLowerCase().trim();
+
+  const partialPaymentPercentage = Number(
+    b.pricing?.partial_payment_percentage ??
+    b.partial_payment_percentage ??
+    100
+  );
+  const isPartialPayment = partialPaymentPercentage < 100;
+  const initialPaymentAmount = Number(
+    b.pricing?.initial_payment_amount ??
+    b.initial_payment_amount ??
+    (isPartialPayment ? Math.round(totalAmount * (partialPaymentPercentage / 100) * 100) / 100 : totalAmount)
+  );
+  const totalPaidAmount = Number(
+    b.pricing?.total_paid_amount ??
+    b.total_paid_amount ??
+    (rootPayStatus === "paid" ? totalAmount : (rootPayStatus === "partially_paid" ? initialPaymentAmount : 0))
+  );
+  const remainingBalance = Number(
+    b.pricing?.remaining_balance ??
+    b.remaining_balance ??
+    (rootPayStatus === "paid" ? 0 : (isPartialPayment ? Math.max(0, Math.round((totalAmount - totalPaidAmount) * 100) / 100) : 0))
+  );
+
+  const hasRemainingBalance = remainingBalance > 0.009;
+  const isRefunded = rootPayStatus === "refunded" || paymentObjStatus === "refunded";
+  const isPartiallyRefunded =
+    rootPayStatus === "partially_refunded" ||
+    rootPayStatus === "partially refunded" ||
+    paymentObjStatus === "partially_refunded" ||
+    paymentObjStatus === "partially refunded";
+
+  const isPartiallyPaid =
+    !isRefunded &&
+    !isPartiallyRefunded &&
+    (rootPayStatus === "partially_paid" ||
+      rootPayStatus === "partially paid" ||
+      paymentObjStatus === "partially_paid" ||
+      paymentObjStatus === "partially paid" ||
+      (hasRemainingBalance && (totalPaidAmount > 0 || initialPaymentAmount > 0)));
+
+  const isPaid =
+    (isCompleted && !hasRemainingBalance) ||
+    (!isPartiallyPaid && !isRefunded && (
+      ["paid", "succeeded", "completed"].includes(rootPayStatus) ||
+      (["paid", "success", "succeeded", "completed"].includes(paymentObjStatus) && !hasRemainingBalance) ||
+      (Boolean(b.paid) && !hasRemainingBalance)
+    ));
+
+  const paymentStatus = isPartiallyPaid
+    ? "partially_paid"
+    : isPaid
+    ? "paid"
+    : (rootPayStatus || paymentObjStatus || "pending");
+
   const paymentDate = b.payment?.payment_date || b.payment?.createdAt || b.payment_date || null;
   const receiptUrl = b.payment?.receipt_url || null;
+  const finalPaymentDate = b.final_payment_date || null;
+  const finalPaymentIntentId = b.final_payment_intent_id || null;
 
   // Booking Type & Quote
   const isCustom =
@@ -456,6 +525,14 @@ export function normalizeBooking(b: any): NormalizedBooking {
     isPaid,
     isRefunded,
     isPartiallyRefunded,
+    isPartiallyPaid,
+    isPartialPayment,
+    partialPaymentPercentage,
+    initialPaymentAmount,
+    remainingBalance,
+    totalPaidAmount,
+    finalPaymentDate,
+    finalPaymentIntentId,
     paymentStatus,
     paymentDate,
     receiptUrl,
@@ -470,10 +547,12 @@ export function normalizeBooking(b: any): NormalizedBooking {
     customerStatusLabel: getBookingStatusDisplay(appointmentStatus || status, "customer", {
       isPaid,
       isReviewed: Boolean(review),
+      isPartiallyPaid,
     }),
     providerStatusLabel: getBookingStatusDisplay(appointmentStatus || status, "provider", {
       isPaid,
       isReviewed: Boolean(review),
+      isPartiallyPaid,
     }),
     servicesList,
     reschedule,
@@ -490,7 +569,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
 export function getBookingStatusDisplay(
   apiStatus?: string | null,
   side: "customer" | "provider" = "customer",
-  options?: { isPaid?: boolean; isReviewed?: boolean }
+  options?: { isPaid?: boolean; isReviewed?: boolean; isPartiallyPaid?: boolean; isFullyCompletedAndPaid?: boolean }
 ): string {
   const s = (apiStatus || "").toLowerCase().trim();
 
@@ -520,15 +599,19 @@ export function getBookingStatusDisplay(
     return side === "provider" ? "Job Acceptance" : "Confirmed";
   }
 
-  // Paid
+  // Paid & Partially Paid
   if (s === "paid") {
     return "Paid";
+  }
+  if (["partially_paid", "partially paid"].includes(s)) {
+    return options?.isFullyCompletedAndPaid ? "Paid" : "Partially Paid";
   }
 
   // Initial Booking Request
   if (["requested", "pending", "pending review", "pending acceptance", "request received"].includes(s)) {
     if (side === "customer") {
-      return options?.isPaid ? "Paid" : "Pending Acceptance";
+      if (options?.isPartiallyPaid && !options?.isFullyCompletedAndPaid) return "Partially Paid";
+      return options?.isPaid || options?.isFullyCompletedAndPaid ? "Paid" : "Pending Acceptance";
     }
     return "Request Received";
   }
@@ -541,7 +624,9 @@ export function getBookingStatusDisplay(
   if (["no-show", "noshow"].includes(s)) return "No-show";
 
   // Fallback
-  return side === "provider" ? "Request Received" : (options?.isPaid ? "Paid" : "Pending Acceptance");
+  return side === "provider"
+    ? "Request Received"
+    : (options?.isPartiallyPaid && !options?.isFullyCompletedAndPaid ? "Partially Paid" : (options?.isPaid || options?.isFullyCompletedAndPaid ? "Paid" : "Pending Acceptance"));
 }
 
 /**
@@ -579,9 +664,12 @@ export function mapBookingToGeneric(
 export function getTimelineStep(
   rawStatus?: string | null,
   isPaid: boolean = false,
-  isReviewed: boolean = false
+  isReviewed: boolean = false,
+  isPartiallyPaid: boolean = false,
+  isFullyCompletedAndPaid: boolean = false
 ): string {
   const s = (rawStatus || "").toLowerCase().trim();
+  const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
 
   if (s === "reviewed" || isReviewed) return "Reviewed";
   if (["completed", "finished", "delivered", "work completed"].includes(s)) {
@@ -599,11 +687,12 @@ export function getTimelineStep(
   if (["confirmed", "accepted", "scheduled", "job accepted", "job acceptance"].includes(s)) {
     return "Confirmed";
   }
-  if (s === "paid") {
-    return "Paid";
+  if (s === "paid" || s === "partially_paid" || s === "partially paid") {
+    return paymentStep;
   }
   if (["requested", "pending", "pending review", "pending acceptance", "request received"].includes(s)) {
-    return isPaid ? "Paid" : "Pending Acceptance";
+    if (isPartiallyPaid && !isFullyCompletedAndPaid) return "Partially Paid";
+    return isPaid || isFullyCompletedAndPaid ? "Paid" : "Pending Acceptance";
   }
   return "Pending Acceptance";
 }

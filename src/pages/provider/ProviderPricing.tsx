@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Home, Save, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,11 @@ import { providerCompletionStore } from "@/store/providerCompletionStore";
 
 function unwrapData<T>(res: any): T {
   if (!res) return res;
-  return res.data !== undefined ? res.data : res;
+  let d = res.data !== undefined ? res.data : res;
+  if (d && typeof d === "object" && d.data !== undefined && !Array.isArray(d)) {
+    return d.data;
+  }
+  return d;
 }
 
 export default function ProviderPricing() {
@@ -26,6 +30,8 @@ export default function ProviderPricing() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [provider, setProvider] = useState<any>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [showAllSubcategories, setShowAllSubcategories] = useState<boolean>(false);
 
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
   const [pricingState, setPricingState] = useState<Record<string, ProviderServiceConfig>>({});
@@ -52,6 +58,37 @@ export default function ProviderPricing() {
 
       const pData = unwrapData<any>(meRes) || unwrapData<any>(userRes)?.provider;
       setProvider(pData);
+
+      // Resolve provider's primary category ID
+      const explicitCatId =
+        pData?.category_id || pData?.category?.id || pData?.sub_category?.category_id;
+      let initialCatId = "";
+      if (explicitCatId && Array.isArray(cats) && cats.some((c) => String(c.id) === String(explicitCatId))) {
+        initialCatId = String(explicitCatId);
+      } else if (Array.isArray(cats)) {
+        const subId = pData?.service_type_id || pData?.sub_category?.id;
+        if (subId) {
+          const match = cats.find((c) =>
+            c.service_types?.some((st) => String(st.id) === String(subId))
+          );
+          if (match) initialCatId = String(match.id);
+        }
+        if (!initialCatId && Array.isArray(pData?.service_types) && pData.service_types.length > 0) {
+          const sIds = pData.service_types.map((st: any) => String(st.id));
+          const match = cats.find((c) =>
+            c.service_types?.some((st) => sIds.includes(String(st.id)))
+          );
+          if (match) initialCatId = String(match.id);
+        }
+        if (!initialCatId && pData?.category?.name) {
+          const match = cats.find((c) => c.name === pData.category.name);
+          if (match) initialCatId = String(match.id);
+        }
+        if (!initialCatId && cats.length > 0) {
+          initialCatId = String(cats[0].id);
+        }
+      }
+      setSelectedCategoryId((prev) => prev || initialCatId);
 
       // Initialize accordion open states
       const initialOpen: Record<string, boolean> = {};
@@ -104,11 +141,16 @@ export default function ProviderPricing() {
                   : 0;
 
               const unitVal = savedConfig?.unit || (svc as any).unit || "flat rate";
+              const partialPct =
+                savedConfig?.partial_payment_percentage != null
+                  ? Number(savedConfig.partial_payment_percentage)
+                  : 100;
 
               const configObj: ProviderServiceConfig = {
                 price: priceVal,
                 offered: isOffered,
                 unit: unitVal,
+                partial_payment_percentage: partialPct,
               };
 
               initPricing[svcKey] = configObj;
@@ -131,27 +173,37 @@ export default function ProviderPricing() {
   }, [loadData]);
 
   // Selected Category & Subcategory
-  const parentCategoryObj =
-    categories.find((c) => String(c.id) === String(provider?.category_id || provider?.category?.id)) ||
-    categories.find((c) => c.name === provider?.category?.name) ||
-    categories[0];
+  const parentCategoryObj = useMemo(() => {
+    if (!categories.length) return null;
+    return categories.find((c) => String(c.id) === String(selectedCategoryId)) || categories[0];
+  }, [categories, selectedCategoryId]);
 
-  const selectedSubcategoryId =
-    provider?.service_type_id != null
-      ? String(provider.service_type_id)
-      : provider?.sub_category?.id != null
-      ? String(provider.sub_category.id)
-      : provider?.category?.service_types?.[0]?.id != null
-      ? String(provider.category.service_types[0].id)
-      : provider?.service_types?.[0]?.id != null
-      ? String(provider.service_types[0].id)
-      : null;
+  const selectedSubcategories = useMemo(() => {
+    if (!parentCategoryObj || !parentCategoryObj.service_types) return [];
 
-  const selectedSubcategories = parentCategoryObj?.service_types
-    ? selectedSubcategoryId
-      ? parentCategoryObj.service_types.filter((sub) => String(sub.id) === selectedSubcategoryId)
-      : [parentCategoryObj.service_types[0]].filter(Boolean)
-    : [];
+    // All subcategory IDs associated with this provider
+    const providerSubIds = new Set<string>();
+    if (provider?.service_type_id != null) providerSubIds.add(String(provider.service_type_id));
+    if (provider?.sub_category?.id != null) providerSubIds.add(String(provider.sub_category.id));
+    if (Array.isArray(provider?.service_types)) {
+      provider.service_types.forEach((st: any) => {
+        if (st?.id != null) providerSubIds.add(String(st.id));
+      });
+    }
+
+    // Match subcategories under the current active category
+    const registered = parentCategoryObj.service_types.filter((sub) =>
+      providerSubIds.has(String(sub.id))
+    );
+
+    // If provider has registered subcategories in this category and showAllSubcategories is false, show registered
+    if (!showAllSubcategories && registered.length > 0) {
+      return registered;
+    }
+
+    // Otherwise show all subcategories in the category so services are never hidden
+    return parentCategoryObj.service_types;
+  }, [parentCategoryObj, provider, showAllSubcategories]);
 
   const getConfig = (svcKey: string, defaultPrice = 100): ProviderServiceConfig => {
     return (
@@ -159,26 +211,33 @@ export default function ProviderPricing() {
         price: defaultPrice,
         offered: true,
         unit: "flat rate",
+        partial_payment_percentage: 100,
       }
     );
   };
 
-  const updateServiceConfig = (svcKey: string, patch: Partial<ProviderServiceConfig>) => {
-    setPricingState((prev) => ({
-      ...prev,
-      [svcKey]: {
-        ...getConfig(svcKey),
-        ...patch,
-      },
-    }));
+  const updateServiceConfig = (
+    svcKey: string,
+    patch: Partial<ProviderServiceConfig>,
+    svcName?: string
+  ) => {
+    setPricingState((prev) => {
+      const current = getConfig(svcKey);
+      const updated = { ...current, ...patch };
+      const next = { ...prev, [svcKey]: updated };
+      if (svcName) {
+        next[svcName] = updated;
+      }
+      return next;
+    });
   };
 
   const handleSavePricing = async () => {
     try {
       setSaving(true);
-      // Collect all service names where offered === true and map service_pricing object
+      // Collect all service names where offered === true and preserve existing pricingState
       const offeredServiceNames: string[] = [];
-      const servicePricingObj: Record<string, ProviderServiceConfig> = {};
+      const servicePricingObj: Record<string, ProviderServiceConfig> = { ...pricingState };
       const errors: Record<string, string> = {};
       let hasError = false;
 
@@ -189,10 +248,20 @@ export default function ProviderPricing() {
           const svcKey = String(svc.id || svc.name);
           const cfg = getConfig(svcKey);
           const nameKey = svc.name || svcKey;
-          servicePricingObj[nameKey] = cfg;
+          const configWithMeta: ProviderServiceConfig = {
+            ...cfg,
+            id: svc.id,
+            name: svc.name,
+            service_id: svc.id,
+            service_name: svc.name,
+          };
+          servicePricingObj[nameKey] = configWithMeta;
+          servicePricingObj[svcKey] = configWithMeta;
 
           if (cfg.offered) {
-            offeredServiceNames.push(svc.name);
+            if (!offeredServiceNames.includes(svc.name)) {
+              offeredServiceNames.push(svc.name);
+            }
             if (!cfg.price || Number(cfg.price) <= 0 || isNaN(Number(cfg.price))) {
               errors[svcKey] = "Price must be greater than 0";
               errors[svc.name] = "Price must be greater than 0";
@@ -200,6 +269,13 @@ export default function ProviderPricing() {
             }
           }
         });
+      });
+
+      // Preserve previously offered services from other categories in pricingState
+      Object.entries(servicePricingObj).forEach(([k, cfg]) => {
+        if (cfg.offered && !offeredServiceNames.includes(k) && isNaN(Number(k))) {
+          offeredServiceNames.push(k);
+        }
       });
 
       if (hasError) {
@@ -251,24 +327,69 @@ export default function ProviderPricing() {
       />
 
       {/* Selected Parent Category Badge Banner */}
-      <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 p-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">
+          <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold shrink-0">
             <Home size={20} />
           </span>
           <div>
             <p className="text-xs text-muted-foreground font-semibold">Service Category</p>
-            <h2 className="text-base font-extrabold text-foreground">{parentName}</h2>
+            {categories.length > 1 ? (
+              <div className="mt-1">
+                <Select
+                  value={String(parentCategoryObj?.id || "")}
+                  onValueChange={(val) => {
+                    setSelectedCategoryId(val);
+                    setShowAllSubcategories(true);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-sm font-extrabold bg-background border-border/80 text-foreground w-[220px]">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)} className="font-semibold text-xs">
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <h2 className="text-base font-extrabold text-foreground">{parentName}</h2>
+            )}
           </div>
         </div>
-        <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1">
-          1 Selected Subcategory ({selectedSubName})
-        </span>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {parentCategoryObj?.service_types && parentCategoryObj.service_types.length > 1 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAllSubcategories((prev) => !prev)}
+              className="text-xs h-8 px-3 font-semibold bg-background/80"
+            >
+              {showAllSubcategories ? "Show My Registered Area" : "View All Service Areas"}
+            </Button>
+          )}
+          <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1">
+            {selectedSubcategories.length} {selectedSubcategories.length === 1 ? "Selected Subcategory" : "Subcategories"}
+            {selectedSubcategories.length === 1 && ` (${selectedSubcategories[0]?.name})`}
+          </span>
+        </div>
       </div>
 
       {/* Accordion Subcategories List */}
       <div className="space-y-6">
-        {selectedSubcategories.map((sub) => {
+        {selectedSubcategories.length === 0 ? (
+          <Card className="p-10 text-center space-y-2 border-dashed">
+            <p className="text-base font-bold text-foreground">No subcategories found in this category.</p>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Please choose another service category from the dropdown above.
+            </p>
+          </Card>
+        ) : (
+          selectedSubcategories.map((sub) => {
           const isOpen = openAccordions[String(sub.id)] ?? true;
           const serviceItems = (sub.services || []).filter((svc: any) => svc.is_active !== false);
           return (
@@ -338,7 +459,7 @@ export default function ProviderPricing() {
                                   onCheckedChange={(checked) => {
                                     const currentPrice = config.price;
                                     const newPrice = checked && currentPrice <= 0 ? 50 : currentPrice;
-                                    updateServiceConfig(svcKey, { offered: checked, price: newPrice });
+                                    updateServiceConfig(svcKey, { offered: checked, price: newPrice }, svc.name);
                                     if (priceErrors[svcKey] || priceErrors[svc.name]) {
                                       setPriceErrors((prev) => {
                                         const next = { ...prev };
@@ -371,7 +492,7 @@ export default function ProviderPricing() {
                                           const valStr = e.target.value;
                                           const parsed = parseFloat(valStr);
                                           const newPrice = isNaN(parsed) ? 0 : parsed;
-                                          updateServiceConfig(svcKey, { price: newPrice });
+                                          updateServiceConfig(svcKey, { price: newPrice }, svc.name);
                                           if (newPrice > 0) {
                                             setPriceErrors((prev) => {
                                               const next = { ...prev };
@@ -399,7 +520,7 @@ export default function ProviderPricing() {
                                       <Select
                                         value={config.unit || "flat rate"}
                                         onValueChange={(val) =>
-                                          updateServiceConfig(svcKey, { unit: val })
+                                          updateServiceConfig(svcKey, { unit: val }, svc.name)
                                         }
                                       >
                                         <SelectTrigger className="h-9 w-28 text-xs font-semibold">
@@ -413,7 +534,44 @@ export default function ProviderPricing() {
                                         </SelectContent>
                                       </Select>
                                     </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs text-muted-foreground font-medium">•</span>
+                                      <Select
+                                        value={String(config.partial_payment_percentage ?? 100)}
+                                        onValueChange={(val) =>
+                                          updateServiceConfig(
+                                            svcKey,
+                                            {
+                                              partial_payment_percentage: Number(val),
+                                            },
+                                            svc.name
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-9 w-36 text-xs font-semibold">
+                                          <SelectValue placeholder="Deposit" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="100">100% (Full Pay)</SelectItem>
+                                          <SelectItem value="90">90% Deposit</SelectItem>
+                                          <SelectItem value="80">80% Deposit</SelectItem>
+                                          <SelectItem value="75">75% Deposit</SelectItem>
+                                          <SelectItem value="60">60% Deposit</SelectItem>
+                                          <SelectItem value="50">50% Deposit</SelectItem>
+                                          <SelectItem value="40">40% Deposit</SelectItem>
+                                          <SelectItem value="30">30% Deposit</SelectItem>
+                                          <SelectItem value="25">25% Deposit</SelectItem>
+                                          <SelectItem value="20">20% Deposit</SelectItem>
+                                          <SelectItem value="10">10% Deposit</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   </div>
+                                  {Number(config.partial_payment_percentage || 100) < 100 && Number(config.price || 0) > 0 && (
+                                    <p className="text-[11px] font-medium text-primary mt-0.5">
+                                      Deposit: ${((Number(config.price) * Number(config.partial_payment_percentage)) / 100).toFixed(2)} upfront • ${(Number(config.price) - (Number(config.price) * Number(config.partial_payment_percentage)) / 100).toFixed(2)} balance due on completion
+                                    </p>
+                                  )}
                                   {(priceErrors[svcKey] || priceErrors[svc.name]) && (
                                     <p className="text-[10px] font-semibold text-destructive mt-0.5">
                                       {priceErrors[svcKey] || priceErrors[svc.name]}
@@ -431,7 +589,8 @@ export default function ProviderPricing() {
               )}
             </Card>
           );
-        })}
+        })
+      )}
 
         {/* Bottom Save Action */}
         <div className="flex justify-end pt-4">

@@ -26,7 +26,10 @@ import { getMyPlan } from "@/services/provider";
 import toast from "react-hot-toast";
 import env from "@/config/env";
 
-const publishableKey = env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
+const publishableKey =
+  env.stripePublishableKey ||
+  import.meta.env.VITE_STRIPE_PUBLIC_KEY ||
+  "pk_test_51Nhu7gSIhBaXuOsFwsk4LbJxEgHwEVLpfP8oHlounJkXOYDxE1sjchWyaqNGmHqXIayMeyUG1H5HY5hvCBEmgDtH00Dft25tHb";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 export const CARD_ELEMENT_STYLE = {

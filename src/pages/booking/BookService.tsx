@@ -93,6 +93,11 @@ export default function BookService() {
     formattedPrices,
     selectedDateObj,
     unselectedServices,
+    partialPaymentPercentage,
+    isPartialPayment,
+    initialPaymentAmount,
+    remainingBalance,
+    amountDueNow,
     handleProceedToStep2,
     handleProceedToStep3,
     handleCreateBookingAndPay,
@@ -734,6 +739,16 @@ export default function BookService() {
                   taxAmount={taxAmount}
                   businessName={businessName}
                   submitting={submitting}
+                  paymentStage="initial"
+                  isPartialPayment={isPartialPayment}
+                  partialPaymentPercentage={partialPaymentPercentage}
+                  initialPaymentAmount={initialPaymentAmount}
+                  remainingBalance={remainingBalance}
+                  buttonText={
+                    isPartialPayment
+                      ? `Pay Deposit $${initialPaymentAmount.toFixed(2)} & Confirm Booking`
+                      : undefined
+                  }
                   onBack={() => setStep(1)}
                   onPaySuccess={() => {
                     toast.success("Payment confirmed! Your booking is complete.");
@@ -758,10 +773,12 @@ export default function BookService() {
                       delivery_address: `${details.address}, ${details.city}, ${details.zip}`,
                       notes: details.notes,
                       items: selectedItems.map((item) => ({
+                        id: item.id,
                         service_name: item.name,
                         quantity: item.qty,
                         price: item.price,
                         unit: item.unit,
+                        partial_payment_percentage: item.partial_payment_percentage,
                       })),
                     });
                     const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
@@ -846,8 +863,25 @@ export default function BookService() {
                 )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border/60">
                   <span>Total</span>
-                  <span className="text-primary text-base">{formattedPrices?.total || `$${grandTotal.toFixed(2)}`}</span>
+                  <span className={isPartialPayment ? "text-foreground text-base" : "text-primary text-base"}>
+                    {formattedPrices?.total || `$${grandTotal.toFixed(2)}`}
+                  </span>
                 </div>
+                {isPartialPayment && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-border/80 space-y-1.5 bg-primary/5 -mx-2 p-2 rounded">
+                    <div className="flex justify-between items-center text-xs font-semibold text-primary">
+                      <span>Upfront Deposit ({partialPaymentPercentage}%)</span>
+                      <span className="text-sm font-bold">${initialPaymentAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                      <span>Remaining Balance</span>
+                      <span className="font-medium text-foreground">${remainingBalance.toFixed(2)}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/80 leading-tight">
+                      Remaining balance will be due after the service is completed.
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

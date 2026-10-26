@@ -105,7 +105,7 @@ const ProviderOrderDetail = () => {
                     {order.customer?.email || "Not provided"}
                   </span>
                 </div>
-                {orderData?.pickup_address && orderData?.payment_status == "paid" && (
+                {orderData?.pickup_address && (orderData?.payment_status === "paid" || orderData?.payment_status === "partially_paid") && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t("address")}</span>
                     <span className="font-medium text-right">{orderData.pickup_address}</span>
@@ -200,12 +200,30 @@ const ProviderOrderDetail = () => {
                 className={`font-medium capitalize ${
                   order.payment_status === "paid"
                     ? "text-green-600"
+                    : order.payment_status === "partially_paid"
+                    ? "text-blue-600"
                     : "text-yellow-600"
                 }`}
               >
-                {order.payment_status || "pending"}
+                {order.payment_status === "partially_paid" ? "Partially Paid" : (order.payment_status || "pending")}
               </span>
             </div>
+            {order.payment_status === "partially_paid" && (
+              <>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Upfront Deposit Paid</span>
+                  <span className="font-semibold text-green-600">
+                    ${parseFloat(order.initial_payment_amount || order.total_paid_amount || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Remaining Balance</span>
+                  <span className="font-semibold text-blue-600">
+                    ${parseFloat(order.remaining_balance || 0).toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("total")}</span>
               <span className="font-bold text-foreground">
@@ -537,20 +555,23 @@ const ProviderOrderDetail = () => {
               let disabled = false;
               let tooltipMessage = "";
 
+              const isPaymentSufficient =
+                order?.payment_status === "paid" || order?.payment_status === "partially_paid";
+
               // Disable all buttons if delivered
               if (order?.status === "delivered") {
                 disabled = true;
                 tooltipMessage = "Booking already delivered";
               } 
-              // Accept step always enabled if payment done
+              // Accept step always enabled if payment done or deposit paid
               else if (step === "Accepted") {
-                if (order?.payment_status !== "paid") {
+                if (!isPaymentSufficient) {
                   disabled = false;
                   tooltipMessage = "Payment required";
                 }
               } 
               // Other steps disabled if payment not done or already completed
-              else if (order?.payment_status !== "paid") {
+              else if (!isPaymentSufficient) {
                 disabled = true;
                 tooltipMessage = "Payment required";
               } else if (isCompleted) {

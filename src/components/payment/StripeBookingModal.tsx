@@ -13,7 +13,9 @@ import env from "@/config/env";
 import { AlertCircle } from "lucide-react";
 
 const publishableKey =
-  env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
+  env.stripePublishableKey ||
+  import.meta.env.VITE_STRIPE_PUBLIC_KEY ||
+  "pk_test_51Nhu7gSIhBaXuOsFwsk4LbJxEgHwEVLpfP8oHlounJkXOYDxE1sjchWyaqNGmHqXIayMeyUG1H5HY5hvCBEmgDtH00Dft25tHb";
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 export interface StripePaymentModalData {
@@ -42,6 +44,11 @@ export interface StripePaymentModalData {
   createIntent?: () => Promise<{ clientSecret: string; paymentIntentId?: string }>;
   onConfirmPayment?: (paymentIntentId: string) => Promise<any>;
   secureFooterNote?: string;
+  paymentStage?: "initial" | "final";
+  partialPaymentPercentage?: number;
+  initialPaymentAmount?: number;
+  remainingBalance?: number;
+  isPartialPayment?: boolean;
 }
 
 export interface StripeBookingModalProps {
@@ -83,12 +90,32 @@ export default function StripeBookingModal({
   const taxAmount = Number(
     paymentData?.taxAmount ?? (rawBooking?.tax_amount || 0)
   );
+  const isFinalStage =
+    paymentData?.paymentStage === "final" ||
+    (!paymentData?.paymentStage &&
+      Boolean(
+        norm?.isPartiallyPaid &&
+        norm?.remainingBalance &&
+        norm.remainingBalance > 0 &&
+        norm?.isCompleted
+      ));
+
+  const effectivePaymentStage: "initial" | "final" | undefined =
+    paymentData?.paymentStage ||
+    (isFinalStage
+      ? "final"
+      : norm?.isPartialPayment
+      ? "initial"
+      : undefined);
+
   const grandTotal = Number(
     paymentData?.grandTotal ??
-      (norm?.totalAmount ||
-        rawBooking?.customer_payment_amount ||
-        rawBooking?.total_amount ||
-        subtotal + taxAmount)
+      (isFinalStage && norm?.remainingBalance && norm.remainingBalance > 0
+        ? norm.remainingBalance
+        : norm?.totalAmount ||
+          rawBooking?.customer_payment_amount ||
+          rawBooking?.total_amount ||
+          subtotal + taxAmount)
   );
 
   // Address & customer info for billing
@@ -126,9 +153,9 @@ export default function StripeBookingModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl p-6 sm:p-8 max-h-[92vh] overflow-y-auto">
-        <DialogHeader className={paymentData?.modalTitle ? "pb-2" : "sr-only"}>
+        <DialogHeader className={paymentData?.modalTitle || isFinalStage ? "pb-2" : "sr-only"}>
           <DialogTitle className="font-display text-xl font-bold text-foreground">
-            {paymentData?.modalTitle || "Payment Checkout"}
+            {paymentData?.modalTitle || (isFinalStage ? "Pay Remaining Balance" : "Payment Checkout")}
           </DialogTitle>
         </DialogHeader>
 
@@ -155,7 +182,12 @@ export default function StripeBookingModal({
               serviceFeeRate={serviceFeeRate}
               taxAmount={taxAmount}
               grandTotal={grandTotal}
-              buttonText={paymentData?.buttonText || "Pay & Confirm Booking"}
+              buttonText={
+                paymentData?.buttonText ||
+                (isFinalStage
+                  ? `Pay Remaining Balance ($${grandTotal.toFixed(2)})`
+                  : "Pay & Confirm Booking")
+              }
               platformName={paymentData?.platformName || "Service Connect"}
               paymentMethodTitle={paymentData?.paymentMethodTitle}
               paymentMethodSubtitle={paymentData?.paymentMethodSubtitle}
@@ -165,6 +197,11 @@ export default function StripeBookingModal({
               createIntent={paymentData?.createIntent}
               onConfirmPayment={paymentData?.onConfirmPayment}
               secureFooterNote={paymentData?.secureFooterNote}
+              paymentStage={effectivePaymentStage}
+              partialPaymentPercentage={paymentData?.partialPaymentPercentage ?? norm?.partialPaymentPercentage}
+              initialPaymentAmount={paymentData?.initialPaymentAmount ?? norm?.initialPaymentAmount}
+              remainingBalance={paymentData?.remainingBalance ?? norm?.remainingBalance}
+              isPartialPayment={paymentData?.isPartialPayment ?? norm?.isPartialPayment}
               details={{
                 name: customerName,
                 address: address,

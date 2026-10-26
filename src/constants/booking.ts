@@ -49,6 +49,23 @@ export const BOOKING_FLOW = [
   "Reviewed",
 ];
 
+export const getBookingFlow = (
+  isPartiallyPaid: boolean = false,
+  isFullyCompletedAndPaid: boolean = false
+): string[] => {
+  const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
+  return [
+    "Pending Acceptance",
+    paymentStep,
+    "Confirmed",
+    "En Route",
+    "Arrived at Site",
+    "In Progress",
+    "Completed",
+    "Reviewed",
+  ];
+};
+
 export const PROJECT_STEPS = [
   "Project Published",
   "Provider Matching",
@@ -60,11 +77,14 @@ export const PROJECT_STEPS = [
 
 export const getBookingTimelineStepStates = (
   isPaid: boolean,
-  currentStep?: string
+  currentStep?: string,
+  isPartiallyPaid: boolean = false,
+  isFullyCompletedAndPaid: boolean = false
 ): Record<string, import("@/types/components.types").TimelineStepState> => {
   const states: Record<string, import("@/types/components.types").TimelineStepState> = {};
-  if (isPaid) {
-    states["Paid"] = "done";
+  const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
+  if (isPaid || isPartiallyPaid) {
+    states[paymentStep] = "done";
   }
   return states;
 };

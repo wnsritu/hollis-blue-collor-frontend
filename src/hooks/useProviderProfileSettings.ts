@@ -303,9 +303,6 @@ export function useProviderProfileSettings() {
           ? String(provider.years_of_experience)
           : ""
       );
-      setCategoryId(
-        provider?.category_id != null ? String(provider.category_id) : ""
-      );
       const subId =
         provider?.service_type_id != null
           ? String(provider.service_type_id)
@@ -315,6 +312,18 @@ export function useProviderProfileSettings() {
           ? String(provider.service_types[0].id)
           : "";
       setSubcategoryId(subId);
+
+      const resolvedCatId =
+        provider?.category_id != null
+          ? String(provider.category_id)
+          : provider?.category?.id != null
+          ? String(provider.category.id)
+          : provider?.sub_category?.category_id != null
+          ? String(provider.sub_category.category_id)
+          : subId && Array.isArray(cats)
+          ? String(cats.find((c) => c.service_types?.some((st) => String(st.id) === subId))?.id || "")
+          : "";
+      setCategoryId(resolvedCatId);
 
       let initialServices: string[] = [];
       if (Array.isArray(provider?.offered_services) && provider.offered_services.length > 0) {

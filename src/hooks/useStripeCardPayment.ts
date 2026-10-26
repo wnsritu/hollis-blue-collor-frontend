@@ -22,7 +22,8 @@ import {
 // ─── Singleton Stripe Promise ─────────────────────────────────────────────────
 // Loaded once for the entire app lifetime; safe to share across panel uses.
 const publishableKey =
-  env.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLIC_KEY || "";
+  env.stripePublishableKey ||
+  import.meta.env.VITE_STRIPE_PUBLIC_KEY
 
 export const stripePromise: Promise<Stripe | null> = publishableKey
   ? loadStripe(publishableKey)

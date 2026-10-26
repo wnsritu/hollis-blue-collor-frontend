@@ -496,6 +496,8 @@ export const AdminOrders: React.FC = () => {
                         ? "bg-purple-500/10 text-purple-700 border-purple-300 font-bold"
                         : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
                         ? "bg-rose-500/10 text-rose-700 border-rose-300 font-bold"
+                        : selected.payment_status === "partially_paid" || selected.payment?.payment_status === "partially_paid"
+                        ? "bg-purple-500/10 text-purple-700 border-purple-300 font-bold"
                         : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
                         ? "bg-success-soft text-success border-success/20 font-bold"
                         : "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
@@ -505,6 +507,8 @@ export const AdminOrders: React.FC = () => {
                       ? "Partially Refunded"
                       : selected.payment_status === "refunded" || selected.payment?.payment_status === "refunded"
                       ? "Refunded"
+                      : selected.payment_status === "partially_paid" || selected.payment?.payment_status === "partially_paid"
+                      ? "Partially Paid"
                       : selected.payment_status === "paid" || selected.payment_status === "success" || selected.payment_status === "succeeded" || selected.payment?.payment_status === "success" || selected.payment?.payment_status === "paid"
                       ? "Paid"
                       : "Pending Payment"}
@@ -551,6 +555,30 @@ export const AdminOrders: React.FC = () => {
                       {usd(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0)}
                     </span>
                   </div>
+
+                  {/* Partial Payment Overview (if applicable) */}
+                  {(selected.partial_payment_percentage || selected.payment_status === "partially_paid" || Number(selected.remaining_balance) > 0) && (
+                    <div className="mt-2 rounded-lg border border-purple-200 bg-purple-500/5 p-2.5 space-y-1.5 text-xs">
+                      <div className="font-semibold text-foreground text-xs flex justify-between items-center">
+                        <span>Partial Payment Stage</span>
+                        <span className="text-purple-700 font-bold">
+                          {selected.partial_payment_percentage ? `${selected.partial_payment_percentage}% Initial Deposit` : "Partial Payment"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Upfront Deposit Paid</span>
+                        <span className="font-semibold text-foreground">{usd(Number(selected.initial_payment_amount || 0))}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Remaining Balance Due</span>
+                        <span className="font-bold text-primary">{usd(Number(selected.remaining_balance || 0))}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground pt-1 border-t border-purple-100">
+                        <span>Total Paid to Date</span>
+                        <span className="font-semibold text-foreground">{usd(Number(selected.total_paid_amount || selected.initial_payment_amount || 0))}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Admin Platform Revenue & Provider Distribution Section */}
                   {(() => {

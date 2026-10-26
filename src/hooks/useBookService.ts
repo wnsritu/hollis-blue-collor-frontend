@@ -102,21 +102,33 @@ export function useBookService() {
           let servicesList: OfferedService[] = [];
           if (provData.service_pricing) {
             try {
-              const pricingMap =
-                typeof provData.service_pricing === "string"
-                  ? JSON.parse(provData.service_pricing)
-                  : provData.service_pricing;
+              let pricingMap = provData.service_pricing;
+              while (typeof pricingMap === "string") {
+                try {
+                  pricingMap = JSON.parse(pricingMap);
+                } catch {
+                  break;
+                }
+              }
 
               if (pricingMap && typeof pricingMap === "object") {
+                const seen = new Set<string>();
                 servicesList = Object.entries(pricingMap)
-                  .filter(([_, config]: [string, any]) => config?.offered === true)
-                  .map(([name, config]: [string, any], idx) => ({
-                    id: `svc_${idx + 1}`,
-                    name,
-                    description: (config.description as string) || `${name} provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
-                    price: Number(config.price) || Number(provData.starting_price || provData.hourly_rate || 0),
-                    unit: (config.unit as string) || (provData.hourly_rate ? "per hour" : "flat rate"),
-                  }));
+                  .filter(([_, config]: [string, any]) => config?.offered === true && Number(config?.price || 0) > 0)
+                  .map(([key, config]: [string, any], idx) => {
+                    const resolvedName = config?.name || (isNaN(Number(key)) ? key : null);
+                    if (!resolvedName || seen.has(resolvedName.toLowerCase())) return null;
+                    seen.add(resolvedName.toLowerCase());
+                    return {
+                      id: `svc_${config?.id || idx + 1}`,
+                      name: resolvedName,
+                      description: (config.description as string) || `${resolvedName} provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                      price: Number(config.price) || Number(provData.starting_price || provData.hourly_rate || 0),
+                      unit: (config.unit as string) || (provData.hourly_rate ? "per hour" : "flat rate"),
+                      partial_payment_percentage: config.partial_payment_percentage != null ? Number(config.partial_payment_percentage) : 100,
+                    };
+                  })
+                  .filter(Boolean) as OfferedService[];
               }
             } catch (e) {
               console.error("Error parsing service_pricing:", e);
@@ -178,6 +190,7 @@ export function useBookService() {
                 price: initialSvc.price,
                 qty: 1,
                 unit: initialSvc.unit,
+                partial_payment_percentage: initialSvc.partial_payment_percentage,
               },
             ]);
           } else {
@@ -341,6 +354,7 @@ export function useBookService() {
           price: svc.price ?? 0,
           qty: 1,
           unit: svc.unit,
+          partial_payment_percentage: svc.partial_payment_percentage,
         },
       ];
     });
@@ -369,6 +383,7 @@ export function useBookService() {
             service_name: item.name,
             quantity: item.qty,
             price: item.price,
+            partial_payment_percentage: item.partial_payment_percentage,
           })),
         };
         const res: any = await bookingApi.calculatePrice(payload);
@@ -395,6 +410,27 @@ export function useBookService() {
   const platformFee = priceBreakdown?.platform_fee ?? 0;
   const taxAmount = priceBreakdown?.tax_amount ?? 0;
   const grandTotal = priceBreakdown?.customer_payment_amount ?? priceBreakdown?.total ?? Math.round((subtotal + taxAmount) * 100) / 100;
+
+  // Derive client fallback partial percentage from selected items
+  const itemsWithPartial = selectedItems.filter(
+    (i) => i.partial_payment_percentage != null && Number(i.partial_payment_percentage) < 100
+  );
+  const fallbackPartialPct =
+    itemsWithPartial.length > 0
+      ? Number(itemsWithPartial[0].partial_payment_percentage)
+      : 100;
+
+  const partialPaymentPercentage = Number(priceBreakdown?.partial_payment_percentage ?? fallbackPartialPct);
+  const isPartialPayment = Boolean(priceBreakdown?.is_partial_payment ?? (partialPaymentPercentage < 100));
+  const initialPaymentAmount = Number(
+    priceBreakdown?.initial_payment_amount ??
+    (isPartialPayment ? Math.round(grandTotal * (partialPaymentPercentage / 100) * 100) / 100 : grandTotal)
+  );
+  const remainingBalance = Number(
+    priceBreakdown?.remaining_balance ??
+    (isPartialPayment ? Math.max(0, Math.round((grandTotal - initialPaymentAmount) * 100) / 100) : 0)
+  );
+  const amountDueNow = isPartialPayment ? initialPaymentAmount : grandTotal;
   const formattedPrices = priceBreakdown?.formatted || null;
 
   const selectedDateObj = dates.find((d) => d.iso === selectedDate);
@@ -461,10 +497,12 @@ export function useBookService() {
         delivery_address: `${details.address}, ${details.city}, ${details.zip}`,
         notes: details.notes,
         items: selectedItems.map((item) => ({
+          id: item.id,
           service_name: item.name,
           quantity: item.qty,
           price: item.price,
           unit: item.unit,
+          partial_payment_percentage: item.partial_payment_percentage,
         })),
       };
 
@@ -526,6 +564,11 @@ export function useBookService() {
     platformFee,
     taxAmount,
     grandTotal,
+    partialPaymentPercentage,
+    isPartialPayment,
+    initialPaymentAmount,
+    remainingBalance,
+    amountDueNow,
     formattedPrices,
     priceBreakdown,
     selectedDateObj,

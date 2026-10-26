@@ -44,24 +44,9 @@ export function mapProviderToGeneric(p: any): GenericProvider {
   const subCatName = p.sub_category?.name || "";
 
   let servicesList: string[] = [];
-  if (p.service_pricing) {
-    try {
-      const pricingMap =
-        typeof p.service_pricing === "string"
-          ? JSON.parse(p.service_pricing)
-          : p.service_pricing;
-      if (pricingMap && typeof pricingMap === "object") {
-        servicesList = Object.entries(pricingMap)
-          .filter(([_, cfg]: [string, any]) => cfg?.offered === true)
-          .map(([name]) => name)
-          .filter(Boolean);
-      }
-    } catch {
-      // ignore
-    }
-  }
 
-  if (servicesList.length === 0 && p.offered_services) {
+  // 1. First priority: if offered_services has explicit service names
+  if (p.offered_services) {
     let rawOffered = p.offered_services;
     if (typeof rawOffered === "string") {
       try {
@@ -75,10 +60,33 @@ export function mapProviderToGeneric(p: any): GenericProvider {
         .map((item: any) =>
           typeof item === "string" ? item : item?.name || String(item)
         )
-        .filter(Boolean);
+        .filter((s: string) => s && isNaN(Number(s)));
     }
   }
 
+  // 2. Second priority / supplement: service_pricing entries with offered === true and valid names
+  if (p.service_pricing) {
+    try {
+      const pricingMap =
+        typeof p.service_pricing === "string"
+          ? JSON.parse(p.service_pricing)
+          : p.service_pricing;
+      if (pricingMap && typeof pricingMap === "object") {
+        Object.entries(pricingMap).forEach(([key, cfg]: [string, any]) => {
+          if (cfg?.offered === true) {
+            const svcName = cfg?.name || (isNaN(Number(key)) ? key : null);
+            if (svcName && !servicesList.includes(svcName)) {
+              servicesList.push(svcName);
+            }
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Fallback: service_types / subcategories
   if (
     servicesList.length === 0 &&
     Array.isArray(p.service_types) &&
@@ -86,7 +94,7 @@ export function mapProviderToGeneric(p: any): GenericProvider {
   ) {
     servicesList = p.service_types
       .map((st: any) => st?.name || st)
-      .filter(Boolean);
+      .filter((s: any) => Boolean(s) && isNaN(Number(s)));
   }
 
   let price: number | null = Number(p.starting_price) || null;
@@ -369,17 +377,26 @@ export function BookingCard({
     booking.kind === "item_based" ||
     (!booking.kind && !booking.requestKind);
 
-  const isPaid =
-    booking.isPaid ||
-    (booking.paymentStatus || "").toLowerCase() === "paid" ||
-    (booking.paymentStatus || "").toLowerCase() === "success" ||
-    (booking.paymentStatus || "").toLowerCase() === "succeeded" ||
-    booking.status === "Completed" ||
-    booking.status === "finished";
+  const normPayStatus = (booking.paymentStatus || "").toLowerCase();
+  const isCompletedJob = booking.status === "Completed" || booking.status === "finished";
+  const isPartiallyPaid =
+    !isCompletedJob &&
+    (normPayStatus === "partially_paid" ||
+      normPayStatus === "partially paid" ||
+      Boolean((booking as any).isPartiallyPaid));
 
-  const paymentText = isPaid
+  const isPaid =
+    isCompletedJob ||
+    (!isPartiallyPaid && (booking.isPaid ||
+      normPayStatus === "paid" ||
+      normPayStatus === "success" ||
+      normPayStatus === "succeeded"));
+
+  const paymentText = isPartiallyPaid
+    ? "Payment: Partially Paid"
+    : isPaid
     ? "Payment: Paid"
-    : (booking.paymentStatus || "").toLowerCase() === "escrow" || (booking.paymentStatus || "").toLowerCase() === "held"
+    : normPayStatus === "escrow" || normPayStatus === "held"
     ? "Payment: Escrow Held"
     : "Payment: Pending";
 

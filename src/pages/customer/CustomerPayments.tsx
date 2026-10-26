@@ -72,9 +72,14 @@ export const CustomerPayments: React.FC = () => {
 
   // Compute metrics
   const totalPaid = normalizedBookings.reduce((sum, b) => {
+    const pStat = (b.paymentStatus || "").toLowerCase();
+    const isPartiallyPaid = b.isPartiallyPaid || pStat === "partially_paid";
+    if (isPartiallyPaid) {
+      return sum + (b.totalPaidAmount || b.initialPaymentAmount || 0);
+    }
     const isPaid =
       b.isPaid ||
-      ["paid", "success", "succeeded", "completed"].includes((b.paymentStatus || "").toLowerCase()) ||
+      ["paid", "success", "succeeded", "completed"].includes(pStat) ||
       b.status === "Completed";
     return isPaid ? sum + (b.totalAmount || 0) : sum;
   }, 0);
@@ -220,6 +225,11 @@ export const CustomerPayments: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 font-semibold text-foreground">
                         ${price.toFixed(2)}
+                        {(b.isPartiallyPaid || pStat === "partially_paid") && (b.remainingBalance > 0 || (b.initialPaymentAmount && b.initialPaymentAmount < price)) && (
+                          <span className="block text-[11px] font-normal text-muted-foreground">
+                            Paid: ${Number(b.totalPaidAmount || b.initialPaymentAmount || 0).toFixed(2)} • Due: ${Number(b.remainingBalance || 0).toFixed(2)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         {pStat === "refunded" ? (
@@ -229,6 +239,10 @@ export const CustomerPayments: React.FC = () => {
                         ) : pStat === "partially_refunded" ? (
                           <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-purple-500/10 text-purple-600 border border-purple-200">
                             <ShieldCheck size={12} /> Partially Refunded
+                          </span>
+                        ) : b.isPartiallyPaid || pStat === "partially_paid" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-purple-500/10 text-purple-700 border border-purple-200">
+                            <ShieldCheck size={12} /> Partially Paid
                           </span>
                         ) : (b.status || "").toLowerCase() === "cancelled" && !isPaid ? (
                           <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-rose-500/10 text-rose-600 border border-rose-200">

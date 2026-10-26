@@ -195,26 +195,75 @@ export const ProviderProfile: React.FC = () => {
   }
 
   // Construct dynamic servicesList from parsed data
-  const servicesList: Array<{ name: string; price: number; unit: string }> = [];
+  const servicesList: Array<{ name: string; price: number; unit: string; partial_payment_percentage?: number }> = [];
+  const addedNames = new Set<string>();
 
   if (Array.isArray(offeredNames) && offeredNames.length > 0) {
     offeredNames.forEach((sItem: any) => {
       const sName = typeof sItem === "string" ? sItem : sItem.name || String(sItem);
-      const config = pricingMap[sName] || pricingMap[String(sItem.id || "")];
-      const price = config?.price !== undefined ? Number(config.price) : Number(sItem.price || sItem.amount || 0);
+      if (!sName || !isNaN(Number(sName))) return; // skip pure IDs
+
+      let config: any = pricingMap[sName] || pricingMap[String(sItem.id || "")];
+      if (!config) {
+        const found = Object.entries(pricingMap).find(
+          ([k, v]: [string, any]) =>
+            k.toLowerCase() === sName.toLowerCase() ||
+            (v?.name && String(v.name).toLowerCase() === sName.toLowerCase())
+        );
+        if (found) config = found[1];
+      }
+
+      // If matched config has offered: false, check if any other entry for this service has offered: true with price > 0
+      if (config && config.offered === false) {
+        const altEntry = Object.values(pricingMap).find(
+          (v: any) => (v?.name === sName || (v?.offered === true && Number(v?.price) > 0))
+        );
+        if (altEntry && (altEntry as any).offered) config = altEntry;
+      }
+
+      const price = config?.price !== undefined && Number(config.price) > 0
+        ? Number(config.price)
+        : Number(sItem.price || sItem.amount || 0);
       const unit = config?.unit || "flat rate";
+      const partialPct = config?.partial_payment_percentage != null ? Number(config.partial_payment_percentage) : 100;
       const offered = config?.offered !== undefined ? Boolean(config.offered) : true;
-      if (offered) {
-        servicesList.push({ name: sName, price, unit });
+
+      if (offered && !addedNames.has(sName.toLowerCase())) {
+        addedNames.add(sName.toLowerCase());
+        servicesList.push({ name: sName, price, unit, partial_payment_percentage: partialPct });
       }
     });
-  } else if (Object.keys(pricingMap).length > 0) {
-    Object.entries(pricingMap).forEach(([sName, cfg]) => {
-      if (cfg && cfg.offered !== false) {
+  }
+
+  // Also include any services in pricingMap marked offered: true not already present
+  if (Object.keys(pricingMap).length > 0) {
+    Object.entries(pricingMap).forEach(([k, cfg]: [string, any]) => {
+      if (cfg && cfg.offered === true && Number(cfg.price) > 0) {
+        const sName = cfg.name || (isNaN(Number(k)) ? k : null);
+        if (sName && !addedNames.has(sName.toLowerCase())) {
+          addedNames.add(sName.toLowerCase());
+          servicesList.push({
+            name: sName,
+            price: Number(cfg.price),
+            unit: cfg.unit || "flat rate",
+            partial_payment_percentage: cfg.partial_payment_percentage != null ? Number(cfg.partial_payment_percentage) : 100,
+          });
+        }
+      }
+    });
+  }
+
+  // Fallback: if provider has service_types, use them if servicesList is still empty
+  if (servicesList.length === 0 && Array.isArray(provider?.service_types) && provider.service_types.length > 0) {
+    provider.service_types.forEach((st: any) => {
+      const sName = st.name;
+      if (sName && !addedNames.has(sName.toLowerCase())) {
+        addedNames.add(sName.toLowerCase());
         servicesList.push({
           name: sName,
-          price: Number(cfg.price || 0),
-          unit: cfg.unit || "flat rate",
+          price: Number(st.amount || st.ProviderService?.amount || 0),
+          unit: "flat rate",
+          partial_payment_percentage: 100,
         });
       }
     });

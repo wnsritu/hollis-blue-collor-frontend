@@ -43,10 +43,12 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   verified: "success",
   reviewed: "success",
 
-  // Purple - Matching / AI leads
+  // Purple - Matching / AI leads / Partial payments
   matching: "purple",
   matched: "purple",
   lead: "purple",
+  partiallypaid: "purple",
+  partiallyrefunded: "purple",
 
   // Brand Blue - Proposals & Quotes & Open
   proposalsreceived: "brand",

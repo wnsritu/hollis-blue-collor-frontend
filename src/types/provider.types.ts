@@ -45,15 +45,19 @@ export interface BankForm {
 }
 
 export interface ProviderServiceConfig {
+  id?: number | string;
+  name?: string;
   price?: number;
   offered?: boolean;
   unit?: string;
-  service_id?: number;
+  service_id?: number | string;
   service_name?: string;
   category_id?: number;
   category_name?: string;
+  description?: string;
   is_active?: boolean;
   base_price?: number;
+  partial_payment_percentage?: number;
 }
 
 export interface ProviderLead {

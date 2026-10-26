@@ -24,22 +24,20 @@ const ProviderCard = ({
 
   let parsedServices: string[] = [];
   if (services) {
+    let rawList: any[] = [];
     if (Array.isArray(services)) {
-      parsedServices = services;
+      rawList = services;
     } else if (typeof services === "string") {
       try {
         const parsed = JSON.parse(services);
-        if (Array.isArray(parsed)) {
-          parsedServices = parsed;
-        } else {
-          parsedServices = [services];
-        }
+        rawList = Array.isArray(parsed) ? parsed : [services];
       } catch {
-        parsedServices = [services];
+        rawList = [services];
       }
-    } else {
-      parsedServices = [];
     }
+    parsedServices = rawList
+      .map((s) => (typeof s === "string" ? s : s?.name || String(s)))
+      .filter((s) => s && isNaN(Number(s)));
   }
 
   const isCleaningWizard = window.location.pathname.includes("/booking/cleaning");

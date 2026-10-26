@@ -31,6 +31,7 @@ export type CreatePaymentIntentPayload = {
   amount?: number;
   currency?: string;
   idempotency_key?: string;
+  payment_stage?: "initial" | "final" | string;
   [key: string]: unknown;
 };
 

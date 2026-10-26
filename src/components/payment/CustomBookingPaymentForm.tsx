@@ -76,6 +76,11 @@ export interface CustomBookingPaymentFormProps {
   summarySubtitle?: string;
   summaryItems?: Array<{ label: string; value: string | React.ReactNode; isMuted?: boolean }>;
   secureFooterNote?: string;
+  paymentStage?: "initial" | "final";
+  partialPaymentPercentage?: number;
+  initialPaymentAmount?: number;
+  remainingBalance?: number;
+  isPartialPayment?: boolean;
 }
 
 export default function CustomBookingPaymentForm({
@@ -103,6 +108,11 @@ export default function CustomBookingPaymentForm({
   summarySubtitle,
   summaryItems,
   secureFooterNote,
+  paymentStage,
+  partialPaymentPercentage = 100,
+  initialPaymentAmount,
+  remainingBalance,
+  isPartialPayment = false,
 }: CustomBookingPaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -246,7 +256,10 @@ export default function CustomBookingPaymentForm({
 
         // Initialize PaymentIntent on backend
         toast.loading("Initializing secure payment...", { id: "intent" });
-        const intentRes = await createPaymentIntent({ booking_id: resolvedBookingId });
+        const intentRes = await createPaymentIntent({
+          booking_id: resolvedBookingId,
+          payment_stage: paymentStage,
+        });
         toast.dismiss("intent");
 
         const intentData = intentRes?.data?.data;
@@ -374,9 +387,17 @@ export default function CustomBookingPaymentForm({
 
   const isDisabled = !stripe || isProcessing || submitting;
 
+  const effectiveDueAmount =
+    paymentStage === "final"
+      ? (remainingBalance ?? grandTotal)
+      : isPartialPayment && initialPaymentAmount != null
+      ? initialPaymentAmount
+      : grandTotal;
+
   const displayTotal =
-    formattedPrices?.total ||
-    (typeof grandTotal === "number" ? `$${grandTotal.toFixed(2)}` : `$${grandTotal}`);
+    formattedPrices?.total && !isPartialPayment && paymentStage !== "final"
+      ? formattedPrices.total
+      : (typeof effectiveDueAmount === "number" ? `$${effectiveDueAmount.toFixed(2)}` : `$${effectiveDueAmount}`);
 
   const displaySubtotal =
     formattedPrices?.subtotal ||
@@ -673,6 +694,29 @@ export default function CustomBookingPaymentForm({
                   </dd>
                 </div>
               ))
+            ) : isPartialPayment && paymentStage !== "final" ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-foreground">Total Service Amount</dt>
+                  <dd className="font-semibold text-foreground">
+                    ${grandTotal.toFixed(2)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-primary font-medium">
+                  <dt className="text-foreground">Initial Deposit ({partialPaymentPercentage}%)</dt>
+                  <dd className="font-bold text-primary">
+                    ${(initialPaymentAmount ?? effectiveDueAmount).toFixed(2)}
+                  </dd>
+                </div>
+                {remainingBalance != null && remainingBalance > 0 && (
+                  <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                    <dt>Remaining Balance (Post-Service)</dt>
+                    <dd className="font-medium text-foreground">
+                      ${remainingBalance.toFixed(2)}
+                    </dd>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="flex items-center justify-between gap-3">
@@ -696,7 +740,9 @@ export default function CustomBookingPaymentForm({
           <div className="my-4 border-t border-border/60" />
 
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-foreground">Total due</span>
+            <span className="font-semibold text-foreground">
+              {paymentStage === "final" ? "Final balance due" : isPartialPayment ? "Deposit due now" : "Total due"}
+            </span>
             <span className="font-display text-2xl font-bold text-foreground">
               {displayTotal}
             </span>
@@ -717,7 +763,13 @@ export default function CustomBookingPaymentForm({
               </>
             ) : (
               <>
-                <Lock size={16} /> {buttonText || "Pay & Confirm Booking"}
+                <Lock size={16} />{" "}
+                {buttonText ||
+                  (paymentStage === "final"
+                    ? `Pay Remaining Balance $${(typeof effectiveDueAmount === "number" ? effectiveDueAmount.toFixed(2) : effectiveDueAmount)}`
+                    : isPartialPayment
+                    ? `Pay Deposit $${(typeof effectiveDueAmount === "number" ? effectiveDueAmount.toFixed(2) : effectiveDueAmount)} & Confirm`
+                    : "Pay & Confirm Booking")}
               </>
             )}
           </Button>

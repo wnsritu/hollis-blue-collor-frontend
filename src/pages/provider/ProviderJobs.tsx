@@ -524,19 +524,33 @@ export function ProviderJobs() {
               (aptStatus === "Completed" || b.status === "finished" ? "paid" : "pending")
             ).toLowerCase();
 
+            const isCompletedJob = aptStatus === "Completed" || b.status === "finished";
+
+            const isPartiallyPaid =
+              !isCompletedJob &&
+              (paymentStatusRaw === "partially_paid" ||
+                paymentStatusRaw === "partially paid" ||
+                Number(b.remaining_balance) > 0.009);
+
             const isPaid =
-              paymentStatusRaw === "paid" ||
-              paymentStatusRaw === "succeeded" ||
-              paymentStatusRaw === "completed" ||
-              Boolean(b.paid);
+              isCompletedJob ||
+              (!isPartiallyPaid && (
+                paymentStatusRaw === "paid" ||
+                paymentStatusRaw === "succeeded" ||
+                paymentStatusRaw === "completed" ||
+                Boolean(b.paid)
+              ));
 
             const isPaymentCompleted =
               isPaid ||
+              isPartiallyPaid ||
               paymentStatusRaw === "escrow" ||
               paymentStatusRaw === "held" ||
               paymentStatusRaw === "authorized";
 
-            const paymentBadgeText = isPaid
+            const paymentBadgeText = isPartiallyPaid
+              ? "Payment: Partially Paid"
+              : isPaid
               ? "Payment: Paid"
               : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
                 ? "Payment: Escrow Held"
