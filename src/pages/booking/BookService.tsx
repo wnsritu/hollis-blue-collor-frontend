@@ -772,14 +772,18 @@ export default function BookService() {
                       pickup_address: `${details.address}, ${details.city}, ${details.zip}`,
                       delivery_address: `${details.address}, ${details.city}, ${details.zip}`,
                       notes: details.notes,
-                      items: selectedItems.map((item) => ({
-                        id: item.id,
-                        service_name: item.name,
-                        quantity: item.qty,
-                        price: item.price,
-                        unit: item.unit,
-                        partial_payment_percentage: item.partial_payment_percentage,
-                      })),
+                      items: selectedItems.map((item) => {
+                        const rawId = String(item.id || (item as any).service_id || "").replace(/^svc_/, "");
+                        const numId = Number(rawId);
+                        const validServiceId = !isNaN(numId) && numId > 0 ? numId : null;
+                        return {
+                          ...(validServiceId ? { service_id: validServiceId } : {}),
+                          service_name: item.name,
+                          quantity: item.qty,
+                          price: item.price,
+                          unit: item.unit || "item",
+                        };
+                      }),
                     });
                     const bookingData = res?.data?.data || res?.data?.booking || res?.data || res;
                     const bookingId =
