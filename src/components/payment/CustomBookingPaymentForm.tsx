@@ -81,6 +81,20 @@ export interface CustomBookingPaymentFormProps {
   initialPaymentAmount?: number;
   remainingBalance?: number;
   isPartialPayment?: boolean;
+  hasMixedPartialPercentages?: boolean;
+  uniformPartialPercentage?: number | null;
+  items?: Array<{
+    id?: string | number;
+    name?: string;
+    service_name?: string;
+    qty?: number;
+    quantity?: number;
+    price?: number;
+    unit_price?: number;
+    partial_payment_percentage?: number;
+    initial_payment_amount?: number;
+    remaining_balance?: number;
+  }>;
 }
 
 export default function CustomBookingPaymentForm({
@@ -113,6 +127,9 @@ export default function CustomBookingPaymentForm({
   initialPaymentAmount,
   remainingBalance,
   isPartialPayment = false,
+  hasMixedPartialPercentages = false,
+  uniformPartialPercentage,
+  items,
 }: CustomBookingPaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -696,6 +713,49 @@ export default function CustomBookingPaymentForm({
               ))
             ) : isPartialPayment && paymentStage !== "final" ? (
               <>
+                {/* Per-Service Itemized Breakdown */}
+                {items && items.length > 0 && (
+                  <div className="space-y-2 pb-3 mb-2 border-b border-border/60">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Service Deposit Breakdown
+                    </p>
+                    {items.map((it, idx) => {
+                      const itemName = it.name || it.service_name || "Service Item";
+                      const itemQty = it.qty || it.quantity || 1;
+                      const itemPrice = Number(it.price || it.unit_price || 0) * itemQty;
+                      const itemPct = it.partial_payment_percentage != null ? Number(it.partial_payment_percentage) : 100;
+                      const itemDeposit = it.initial_payment_amount != null
+                        ? Number(it.initial_payment_amount)
+                        : Math.round(itemPrice * (itemPct / 100) * 100) / 100;
+                      const itemRemaining = it.remaining_balance != null
+                        ? Number(it.remaining_balance)
+                        : Math.max(0, Math.round((itemPrice - itemDeposit) * 100) / 100);
+
+                      return (
+                        <div key={idx} className="space-y-0.5 text-xs">
+                          <div className="flex justify-between items-center text-foreground font-medium">
+                            <span className="truncate max-w-[210px]">{itemName} {itemQty > 1 && <span className="text-muted-foreground text-[11px]">(x{itemQty})</span>}</span>
+                            <span className="font-semibold">${itemPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                            {itemPct < 100 ? (
+                              <>
+                                <span className="text-primary font-medium">{itemPct}% Deposit: ${itemDeposit.toFixed(2)}</span>
+                                <span>Remaining: ${itemRemaining.toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-medium">100% Full Pay: ${itemDeposit.toFixed(2)}</span>
+                                <span>Remaining: $0.00</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3">
                   <dt className="text-foreground">Total Service Amount</dt>
                   <dd className="font-semibold text-foreground">
@@ -703,7 +763,11 @@ export default function CustomBookingPaymentForm({
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-primary font-medium">
-                  <dt className="text-foreground">Initial Deposit ({partialPaymentPercentage}%)</dt>
+                  <dt className="text-foreground">
+                    {hasMixedPartialPercentages || !uniformPartialPercentage
+                      ? "Total Upfront Deposit"
+                      : `Initial Deposit (${uniformPartialPercentage}%)`}
+                  </dt>
                   <dd className="font-bold text-primary">
                     ${(initialPaymentAmount ?? effectiveDueAmount).toFixed(2)}
                   </dd>

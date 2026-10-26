@@ -161,6 +161,7 @@ export interface ProposalSubmissionFormValues {
   proposedDate: string;
   proposedTimeSlot?: string;
   validDays: string;
+  partialPaymentPercentage?: string | number;
   lineItems: ProposalLineItem[];
 }
 
@@ -197,6 +198,12 @@ export const proposalSubmissionValidationSchema = Yup.object().shape({
     .min(1, "Validity must be at least 1 day")
     .max(90, "Validity cannot exceed 90 days")
     .required("Validity period is required"),
+
+  partialPaymentPercentage: Yup.number()
+    .typeError("Deposit percentage must be a number")
+    .min(1, "Deposit percentage must be between 1% and 100%")
+    .max(100, "Deposit percentage must be between 1% and 100%")
+    .optional(),
 
   lineItems: Yup.array()
     .of(

@@ -55,7 +55,8 @@ export interface NormalizedBooking {
   isPartiallyRefunded: boolean;
   isPartiallyPaid?: boolean;
   isPartialPayment?: boolean;
-  partialPaymentPercentage?: number;
+  hasMixedPartialPercentages?: boolean;
+  partialPaymentPercentage?: number | null;
   initialPaymentAmount?: number;
   remainingBalance?: number;
   totalPaidAmount?: number;
@@ -200,17 +201,35 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const isPriceUpdated = normalizedRaw === "price updated" || normalizedRaw === "price_updated";
 
   // Service Line items
-  const servicesList = Array.isArray(b.services)
+  const rawServices = Array.isArray(b.services)
     ? b.services
     : Array.isArray(b.items)
-    ? b.items.map((it: any) => ({
-        id: it.id,
-        name: it.custom_item_name || it.item_name || it.item?.name || it.name || "Service Item",
-        quantity: Number(it.quantity) || 1,
-        unit_price: Number(it.price || it.unit_price) || 0,
-        total: Number(it.total || (Number(it.price || it.unit_price || 0) * (Number(it.quantity) || 1))),
-      }))
+    ? b.items
     : [];
+
+  const servicesList = rawServices.map((it: any) => {
+    const unitPrice = Number(it.price || it.unit_price) || 0;
+    const qty = Number(it.quantity) || 1;
+    const total = Number(it.total ?? (unitPrice * qty));
+    const partialPct = it.partial_payment_percentage != null ? Number(it.partial_payment_percentage) : null;
+    const initialAmt = it.initial_payment_amount != null
+      ? Number(it.initial_payment_amount)
+      : (partialPct != null && partialPct < 100 ? Math.round(total * (partialPct / 100) * 100) / 100 : total);
+    const remBal = it.remaining_balance != null
+      ? Number(it.remaining_balance)
+      : Math.max(0, Math.round((total - initialAmt) * 100) / 100);
+
+    return {
+      id: it.id,
+      name: it.custom_item_name || it.item_name || it.item?.name || it.name || "Service Item",
+      quantity: qty,
+      unit_price: unitPrice,
+      total,
+      partial_payment_percentage: partialPct,
+      initial_payment_amount: initialAmt,
+      remaining_balance: remBal,
+    };
+  });
 
   // Service Title
   const projectTitle = b.project?.title || b.project_title || b.projectTitle;
@@ -343,16 +362,36 @@ export function normalizeBooking(b: any): NormalizedBooking {
   const rootPayStatus = String(b.payment_status || "").toLowerCase().trim();
   const paymentObjStatus = String(b.payment?.payment_status || b.payment?.status || "").toLowerCase().trim();
 
-  const partialPaymentPercentage = Number(
-    b.pricing?.partial_payment_percentage ??
-    b.partial_payment_percentage ??
-    100
+  const detectedMixed = new Set(servicesList.map((s: any) => Number(s.partial_payment_percentage ?? 100))).size > 1;
+  const hasMixedPartialPercentages = Boolean(
+    b.has_mixed_partial_percentages ||
+    b.pricing?.has_mixed_partial_percentages ||
+    detectedMixed
   );
-  const isPartialPayment = partialPaymentPercentage < 100;
+
+  const rawPartialPct = b.pricing?.partial_payment_percentage !== undefined
+    ? b.pricing.partial_payment_percentage
+    : b.partial_payment_percentage;
+
+  const partialPaymentPercentage = hasMixedPartialPercentages
+    ? null
+    : (rawPartialPct != null ? Number(rawPartialPct) : 100);
+
+  const isPartialPayment = Boolean(
+    hasMixedPartialPercentages ||
+    (partialPaymentPercentage != null && partialPaymentPercentage < 100) ||
+    b.is_partial_payment ||
+    b.pricing?.is_partial_payment
+  );
+
   const initialPaymentAmount = Number(
     b.pricing?.initial_payment_amount ??
     b.initial_payment_amount ??
-    (isPartialPayment ? Math.round(totalAmount * (partialPaymentPercentage / 100) * 100) / 100 : totalAmount)
+    (isPartialPayment
+      ? (partialPaymentPercentage != null
+          ? Math.round(totalAmount * (partialPaymentPercentage / 100) * 100) / 100
+          : totalAmount)
+      : totalAmount)
   );
   const totalPaidAmount = Number(
     b.pricing?.total_paid_amount ??
@@ -527,6 +566,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
     isPartiallyRefunded,
     isPartiallyPaid,
     isPartialPayment,
+    hasMixedPartialPercentages,
     partialPaymentPercentage,
     initialPaymentAmount,
     remainingBalance,

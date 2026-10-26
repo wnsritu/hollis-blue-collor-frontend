@@ -267,6 +267,12 @@ export default function ProviderPricing() {
               errors[svc.name] = "Price must be greater than 0";
               hasError = true;
             }
+            const depositPct = Number(cfg.partial_payment_percentage ?? 100);
+            if (isNaN(depositPct) || depositPct < 1 || depositPct > 100) {
+              errors[`${svcKey}_deposit`] = "Deposit must be between 1% and 100%";
+              errors[`${svc.name}_deposit`] = "Deposit must be between 1% and 100%";
+              hasError = true;
+            }
           }
         });
       });
@@ -536,35 +542,55 @@ export default function ProviderPricing() {
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                       <span className="text-xs text-muted-foreground font-medium">•</span>
-                                      <Select
-                                        value={String(config.partial_payment_percentage ?? 100)}
-                                        onValueChange={(val) =>
-                                          updateServiceConfig(
-                                            svcKey,
-                                            {
-                                              partial_payment_percentage: Number(val),
-                                            },
-                                            svc.name
-                                          )
-                                        }
-                                      >
-                                        <SelectTrigger className="h-9 w-36 text-xs font-semibold">
-                                          <SelectValue placeholder="Deposit" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="100">100% (Full Pay)</SelectItem>
-                                          <SelectItem value="90">90% Deposit</SelectItem>
-                                          <SelectItem value="80">80% Deposit</SelectItem>
-                                          <SelectItem value="75">75% Deposit</SelectItem>
-                                          <SelectItem value="60">60% Deposit</SelectItem>
-                                          <SelectItem value="50">50% Deposit</SelectItem>
-                                          <SelectItem value="40">40% Deposit</SelectItem>
-                                          <SelectItem value="30">30% Deposit</SelectItem>
-                                          <SelectItem value="25">25% Deposit</SelectItem>
-                                          <SelectItem value="20">20% Deposit</SelectItem>
-                                          <SelectItem value="10">10% Deposit</SelectItem>
-                                        </SelectContent>
-                                      </Select>
+                                      <div className="relative w-24">
+                                        <Input
+                                          type="text"
+                                          inputMode="numeric"
+                                          placeholder="100"
+                                          value={config.partial_payment_percentage != null ? String(config.partial_payment_percentage) : "100"}
+                                          onChange={(e) => {
+                                            // Only allow numeric digits, reject any character, symbol or space
+                                            const cleanVal = e.target.value.replace(/\D/g, "");
+                                            if (cleanVal === "") {
+                                              updateServiceConfig(
+                                                svcKey,
+                                                { partial_payment_percentage: "" as any },
+                                                svc.name
+                                              );
+                                              return;
+                                            }
+                                            let num = parseInt(cleanVal, 10);
+                                            if (num > 100) num = 100;
+                                            updateServiceConfig(
+                                              svcKey,
+                                              { partial_payment_percentage: num },
+                                              svc.name
+                                            );
+                                          }}
+                                          onBlur={(e) => {
+                                            const cleanVal = e.target.value.replace(/\D/g, "");
+                                            let num = parseInt(cleanVal, 10);
+                                            if (isNaN(num) || num < 1) num = 100;
+                                            if (num > 100) num = 100;
+                                            updateServiceConfig(
+                                              svcKey,
+                                              { partial_payment_percentage: num },
+                                              svc.name
+                                            );
+                                          }}
+                                          className={cn(
+                                            "pr-6 h-9 text-xs font-semibold text-right",
+                                            (priceErrors[`${svcKey}_deposit`] || priceErrors[`${svc.name}_deposit`]) &&
+                                              "border-destructive focus-visible:ring-destructive ring-1 ring-destructive"
+                                          )}
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                                          %
+                                        </span>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                                        {Number(config.partial_payment_percentage || 100) >= 100 ? "Full Pay" : "Deposit"}
+                                      </span>
                                     </div>
                                   </div>
                                   {Number(config.partial_payment_percentage || 100) < 100 && Number(config.price || 0) > 0 && (
@@ -575,6 +601,11 @@ export default function ProviderPricing() {
                                   {(priceErrors[svcKey] || priceErrors[svc.name]) && (
                                     <p className="text-[10px] font-semibold text-destructive mt-0.5">
                                       {priceErrors[svcKey] || priceErrors[svc.name]}
+                                    </p>
+                                  )}
+                                  {(priceErrors[`${svcKey}_deposit`] || priceErrors[`${svc.name}_deposit`]) && (
+                                    <p className="text-[10px] font-semibold text-destructive mt-0.5">
+                                      {priceErrors[`${svcKey}_deposit`] || priceErrors[`${svc.name}_deposit`]}
                                     </p>
                                   )}
                                 </div>

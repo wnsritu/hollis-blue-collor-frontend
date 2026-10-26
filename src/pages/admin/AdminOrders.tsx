@@ -562,7 +562,7 @@ export const AdminOrders: React.FC = () => {
                       <div className="font-semibold text-foreground text-xs flex justify-between items-center">
                         <span>Partial Payment Stage</span>
                         <span className="text-purple-700 font-bold">
-                          {selected.partial_payment_percentage ? `${selected.partial_payment_percentage}% Initial Deposit` : "Partial Payment"}
+                          {selected.partial_payment_percentage && !selected.has_mixed_partial_percentages ? `${selected.partial_payment_percentage}% Initial Deposit` : "Partial Payment"}
                         </span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">

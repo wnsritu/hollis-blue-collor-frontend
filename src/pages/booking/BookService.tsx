@@ -94,6 +94,8 @@ export default function BookService() {
     selectedDateObj,
     unselectedServices,
     partialPaymentPercentage,
+    hasMixedPartialPercentages,
+    uniformPartialPercentage,
     isPartialPayment,
     initialPaymentAmount,
     remainingBalance,
@@ -742,6 +744,9 @@ export default function BookService() {
                   paymentStage="initial"
                   isPartialPayment={isPartialPayment}
                   partialPaymentPercentage={partialPaymentPercentage}
+                  hasMixedPartialPercentages={hasMixedPartialPercentages}
+                  uniformPartialPercentage={uniformPartialPercentage}
+                  items={selectedItems}
                   initialPaymentAmount={initialPaymentAmount}
                   remainingBalance={remainingBalance}
                   buttonText={
@@ -818,18 +823,43 @@ export default function BookService() {
               </div>
 
               {/* Items List */}
-              <div className="space-y-2 text-xs">
+              <div className="space-y-2.5 text-xs">
                 {selectedItems.length === 0 ? (
                   <p className="text-muted-foreground italic">No items selected</p>
                 ) : (
-                  selectedItems.map((i) => (
-                    <div key={i.id} className="flex justify-between items-center">
-                      <TruncatedText as="span" className="text-foreground max-w-[190px]">
-                        {i.name} <span className="text-muted-foreground font-semibold">(x{i.qty})</span>
-                      </TruncatedText>
-                      <span className="font-semibold text-foreground">${Number(i.price) * (i.qty || 1)}</span>
-                    </div>
-                  ))
+                  selectedItems.map((i) => {
+                    const itemQty = i.qty || 1;
+                    const itemPrice = Number(i.price || 0) * itemQty;
+                    const itemPct = i.partial_payment_percentage != null ? Number(i.partial_payment_percentage) : 100;
+                    const itemDeposit = Math.round(itemPrice * (itemPct / 100) * 100) / 100;
+                    const itemRemaining = Math.max(0, Math.round((itemPrice - itemDeposit) * 100) / 100);
+
+                    return (
+                      <div key={i.id} className="space-y-0.5">
+                        <div className="flex justify-between items-center">
+                          <TruncatedText as="span" className="text-foreground font-medium max-w-[190px]">
+                            {i.name} <span className="text-muted-foreground font-semibold">(x{itemQty})</span>
+                          </TruncatedText>
+                          <span className="font-semibold text-foreground">${itemPrice.toFixed(2)}</span>
+                        </div>
+                        {isPartialPayment && (
+                          <div className="flex justify-between items-center text-[11px] text-muted-foreground pl-0.5">
+                            {itemPct < 100 ? (
+                              <>
+                                <span className="text-primary font-medium">{itemPct}% Deposit: ${itemDeposit.toFixed(2)}</span>
+                                <span>Remaining: ${itemRemaining.toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-medium">100% Full Pay: ${itemDeposit.toFixed(2)}</span>
+                                <span>Remaining: $0.00</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
@@ -874,7 +904,11 @@ export default function BookService() {
                 {isPartialPayment && (
                   <div className="mt-2 pt-2 border-t border-dashed border-border/80 space-y-1.5 bg-primary/5 -mx-2 p-2 rounded">
                     <div className="flex justify-between items-center text-xs font-semibold text-primary">
-                      <span>Upfront Deposit ({partialPaymentPercentage}%)</span>
+                      <span>
+                        {hasMixedPartialPercentages || !uniformPartialPercentage
+                          ? "Total Upfront Deposit"
+                          : `Upfront Deposit (${uniformPartialPercentage}%)`}
+                      </span>
                       <span className="text-sm font-bold">${initialPaymentAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[11px] text-muted-foreground">
