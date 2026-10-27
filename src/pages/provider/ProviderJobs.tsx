@@ -428,10 +428,29 @@ export function ProviderJobs() {
             const n = normalizeBooking(b);
             const isFixed = !n.isCustom;
             const price = Number(n.totalAmount ?? b.pricing?.customer_total ?? b.pricing?.total ?? b.total_amount ?? 0);
-            const commissionRate = Number(b.payment?.commission_rate ?? b.pricing?.commission_rate ?? b.pricing?.service_fee_rate ?? 10);
-            const serviceFee = Number(b.payment?.commission_amount ?? b.pricing?.commission_amount ?? (b.pricing?.service_fee && b.pricing.service_fee > 0 ? b.pricing.service_fee : Math.round(((price * commissionRate) / 100) * 100) / 100));
-            const platformFee = Number(b.payment?.platform_fee_amount ?? b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? 0);
-            const providerPayable = Number(b.payment?.provider_amount ?? b.pricing?.provider_amount ?? Math.max(0, price - serviceFee - platformFee));
+            const commissionRate = Number(b.pricing?.commission_rate ?? b.payment?.commission_rate ?? b.pricing?.service_fee_rate ?? 10);
+            const platformFee = Number(b.pricing?.platform_fee_amount ?? b.pricing?.platform_fee ?? b.payment?.platform_fee_amount ?? 0);
+
+            const paymentsList: any[] = Array.isArray(b.payments) && b.payments.length > 0
+              ? b.payments
+              : (b.payment ? [b.payment] : []);
+            const successfulPayments = paymentsList.filter(
+              (p: any) => p && (p.status === "success" || p.status === "succeeded")
+            );
+
+            const calculatedFee = Math.round(((price * commissionRate) / 100) * 100) / 100;
+            const calculatedPayable = Math.max(0, Math.round((price - calculatedFee - platformFee) * 100) / 100);
+
+            let serviceFee = Number(b.pricing?.commission_amount ?? calculatedFee);
+            let providerPayable = Number(b.pricing?.provider_amount ?? calculatedPayable);
+
+            if (successfulPayments.length > 1) {
+              serviceFee = Math.round(successfulPayments.reduce((s: number, p: any) => s + Number(p.commission_amount || 0), 0) * 100) / 100;
+              providerPayable = Math.round(successfulPayments.reduce((s: number, p: any) => s + Number(p.provider_amount || 0), 0) * 100) / 100;
+            } else if (successfulPayments.length === 1 && Math.abs(Number(successfulPayments[0].amount || 0) - price) < 0.01) {
+              serviceFee = Number(successfulPayments[0].commission_amount ?? calculatedFee);
+              providerPayable = Number(successfulPayments[0].provider_amount ?? calculatedPayable);
+            }
 
             const aptStatus = n.appointmentStatus;
             const isPriceUpdated = n.isPriceUpdated;
@@ -530,7 +549,7 @@ export function ProviderJobs() {
               !isCompletedJob &&
               (paymentStatusRaw === "partially_paid" ||
                 paymentStatusRaw === "partially paid" ||
-                Number(b.remaining_balance) > 0.009);
+                (Number(b.remaining_balance) > 0.009 && Number(b.total_paid_amount) > 0));
 
             const isPaid =
               isCompletedJob ||

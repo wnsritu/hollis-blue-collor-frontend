@@ -419,7 +419,7 @@ export function normalizeBooking(b: any): NormalizedBooking {
       rootPayStatus === "partially paid" ||
       paymentObjStatus === "partially_paid" ||
       paymentObjStatus === "partially paid" ||
-      (hasRemainingBalance && (totalPaidAmount > 0 || initialPaymentAmount > 0)));
+      (hasRemainingBalance && totalPaidAmount > 0));
 
   const isPaid =
     (isCompleted && !hasRemainingBalance) ||
@@ -643,7 +643,7 @@ export function getBookingStatusDisplay(
   if (s === "paid") {
     return "Paid";
   }
-  if (["partially_paid", "partially paid"].includes(s)) {
+  if (["partially_paid", "partially paid", "partial_paid", "partial paid"].includes(s)) {
     return options?.isFullyCompletedAndPaid ? "Paid" : "Partially Paid";
   }
 
@@ -706,12 +706,40 @@ export function getTimelineStep(
   isPaid: boolean = false,
   isReviewed: boolean = false,
   isPartiallyPaid: boolean = false,
-  isFullyCompletedAndPaid: boolean = false
+  isFullyCompletedAndPaid: boolean = false,
+  isCustomOrPartial: boolean = false
 ): string {
   const s = (rawStatus || "").toLowerCase().trim();
-  const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
 
   if (s === "reviewed" || isReviewed) return "Reviewed";
+
+  if (isCustomOrPartial) {
+    if (isPaid || isFullyCompletedAndPaid) {
+      return "Paid";
+    }
+    if (["completed", "finished", "delivered", "work completed"].includes(s)) {
+      return "Completed";
+    }
+    if (["in_progress", "in progress", "in_process", "in process"].includes(s)) {
+      return "In Progress";
+    }
+    if (["arrived", "arrived at site"].includes(s)) {
+      return "Arrived at Site";
+    }
+    if (["en route", "en_route"].includes(s)) {
+      return "En Route";
+    }
+    if (["confirmed", "accepted", "scheduled", "job accepted", "job acceptance"].includes(s)) {
+      return "Confirmed";
+    }
+    if (s === "partially_paid" || s === "partially paid" || s === "partial paid" || isPartiallyPaid) {
+      return "Partial Paid";
+    }
+    return "Pending Acceptance";
+  }
+
+  const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
+
   if (["completed", "finished", "delivered", "work completed"].includes(s)) {
     return isReviewed ? "Reviewed" : "Completed";
   }

@@ -89,8 +89,8 @@ export interface CustomBookingPaymentFormProps {
     service_name?: string;
     qty?: number;
     quantity?: number;
-    price?: number;
-    unit_price?: number;
+    price?: number | string;
+    unit_price?: number | string;
     partial_payment_percentage?: number;
     initial_payment_amount?: number;
     remaining_balance?: number;

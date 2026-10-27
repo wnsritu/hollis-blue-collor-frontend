@@ -583,10 +583,29 @@ export const AdminOrders: React.FC = () => {
                   {/* Admin Platform Revenue & Provider Distribution Section */}
                   {(() => {
                     const custTotal = Number(selected.pricing?.customer_total || selected.pricing?.total || selected.total_amount || 0);
-                    const commRate = Number(selected.payment?.commission_rate ?? selected.pricing?.commission_rate ?? selected.pricing?.service_fee_rate ?? 0);
-                    const commAmt = Number(selected.payment?.commission_amount ?? selected.pricing?.commission_amount ?? selected.pricing?.service_fee ?? Math.round(((custTotal * commRate) / 100) * 100) / 100);
-                    const platFee = Number(selected.payment?.platform_fee_amount ?? selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? 0);
-                    const provAmt = Number(selected.payment?.provider_amount ?? selected.pricing?.provider_amount ?? Math.max(0, custTotal - commAmt - platFee));
+                    const commRate = Number(selected.pricing?.commission_rate ?? selected.payment?.commission_rate ?? selected.pricing?.service_fee_rate ?? 0);
+                    const platFee = Number(selected.pricing?.platform_fee_amount ?? selected.pricing?.platform_fee ?? selected.payment?.platform_fee_amount ?? 0);
+
+                    const paymentsList: any[] = Array.isArray(selected.payments) && selected.payments.length > 0
+                      ? selected.payments
+                      : (selected.payment ? [selected.payment] : []);
+                    const successfulPayments = paymentsList.filter(
+                      (p: any) => p && (p.status === "success" || p.status === "succeeded")
+                    );
+
+                    const calculatedComm = Math.round(((custTotal * commRate) / 100) * 100) / 100;
+                    const calculatedProv = Math.max(0, Math.round((custTotal - calculatedComm - platFee) * 100) / 100);
+
+                    let commAmt = Number(selected.pricing?.commission_amount ?? calculatedComm);
+                    let provAmt = Number(selected.pricing?.provider_amount ?? calculatedProv);
+
+                    if (successfulPayments.length > 1) {
+                      commAmt = Math.round(successfulPayments.reduce((s: number, p: any) => s + Number(p.commission_amount || 0), 0) * 100) / 100;
+                      provAmt = Math.round(successfulPayments.reduce((s: number, p: any) => s + Number(p.provider_amount || 0), 0) * 100) / 100;
+                    } else if (successfulPayments.length === 1 && Math.abs(Number(successfulPayments[0].amount || 0) - custTotal) < 0.01) {
+                      commAmt = Number(successfulPayments[0].commission_amount ?? calculatedComm);
+                      provAmt = Number(successfulPayments[0].provider_amount ?? calculatedProv);
+                    }
 
                     return (
                       <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2 text-xs">

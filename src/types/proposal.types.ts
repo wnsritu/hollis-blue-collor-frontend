@@ -10,6 +10,7 @@ export interface CustomQuoteFormValues {
   expires: string;
   proposedDate?: string;
   proposedTimeSlot?: string;
+  partialPaymentPercentage?: number | "";
 }
 
 export interface CustomQuoteCalculation {
@@ -41,5 +42,6 @@ export interface CustomQuoteSubmitPayload {
   proposed_time_slot_id?: number | string | null;
   time_slot_name?: string;
   valid_until?: string;
+  partial_payment_percentage?: number;
   line_items: CustomQuoteLineItem[];
 }

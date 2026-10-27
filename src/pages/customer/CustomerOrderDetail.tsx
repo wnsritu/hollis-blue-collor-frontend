@@ -245,15 +245,16 @@ export const CustomerOrderDetail: React.FC = () => {
         : 0)
   );
   const hasRemainingBalance = remainingBalanceNum > 0.009;
-  const isFullyCompletedAndPaid = isCompleted || reviewed;
+  const isFullyCompletedAndPaid = (isCompleted || reviewed) && isPaid;
+  const isCustomOrPartial = Boolean(normalized.isCustom || normalized.isPartialPayment || isPartiallyPaid);
   const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
     isPaid: isPaid || isCompleted,
     isReviewed: reviewed,
     isPartiallyPaid: isPartiallyPaid && !isCompleted,
     isFullyCompletedAndPaid,
   });
-  const timelineSteps = getBookingFlow(isPartiallyPaid, isFullyCompletedAndPaid);
-  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed, isPartiallyPaid, isFullyCompletedAndPaid);
+  const timelineSteps = getBookingFlow(isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial);
+  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial);
 
   const serviceName = normalized.serviceName;
   const categoryName = normalized.categoryName;
@@ -398,7 +399,11 @@ export const CustomerOrderDetail: React.FC = () => {
                     }`}
                 >
                   <DollarSign size={13} />
-                  {isDisplayPaid ? "Payment: Paid" : "Payment: Pending"}
+                  {isDisplayPaid
+                    ? "Payment: Paid"
+                    : normalized.isPartialPayment && initialPaymentAmountNum > 0 && initialPaymentAmountNum < totalAmountNum
+                    ? `Payment: Deposit Pending (${usd(initialPaymentAmountNum)} due)`
+                    : "Payment: Pending"}
                 </span>
               );
             })()}
@@ -431,7 +436,10 @@ export const CustomerOrderDetail: React.FC = () => {
                     onClick={() => setShowPaymentModal(true)}
                     className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    <CreditCard size={14} /> Pay Now ({usd(totalAmountNum)})
+                    <CreditCard size={14} />{" "}
+                    {normalized.isPartialPayment && initialPaymentAmountNum > 0 && initialPaymentAmountNum < totalAmountNum
+                      ? `Pay Deposit (${usd(initialPaymentAmountNum)})`
+                      : `Pay Now (${usd(totalAmountNum)})`}
                   </Button>
                 ) : null}
               </>
@@ -863,7 +871,7 @@ export const CustomerOrderDetail: React.FC = () => {
             <Timeline
               steps={timelineSteps}
               current={currentTimelineStep}
-              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid)}
+              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial)}
             />
           </section>
 

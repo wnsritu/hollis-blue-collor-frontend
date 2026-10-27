@@ -74,6 +74,13 @@ export const customQuoteValidationSchema = Yup.object().shape({
       if (!proposedDate || !val) return true;
       return !isSlotEarlierThanNow(proposedDate, val);
     }),
+
+  partialPaymentPercentage: Yup.number()
+    .typeError("Advance percentage must be a number")
+    .min(1, "Advance payment must be at least 1%")
+    .max(100, "Advance payment cannot exceed 100%")
+    .optional()
+    .nullable(),
 });
 
 export type CustomQuoteValidationSchema = typeof customQuoteValidationSchema;
