@@ -26,6 +26,7 @@ export const ENDPOINTS = {
     saveFcmToken: "/auth/save-fcm-token",
     removeFcmToken: "/auth/remove-fcm-token",
     checkEmail: "/auth/check-email",
+    legalPolicies: "/auth/legal-policies",
   },
 
 

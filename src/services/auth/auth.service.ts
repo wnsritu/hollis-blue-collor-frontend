@@ -232,5 +232,13 @@ export const authApi = {
 
   resetPassword: (payload: any) =>
     http.post<any>(ENDPOINTS.auth.resetPassword, payload),
+
+  getLegalPolicies: () =>
+    http.get<any>(ENDPOINTS.auth.legalPolicies),
+};
+
+export const getLegalPolicies = async () => {
+  const res = await apiClient.get(ENDPOINTS.auth.legalPolicies);
+  return res.data;
 };
 

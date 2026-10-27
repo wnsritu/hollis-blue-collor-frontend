@@ -15,6 +15,8 @@ export const ROUTES = {
   BOOKING_DETAIL: "/booking/:id",
   CHECKOUT: "/checkout",
   RATING: "/rating/:id",
+  TERMS: "/terms",
+  PRIVACY: "/privacy",
 
   // Customer Protected
   CUSTOMER_DASHBOARD: "/dashboard",
@@ -70,6 +72,8 @@ export const ROUTES = {
   ADMIN_PROFILE: "/admin/profile",
   ADMIN_SUPPORT_AGENTS: "/admin/support-agents",
   ADMIN_SETTINGS: "/admin/settings",
+  ADMIN_TERMS: "/admin/terms",
+  ADMIN_PRIVACY: "/admin/privacy-policy",
   ADMIN_AUDIT_LOGS: "/admin/audit-logs",
 
 

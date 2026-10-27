@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   MessageSquare,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { getMyProfile } from "@/services/user.service";
@@ -49,6 +50,8 @@ const adminNav: NavItem[] = [
   { label: "Reports", to: "/admin/reports", icon: Gauge },
   // { label: "Support Agents", to: "/admin/support-agents", icon: ShieldCheck },
   { label: "Platform Settings", to: "/admin/settings", icon: Settings },
+  { label: "Terms & Conditions", to: "/admin/terms", icon: FileText },
+  { label: "Privacy Policy", to: "/admin/privacy-policy", icon: ShieldCheck },
   { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
 ];
 

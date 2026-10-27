@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Building2, Check, Eye, EyeOff, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/shared/primitives";
 import { AuthAside } from "@/components/shared/AuthAside";
+import { LegalPolicyModal } from "@/components/shared/LegalPolicyModal";
 import { useSignUpForm, PROVIDER_SIGNUP_DRAFT_KEY } from "@/hooks/useSignUpForm";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { ProviderSignupDraft } from "@/types/auth.types";
@@ -47,6 +49,9 @@ export function SignUp() {
     setShowConfirmPassword,
     handleSubmit,
   } = useSignUpForm();
+
+  const [policyModalOpen, setPolicyModalOpen] = useState(false);
+  const [policyModalTab, setPolicyModalTab] = useState<"terms" | "privacy">("terms");
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -275,16 +280,43 @@ export function SignUp() {
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
 
             <div>
-              <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+              <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
                 <Checkbox
+                  id="agree-checkbox"
                   checked={agree}
                   onCheckedChange={(v) => setAgree(v === true)}
-                  className="mt-0.5"
+                  className="mt-0.5 shrink-0"
                 />
-                <span>{t("agreeTerms", "I agree to the Terms of Service and Privacy Policy")}</span>
-              </label>
+                <label htmlFor="agree-checkbox" className="leading-snug select-none text-muted-foreground">
+                  <span>I agree to the </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPolicyModalTab("terms");
+                      setPolicyModalOpen(true);
+                    }}
+                    className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                  >
+                    Terms of Service
+                  </button>
+                  <span> and </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPolicyModalTab("privacy");
+                      setPolicyModalOpen(true);
+                    }}
+                    className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                  >
+                    Privacy Policy
+                  </button>
+                  <span>.</span>
+                </label>
+              </div>
               {fieldErrors.agree && (
-                <p className="mt-1 text-xs font-medium text-destructive">{fieldErrors.agree}</p>
+                <p className="mt-1.5 text-xs font-medium text-destructive">{fieldErrors.agree}</p>
               )}
             </div>
 
@@ -307,6 +339,15 @@ export function SignUp() {
         </div>
       </div>
       <AuthAside />
+
+      {/* Terms & Privacy Policy Dynamic Modal */}
+      <LegalPolicyModal
+        isOpen={policyModalOpen}
+        onClose={() => setPolicyModalOpen(false)}
+        initialTab={policyModalTab}
+        onAccept={() => setAgree(true)}
+        showAcceptButton
+      />
     </div>
   );
 }

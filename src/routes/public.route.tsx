@@ -10,6 +10,7 @@ const Index = lazy(() => import("@/pages/public/Home"));
 const About = lazy(() => import("@/pages/public/About"));
 const HowItWorks = lazy(() => import("@/pages/public/HowItWorks"));
 const SearchProviders = lazy(() => import("@/pages/public/SearchProviders"));
+const LegalPage = lazy(() => import("@/pages/public/LegalPage"));
 
 // Auth pages
 const Login = lazy(() => import("@/pages/auth/Login"));
@@ -40,6 +41,8 @@ export const PublicRoutes = () => (
       <Route path={routeMap.ABOUT.path} element={<About />} />
       <Route path={routeMap.SEARCH.path} element={<SearchProviders />} />
       <Route path={routeMap.PROVIDER_PROFILE.path} element={<ProviderProfile />} />
+      <Route path={routeMap.TERMS.path} element={<LegalPage />} />
+      <Route path={routeMap.PRIVACY.path} element={<LegalPage />} />
 
       {/* Booking Flow (Requires Authentication) */}
       <Route element={<ProtectedRoute />}>
