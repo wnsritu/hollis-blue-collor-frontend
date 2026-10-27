@@ -49,10 +49,26 @@ export const BOOKING_FLOW = [
   "Reviewed",
 ];
 
+export const CUSTOM_QUOTE_BOOKING_FLOW = [
+  "Pending Acceptance",
+  "Partial Paid",
+  "Confirmed",
+  "En Route",
+  "Arrived at Site",
+  "In Progress",
+  "Completed",
+  "Paid",
+  "Reviewed",
+];
+
 export const getBookingFlow = (
   isPartiallyPaid: boolean = false,
-  isFullyCompletedAndPaid: boolean = false
+  isFullyCompletedAndPaid: boolean = false,
+  isCustomOrPartial: boolean = false
 ): string[] => {
+  if (isCustomOrPartial) {
+    return CUSTOM_QUOTE_BOOKING_FLOW;
+  }
   const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
   return [
     "Pending Acceptance",
@@ -79,9 +95,21 @@ export const getBookingTimelineStepStates = (
   isPaid: boolean,
   currentStep?: string,
   isPartiallyPaid: boolean = false,
-  isFullyCompletedAndPaid: boolean = false
+  isFullyCompletedAndPaid: boolean = false,
+  isCustomOrPartial: boolean = false
 ): Record<string, import("@/types/components.types").TimelineStepState> => {
   const states: Record<string, import("@/types/components.types").TimelineStepState> = {};
+  if (isCustomOrPartial) {
+    if (isPartiallyPaid || isPaid || isFullyCompletedAndPaid) {
+      states["Partial Paid"] = "done";
+    }
+    if (isPaid || isFullyCompletedAndPaid) {
+      states["Completed"] = "done";
+      states["Paid"] = "done";
+    }
+    return states;
+  }
+
   const paymentStep = isPartiallyPaid && !isFullyCompletedAndPaid ? "Partially Paid" : "Paid";
   if (isPaid || isPartiallyPaid) {
     states[paymentStep] = "done";

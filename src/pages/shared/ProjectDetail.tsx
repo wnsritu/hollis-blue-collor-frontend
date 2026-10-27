@@ -135,6 +135,11 @@ export const ProjectDetail: React.FC = () => {
       tax_amount: number;
       customer_total: number;
       total: number;
+      partial_payment_percentage?: number | null;
+      has_mixed_partial_percentages?: boolean;
+      is_partial_payment?: boolean;
+      initial_payment_amount?: number;
+      remaining_balance?: number;
     };
   }
 
@@ -178,6 +183,11 @@ export const ProjectDetail: React.FC = () => {
             const platformFee = Number(data.platform_fee ?? data.platform_fee_amount) || 0;
             const taxAmount = Number(data.tax_amount) || 0;
             const customerTotal = Number(data.customer_payment_amount ?? data.customer_total ?? data.total) || Math.round((proposalTotal + taxAmount) * 100) / 100;
+            const isPartialPayment = Boolean(data.is_partial_payment ?? (data.partial_payment_percentage != null && Number(data.partial_payment_percentage) < 100));
+            const partialPaymentPercentage = data.partial_payment_percentage != null ? Number(data.partial_payment_percentage) : null;
+            const hasMixedPartialPercentages = Boolean(data.has_mixed_partial_percentages);
+            const initialPaymentAmount = data.initial_payment_amount != null ? Number(data.initial_payment_amount) : customerTotal;
+            const remainingBalance = data.remaining_balance != null ? Number(data.remaining_balance) : 0;
 
             newMap[prop.id] = {
               line_items_subtotal: lineItemsSubtotal,
@@ -190,6 +200,11 @@ export const ProjectDetail: React.FC = () => {
               tax_amount: taxAmount,
               customer_total: customerTotal,
               total: customerTotal,
+              is_partial_payment: isPartialPayment,
+              partial_payment_percentage: partialPaymentPercentage,
+              has_mixed_partial_percentages: hasMixedPartialPercentages,
+              initial_payment_amount: initialPaymentAmount,
+              remaining_balance: remainingBalance,
             };
           }
         } catch (err) {
@@ -605,6 +620,28 @@ export const ProjectDetail: React.FC = () => {
                             <span>Total Customer Payment</span>
                             <span className="font-display text-primary">{usd(bd.total)}</span>
                           </div>
+
+                          {/* Partial Payment / Advance Deposit Breakdown */}
+                          {bd.is_partial_payment && (
+                            <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
+                              <p className="text-[11px] font-bold text-primary uppercase tracking-wide">Advance Payment Required</p>
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">
+                                  {bd.partial_payment_percentage != null && !bd.has_mixed_partial_percentages
+                                    ? `Upfront Deposit (${bd.partial_payment_percentage}%)`
+                                    : "Total Upfront Deposit"}
+                                </span>
+                                <span className="font-bold text-primary">{usd(bd.initial_payment_amount || 0)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Balance Due on Completion</span>
+                                <span className="font-semibold text-foreground">{usd(bd.remaining_balance || 0)}</span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 leading-relaxed">
+                                The deposit is charged upfront when you accept. Remaining balance is due once the provider marks the job as completed.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -773,6 +810,29 @@ export const ProjectDetail: React.FC = () => {
                     {usd(activeBreakdown.total)}
                   </span>
                 </div>
+                {activeBreakdown.is_partial_payment && (
+                  <div className="mt-3 rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground font-medium">
+                        {activeBreakdown.partial_payment_percentage && !activeBreakdown.has_mixed_partial_percentages
+                          ? `Upfront Deposit (${activeBreakdown.partial_payment_percentage}%):`
+                          : "Total Upfront Deposit:"}
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {usd(activeBreakdown.initial_payment_amount || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground font-medium">Remaining Balance:</span>
+                      <span className="font-bold text-primary">
+                        {usd(activeBreakdown.remaining_balance || 0)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                      Deposit is charged upfront upon booking. Remaining balance is due on completion.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="space-y-3 text-xs">
@@ -808,12 +868,20 @@ export const ProjectDetail: React.FC = () => {
               }
 
               if (project.status !== "cancelled" && effectiveStatus?.toLowerCase() !== "cancelled") {
+                const amountDueNow =
+                  activeBreakdown?.is_partial_payment && activeBreakdown?.initial_payment_amount
+                    ? activeBreakdown.initial_payment_amount
+                    : (activeBreakdown?.total || Number(acceptedProp?.amount || 0));
+
                 return (
                   <Button
                     className="w-full gap-2 mt-3 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                     onClick={handlePayNow}
                   >
-                    <CreditCard size={16} /> Pay Now ({usd(activeBreakdown?.total || Number(acceptedProp?.amount || 0))})
+                    <CreditCard size={16} />{" "}
+                    {activeBreakdown?.is_partial_payment
+                      ? `Pay Deposit (${usd(amountDueNow)})`
+                      : `Pay Now (${usd(amountDueNow)})`}
                   </Button>
                 );
               }
@@ -842,12 +910,15 @@ export const ProjectDetail: React.FC = () => {
           )}
 
           {/* Quick Help Card */}
-          <div className="rounded-2xl border border-primary/20 bg-primary-soft/10 p-5">
+          <div className="rounded-2xl border border-primary/20 bg-primary-soft/10 p-5 space-y-2">
             <h4 className="font-display font-bold text-sm text-primary mb-1">
               How Custom Quotes Work
             </h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
               When providers respond to your request, review their itemized quotes. Once you accept a proposal, your appointment will be scheduled automatically.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              💳 <strong className="text-foreground">Advance Payment:</strong> Some providers require an upfront deposit when you accept their quote. The remaining balance is due once the job is marked as completed.
             </p>
           </div>
         </div>

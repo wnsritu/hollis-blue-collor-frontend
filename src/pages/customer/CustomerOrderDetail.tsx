@@ -209,46 +209,6 @@ export const CustomerOrderDetail: React.FC = () => {
     rawPaymentStatus === "partially_paid" ||
     rawPaymentStatus === "partially paid" ||
     Boolean(normalized.isPartiallyPaid);
-  const remainingBalanceNum = Number(
-    booking?.remaining_balance ?? normalized.remainingBalance ?? 0
-  );
-  const initialPaymentAmountNum = Number(
-    booking?.initial_payment_amount ?? normalized.initialPaymentAmount ?? 0
-  );
-  const totalPaidAmountNum = Number(
-    booking?.total_paid_amount ??
-      normalized.totalPaidAmount ??
-      (isPaid
-        ? totalAmountNum
-        : isPartiallyPaid
-        ? initialPaymentAmountNum
-        : 0)
-  );
-  const hasRemainingBalance = remainingBalanceNum > 0.009;
-  const isFullyCompletedAndPaid = isCompleted || reviewed;
-  const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
-    isPaid: isPaid || isCompleted,
-    isReviewed: reviewed,
-    isPartiallyPaid: isPartiallyPaid && !isCompleted,
-    isFullyCompletedAndPaid,
-  });
-  const timelineSteps = getBookingFlow(isPartiallyPaid, isFullyCompletedAndPaid);
-  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed, isPartiallyPaid, isFullyCompletedAndPaid);
-
-  const serviceName = normalized.serviceName;
-  const categoryName = normalized.categoryName;
-  const providerName = normalized.providerName;
-  const providerAddress = booking.provider?.service_location_address || "";
-  const providerCityState = [booking.provider?.city, booking.provider?.state].filter(Boolean).join(", ");
-  const isCustom = normalized.isCustom;
-  const serviceDescription = normalized.serviceDescription;
-
-  const formattedDate = normalized.formattedDate !== "Date to be confirmed" ? normalized.formattedDate : (booking.schedule?.date || normalized.date || "Date Pending");
-  const formattedTime = normalized.timeSlotName
-    ? `${normalized.timeSlotName} ${normalized.time ? `(${normalized.time})` : ""}`
-    : (normalized.formattedTime && !["TBD", "Time TBD", "Time to be confirmed"].includes(normalized.formattedTime) ? normalized.formattedTime : "Not Available");
-  const formattedAddress = normalized.address;
-
   let finSnapshot: any = null;
   if (booking?.notes && String(booking.notes).trim().startsWith("{")) {
     try {
@@ -268,6 +228,47 @@ export const CustomerOrderDetail: React.FC = () => {
   const discountAmountNum = Number(pricingData.discount_amount ?? normalized.discountAmount ?? 0);
   const lineItemsSubtotalNum = Number(pricingData.line_items_subtotal ?? normalized.lineItemsSubtotal ?? (discountAmountNum > 0 ? subtotalNum + discountAmountNum : subtotalNum));
   const serviceFeeRateNum = Number(pricingData.service_fee_rate) || (subtotalNum > 0 && serviceFeeNum > 0 ? Math.round((serviceFeeNum / subtotalNum) * 100) : 0);
+
+  const remainingBalanceNum = Number(
+    booking?.remaining_balance ?? normalized.remainingBalance ?? 0
+  );
+  const initialPaymentAmountNum = Number(
+    booking?.initial_payment_amount ?? normalized.initialPaymentAmount ?? 0
+  );
+  const totalPaidAmountNum = Number(
+    booking?.total_paid_amount ??
+      normalized.totalPaidAmount ??
+      (isPaid
+        ? totalAmountNum
+        : isPartiallyPaid
+        ? initialPaymentAmountNum
+        : 0)
+  );
+  const hasRemainingBalance = remainingBalanceNum > 0.009;
+  const isFullyCompletedAndPaid = (isCompleted || reviewed) && isPaid;
+  const isCustomOrPartial = Boolean(normalized.isCustom || normalized.isPartialPayment || isPartiallyPaid);
+  const customerStatusLabel = getBookingStatusDisplay(status, "customer", {
+    isPaid: isPaid || isCompleted,
+    isReviewed: reviewed,
+    isPartiallyPaid: isPartiallyPaid && !isCompleted,
+    isFullyCompletedAndPaid,
+  });
+  const timelineSteps = getBookingFlow(isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial);
+  const currentTimelineStep = getTimelineStep(status, isPaid, reviewed, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial);
+
+  const serviceName = normalized.serviceName;
+  const categoryName = normalized.categoryName;
+  const providerName = normalized.providerName;
+  const providerAddress = booking.provider?.service_location_address || "";
+  const providerCityState = [booking.provider?.city, booking.provider?.state].filter(Boolean).join(", ");
+  const isCustom = normalized.isCustom;
+  const serviceDescription = normalized.serviceDescription;
+
+  const formattedDate = normalized.formattedDate !== "Date to be confirmed" ? normalized.formattedDate : (booking.schedule?.date || normalized.date || "Date Pending");
+  const formattedTime = normalized.timeSlotName
+    ? `${normalized.timeSlotName} ${normalized.time ? `(${normalized.time})` : ""}`
+    : (normalized.formattedTime && !["TBD", "Time TBD", "Time to be confirmed"].includes(normalized.formattedTime) ? normalized.formattedTime : "Not Available");
+  const formattedAddress = normalized.address;
 
   const paidTotalAmount = Number(
     booking?.payment?.amount ||
@@ -398,7 +399,11 @@ export const CustomerOrderDetail: React.FC = () => {
                     }`}
                 >
                   <DollarSign size={13} />
-                  {isDisplayPaid ? "Payment: Paid" : "Payment: Pending"}
+                  {isDisplayPaid
+                    ? "Payment: Paid"
+                    : normalized.isPartialPayment && initialPaymentAmountNum > 0 && initialPaymentAmountNum < totalAmountNum
+                    ? `Payment: Deposit Pending (${usd(initialPaymentAmountNum)} due)`
+                    : "Payment: Pending"}
                 </span>
               );
             })()}
@@ -431,7 +436,10 @@ export const CustomerOrderDetail: React.FC = () => {
                     onClick={() => setShowPaymentModal(true)}
                     className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    <CreditCard size={14} /> Pay Now ({usd(totalAmountNum)})
+                    <CreditCard size={14} />{" "}
+                    {normalized.isPartialPayment && initialPaymentAmountNum > 0 && initialPaymentAmountNum < totalAmountNum
+                      ? `Pay Deposit (${usd(initialPaymentAmountNum)})`
+                      : `Pay Now (${usd(totalAmountNum)})`}
                   </Button>
                 ) : null}
               </>
@@ -613,19 +621,54 @@ export const CustomerOrderDetail: React.FC = () => {
 
             {normalized.servicesList.length > 0 ? (
               <div className="rounded-xl border border-border overflow-hidden divide-y divide-border text-xs min-w-0">
-                {normalized.servicesList.map((svc, idx) => (
-                  <div key={svc.id || idx} className="p-3.5 sm:p-4 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-foreground text-sm break-words">{svc.name}</p>
-                      <p className="text-muted-foreground mt-0.5">
-                        Quantity: {svc.quantity} × {usd(svc.unit_price)}
-                      </p>
+                {normalized.servicesList.map((svc: any, idx: number) => {
+                  const depositPct = svc.partial_payment_percentage != null ? Number(svc.partial_payment_percentage) : null;
+                  const itemDeposit = svc.initial_payment_amount != null
+                    ? Number(svc.initial_payment_amount)
+                    : (depositPct != null && depositPct < 100 ? Math.round(Number(svc.total) * (depositPct / 100) * 100) / 100 : Number(svc.total));
+                  const itemRemaining = svc.remaining_balance != null
+                    ? Number(svc.remaining_balance)
+                    : Math.max(0, Math.round((Number(svc.total) - itemDeposit) * 100) / 100);
+
+                  return (
+                    <div key={svc.id || idx} className="p-3.5 sm:p-4 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground text-sm break-words">{svc.name}</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          Quantity: {svc.quantity} × {usd(svc.unit_price)}
+                        </p>
+                        {depositPct != null && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                            {depositPct < 100 ? (
+                              <>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">
+                                  Deposit: {depositPct}% ({usd(itemDeposit)})
+                                </span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                                  Remaining: {usd(itemRemaining)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-medium">
+                                Full Payment (100%)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-extrabold text-foreground text-sm">
+                          {usd(svc.total)}
+                        </span>
+                        {depositPct != null && depositPct < 100 && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {usd(itemDeposit)} upfront
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-extrabold text-foreground text-sm shrink-0">
-                      {usd(svc.total)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-xl border border-border p-4 bg-muted/20 text-xs text-muted-foreground italic break-words">
@@ -828,7 +871,7 @@ export const CustomerOrderDetail: React.FC = () => {
             <Timeline
               steps={timelineSteps}
               current={currentTimelineStep}
-              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid)}
+              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial)}
             />
           </section>
 
@@ -896,7 +939,11 @@ export const CustomerOrderDetail: React.FC = () => {
               {(isPartiallyPaid || (normalized.isPartialPayment && remainingBalanceNum > 0)) && (
                 <div className="rounded-lg bg-primary/5 border border-primary/20 p-2.5 space-y-1.5 mt-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-medium">Upfront Deposit ({normalized.partialPaymentPercentage || Math.round((initialPaymentAmountNum / totalAmountNum) * 100)}%):</span>
+                    <span className="text-muted-foreground font-medium">
+                      {normalized.partialPaymentPercentage && !normalized.hasMixedPartialPercentages && normalized.partialPaymentPercentage < 100 && (!normalized.servicesList || normalized.servicesList.length <= 1)
+                        ? `Upfront Deposit (${normalized.partialPaymentPercentage}%):`
+                        : "Upfront Deposit:"}
+                    </span>
                     <span className="font-bold text-foreground">{usd(initialPaymentAmountNum)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
@@ -1014,7 +1061,10 @@ export const CustomerOrderDetail: React.FC = () => {
                     className="w-full gap-2 mt-2"
                     onClick={() => setShowPaymentModal(true)}
                   >
-                    <CreditCard size={15} /> Complete Payment ({usd(totalAmountNum)})
+                    <CreditCard size={15} />{" "}
+                    {normalized.isPartialPayment && initialPaymentAmountNum > 0 && initialPaymentAmountNum < totalAmountNum
+                      ? `Pay Deposit (${usd(initialPaymentAmountNum)})`
+                      : `Complete Payment (${usd(totalAmountNum)})`}
                   </Button>
                 ) : null}
               </>

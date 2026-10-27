@@ -83,6 +83,10 @@ export const ProviderCustomRequestDetail: React.FC = () => {
     tax_amount: number;
     subtotal: number;
     total: number;
+    is_partial_payment?: boolean;
+    initial_payment_amount?: number;
+    remaining_balance?: number;
+    partial_payment_percentage?: number;
   }
 
   const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdownState | null>(null);
@@ -193,6 +197,11 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           ? slotInput
           : undefined;
 
+        const depositPct =
+          values.partialPaymentPercentage != null && String(values.partialPaymentPercentage).trim() !== ""
+            ? Math.max(1, Math.min(100, Number(values.partialPaymentPercentage)))
+            : 100;
+
         const payload: CustomQuoteSubmitPayload = {
           amount: netQuoteAmount,
           discount: discountNum,
@@ -203,6 +212,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           proposed_time_slot_id: numericSlotId,
           time_slot_name: stringSlotName,
           valid_until: validUntilDate.toISOString(),
+          partial_payment_percentage: depositPct,
           line_items: lineItems,
         };
 
@@ -277,6 +287,10 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       proposedTimeSlot: existingProposal.proposed_time_slot?.slot_name || "Morning Slot",
       expires: existingProposal.valid_until ? formatDate(existingProposal.valid_until) : "7 days",
       terms: "Standard service terms apply.",
+      partialPaymentPercentage:
+        existingProposal.partial_payment_percentage != null
+          ? Number(existingProposal.partial_payment_percentage)
+          : 100,
     });
 
     setIsEditingQuote(true);
@@ -337,10 +351,16 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           lineItems.push({ service_name: "Taxes", quantity: 1, price: taxNum });
         }
 
+        const depositPct =
+          formik.values.partialPaymentPercentage != null && String(formik.values.partialPaymentPercentage).trim() !== ""
+            ? Math.max(1, Math.min(100, Number(formik.values.partialPaymentPercentage)))
+            : 100;
+
         const payload = {
           subtotal: grossQuoteAmount,
           total_amount: grossQuoteAmount,
           discount: discountNum,
+          partial_payment_percentage: depositPct,
           items: lineItems,
         };
 
@@ -356,6 +376,10 @@ export const ProviderCustomRequestDetail: React.FC = () => {
             tax_amount: Number(data.tax_amount) || 0,
             subtotal: Number(data.subtotal ?? data.proposal_total) || netQuoteAmount,
             total: Number(data.total ?? data.customer_total ?? data.customer_payment_amount) || netQuoteAmount,
+            is_partial_payment: data.is_partial_payment ?? (depositPct < 100),
+            initial_payment_amount: Number(data.initial_payment_amount) || (Number(data.total ?? netQuoteAmount) * depositPct) / 100,
+            remaining_balance: Number(data.remaining_balance) || (Number(data.total ?? netQuoteAmount) - (Number(data.total ?? netQuoteAmount) * depositPct) / 100),
+            partial_payment_percentage: depositPct,
           });
         } else if (isMounted) {
           // API returned no data — clear breakdown so UI shows error state
@@ -380,7 +404,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount, netQuoteAmount]);
+  }, [laborNum, materialsNum, feesNum, discountNum, taxNum, grossQuoteAmount, netQuoteAmount, formik.values.partialPaymentPercentage]);
 
   const availableProposalSlots = useMemo(() => {
     if (!formik.values.proposedDate) {
@@ -1002,6 +1026,76 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Advance Payment / Deposit % */}
+                <div className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <Label htmlFor="partialPaymentPercentage" className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                        <Sparkles size={14} className="text-primary" />
+                        Advance Payment / Deposit (%)
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Set deposit % customer must pay upfront (100% = Full Payment).
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-28">
+                        <Input
+                          id="partialPaymentPercentage"
+                          name="partialPaymentPercentage"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="100"
+                          value={formik.values.partialPaymentPercentage != null ? String(formik.values.partialPaymentPercentage) : "100"}
+                          onChange={(e) => {
+                            const cleanVal = e.target.value.replace(/\D/g, "");
+                            if (cleanVal === "") {
+                              formik.setFieldValue("partialPaymentPercentage", "");
+                              return;
+                            }
+                            let num = parseInt(cleanVal, 10);
+                            if (num > 100) num = 100;
+                            formik.setFieldValue("partialPaymentPercentage", num);
+                          }}
+                          onBlur={() => {
+                            const cleanVal = String(formik.values.partialPaymentPercentage || "").replace(/\D/g, "");
+                            let num = parseInt(cleanVal, 10);
+                            if (isNaN(num) || num < 1) num = 100;
+                            if (num > 100) num = 100;
+                            formik.setFieldValue("partialPaymentPercentage", num);
+                          }}
+                          className={cn(
+                            "pr-7 h-9 text-xs font-semibold text-right",
+                            formik.touched.partialPaymentPercentage && formik.errors.partialPaymentPercentage
+                              ? CUSTOM_QUOTE_FORM_STYLES.inputError
+                              : ""
+                          )}
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                          %
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground whitespace-nowrap">
+                        {Number(formik.values.partialPaymentPercentage || 100) >= 100 ? "Full Pay (100%)" : `${formik.values.partialPaymentPercentage}% Deposit`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {Number(formik.values.partialPaymentPercentage || 100) < 100 && netQuoteAmount > 0 && (
+                    <div className="text-xs font-medium text-primary bg-primary/10 rounded-lg p-2.5 border border-primary/20 flex flex-wrap items-center justify-between gap-1">
+                      <span>Upfront Deposit ({formik.values.partialPaymentPercentage}%): <strong>${((netQuoteAmount * Number(formik.values.partialPaymentPercentage)) / 100).toFixed(2)}</strong></span>
+                      <span className="text-muted-foreground">•</span>
+                      <span>Balance on Completion: <strong>${(netQuoteAmount - (netQuoteAmount * Number(formik.values.partialPaymentPercentage)) / 100).toFixed(2)}</strong></span>
+                    </div>
+                  )}
+
+                  {formik.touched.partialPaymentPercentage && formik.errors.partialPaymentPercentage && (
+                    <p className={CUSTOM_QUOTE_FORM_STYLES.errorText}>
+                      {formik.errors.partialPaymentPercentage}
+                    </p>
+                  )}
+                </div>
+
                 <div className={CUSTOM_QUOTE_FORM_STYLES.fieldGroupGrid}>
                   <div className={CUSTOM_QUOTE_FORM_STYLES.fieldWrapper}>
                     <Label htmlFor="proposedDate" className={CUSTOM_QUOTE_FORM_STYLES.label}>
@@ -1156,6 +1250,19 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                             {usd(priceBreakdown!.total)}
                           </span>
                         </div>
+
+                        {Number(formik.values.partialPaymentPercentage || 100) < 100 && (
+                          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 space-y-1 text-xs text-amber-900 dark:text-amber-200">
+                            <div className="font-semibold flex items-center justify-between">
+                              <span>⚡ Customer Upfront Deposit ({formik.values.partialPaymentPercentage}%):</span>
+                              <span className="font-bold">{usd(priceBreakdown!.initial_payment_amount ?? (priceBreakdown!.total * Number(formik.values.partialPaymentPercentage)) / 100)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span>Due on Completion:</span>
+                              <span className="font-medium text-foreground">{usd(priceBreakdown!.remaining_balance ?? (priceBreakdown!.total - (priceBreakdown!.total * Number(formik.values.partialPaymentPercentage)) / 100))}</span>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : grossQuoteAmount > 0 ? (
                       <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">

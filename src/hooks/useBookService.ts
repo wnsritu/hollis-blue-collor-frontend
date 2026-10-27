@@ -411,20 +411,30 @@ export function useBookService() {
   const taxAmount = priceBreakdown?.tax_amount ?? 0;
   const grandTotal = priceBreakdown?.customer_payment_amount ?? priceBreakdown?.total ?? Math.round((subtotal + taxAmount) * 100) / 100;
 
-  // Derive client fallback partial percentage from selected items
-  const itemsWithPartial = selectedItems.filter(
-    (i) => i.partial_payment_percentage != null && Number(i.partial_payment_percentage) < 100
+  // Derive client fallback partial deposit and percentage from selected items
+  const exactUpfrontDeposit = selectedItems.reduce((acc, item) => {
+    const pct = item.partial_payment_percentage != null ? Number(item.partial_payment_percentage) : 100;
+    return acc + ((Number(item.price) || 0) * (Number(item.qty) || 1) * (pct / 100));
+  }, 0);
+  const hasAnyPartial = selectedItems.some((i) => i.partial_payment_percentage != null && Number(i.partial_payment_percentage) < 100);
+  const fallbackPartialPct = hasAnyPartial && rawSubtotal > 0 ? Math.round((exactUpfrontDeposit / rawSubtotal) * 100) : 100;
+
+  const uniqueItemPcts = new Set(
+    selectedItems.map((i) => (i.partial_payment_percentage != null ? Number(i.partial_payment_percentage) : 100))
   );
-  const fallbackPartialPct =
-    itemsWithPartial.length > 0
-      ? Number(itemsWithPartial[0].partial_payment_percentage)
-      : 100;
+  const hasMixedPartialPercentages = Boolean(
+    priceBreakdown?.has_mixed_partial_percentages ?? (uniqueItemPcts.size > 1)
+  );
+  const uniformPartialPercentage =
+    !hasMixedPartialPercentages && uniqueItemPcts.size === 1
+      ? Array.from(uniqueItemPcts)[0]
+      : null;
 
   const partialPaymentPercentage = Number(priceBreakdown?.partial_payment_percentage ?? fallbackPartialPct);
-  const isPartialPayment = Boolean(priceBreakdown?.is_partial_payment ?? (partialPaymentPercentage < 100));
+  const isPartialPayment = Boolean(priceBreakdown?.is_partial_payment ?? (hasAnyPartial || partialPaymentPercentage < 100));
   const initialPaymentAmount = Number(
     priceBreakdown?.initial_payment_amount ??
-    (isPartialPayment ? Math.round(grandTotal * (partialPaymentPercentage / 100) * 100) / 100 : grandTotal)
+    (isPartialPayment ? (exactUpfrontDeposit > 0 ? Math.round(exactUpfrontDeposit * 100) / 100 : Math.round(grandTotal * (partialPaymentPercentage / 100) * 100) / 100) : grandTotal)
   );
   const remainingBalance = Number(
     priceBreakdown?.remaining_balance ??
@@ -569,6 +579,8 @@ export function useBookService() {
     taxAmount,
     grandTotal,
     partialPaymentPercentage,
+    hasMixedPartialPercentages,
+    uniformPartialPercentage,
     isPartialPayment,
     initialPaymentAmount,
     remainingBalance,

@@ -29,6 +29,7 @@ export const DEFAULT_CUSTOM_QUOTE_VALUES: CustomQuoteFormValues = {
   expires: "7 days",
   proposedDate: "",
   proposedTimeSlot: "Morning Slot",
+  partialPaymentPercentage: 100,
 };
 
 export const PLATFORM_COMMISSION_PERCENT = 9;

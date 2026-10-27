@@ -25,6 +25,7 @@ import {
 } from "@/validations/proposal";
 import { getTodayDateString, isPastDate, isSlotEarlierThanNow } from "@/utils/date";
 import { PROPOSAL_TIME_SLOTS } from "@/constants";
+import { cn } from "@/lib/utils";
 
 interface SubmitProposalModalProps {
   open: boolean;
@@ -63,6 +64,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
       proposedDate: "",
       proposedTimeSlot: "Morning Slot",
       validDays: "7",
+      partialPaymentPercentage: "100",
       lineItems: [{ description: "Labor & Service", quantity: 1, unit_price: 150 }],
     },
     validationSchema: proposalSubmissionValidationSchema,
@@ -101,6 +103,11 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
         const validUntilDate = new Date();
         validUntilDate.setDate(validUntilDate.getDate() + (Number(values.validDays) || 7));
 
+        const depositPct =
+          values.partialPaymentPercentage != null && String(values.partialPaymentPercentage).trim() !== ""
+            ? Math.max(1, Math.min(100, Number(values.partialPaymentPercentage)))
+            : 100;
+
         const payload = {
           amount: totalAmount,
           currency: "usd",
@@ -110,6 +117,7 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
           proposed_time_slot_id: values.proposedTimeSlot || undefined,
           time_slot_name: values.proposedTimeSlot || undefined,
           valid_until: validUntilDate.toISOString(),
+          partial_payment_percentage: depositPct,
           line_items: values.lineItems.map((item) => ({
             description: item.description || "Service item",
             quantity: Number(item.quantity) || 1,
@@ -370,6 +378,75 @@ export const SubmitProposalModal: React.FC<SubmitProposalModalProps> = ({
               <span className="font-display text-base text-primary">
                 ${calculateTotal().toFixed(2)} USD
               </span>
+            </div>
+
+            {/* Deposit / Payment Terms */}
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 space-y-2 mt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <Label htmlFor="propDeposit" className="text-xs font-bold text-foreground">
+                    Required Upfront Deposit (%)
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Set between 1% and 100%. Set 100% to require full payment upfront.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <div className="relative w-24">
+                    <Input
+                      id="propDeposit"
+                      name="partialPaymentPercentage"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="100"
+                      value={formik.values.partialPaymentPercentage != null ? String(formik.values.partialPaymentPercentage) : "100"}
+                      onChange={(e) => {
+                        const cleanVal = e.target.value.replace(/\D/g, "");
+                        if (cleanVal === "") {
+                          formik.setFieldValue("partialPaymentPercentage", "");
+                          return;
+                        }
+                        let num = parseInt(cleanVal, 10);
+                        if (num > 100) num = 100;
+                        formik.setFieldValue("partialPaymentPercentage", num);
+                      }}
+                      onBlur={() => {
+                        const cleanVal = String(formik.values.partialPaymentPercentage || "").replace(/\D/g, "");
+                        let num = parseInt(cleanVal, 10);
+                        if (isNaN(num) || num < 1) num = 100;
+                        if (num > 100) num = 100;
+                        formik.setFieldValue("partialPaymentPercentage", num);
+                      }}
+                      className={cn(
+                        "pr-6 h-9 text-xs font-semibold text-right",
+                        formik.touched.partialPaymentPercentage && formik.errors.partialPaymentPercentage
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      )}
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                    {Number(formik.values.partialPaymentPercentage || 100) >= 100 ? "Full Pay" : "Deposit"}
+                  </span>
+                </div>
+              </div>
+
+              {Number(formik.values.partialPaymentPercentage || 100) < 100 && calculateTotal() > 0 && (
+                <div className="text-xs font-medium text-primary bg-primary/5 rounded-lg p-2 border border-primary/20 flex flex-wrap items-center justify-between gap-1">
+                  <span>Upfront Deposit: <strong>${((calculateTotal() * Number(formik.values.partialPaymentPercentage)) / 100).toFixed(2)}</strong></span>
+                  <span className="text-muted-foreground">•</span>
+                  <span>Balance on Completion: <strong>${(calculateTotal() - (calculateTotal() * Number(formik.values.partialPaymentPercentage)) / 100).toFixed(2)}</strong></span>
+                </div>
+              )}
+
+              {formik.touched.partialPaymentPercentage && formik.errors.partialPaymentPercentage && (
+                <p className="text-xs font-medium text-destructive mt-1">
+                  {formik.errors.partialPaymentPercentage}
+                </p>
+              )}
             </div>
           </div>
 

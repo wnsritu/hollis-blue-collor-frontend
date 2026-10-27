@@ -48,6 +48,7 @@ export type CreateProposalPayload = {
   time_slot_name?: string | null;
   valid_until?: string | null;
   expiration_date?: string | null;
+  partial_payment_percentage?: number | null;
   status?: "draft" | "submitted";
   line_items?: ProposalLineItem[];
 };
