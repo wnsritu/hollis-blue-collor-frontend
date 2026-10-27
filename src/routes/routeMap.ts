@@ -17,6 +17,8 @@ export const routeMap = {
   BOOKING_DETAIL: { path: ROUTES.BOOKING_DETAIL },
   CHECKOUT: { path: ROUTES.CHECKOUT },
   RATING: { path: ROUTES.RATING },
+  TERMS: { path: ROUTES.TERMS },
+  PRIVACY: { path: ROUTES.PRIVACY },
 
   // Admin Routes
   ADMIN_DASHBOARD: { path: ROUTES.ADMIN_DASHBOARD },
@@ -41,6 +43,8 @@ export const routeMap = {
   ADMIN_PROFILE: { path: ROUTES.ADMIN_PROFILE },
   ADMIN_SUPPORT_AGENTS: { path: ROUTES.ADMIN_SUPPORT_AGENTS },
   ADMIN_SETTINGS: { path: ROUTES.ADMIN_SETTINGS },
+  ADMIN_TERMS: { path: ROUTES.ADMIN_TERMS },
+  ADMIN_PRIVACY: { path: ROUTES.ADMIN_PRIVACY },
 
 
   // Support Routes

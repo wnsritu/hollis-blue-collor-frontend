@@ -31,6 +31,7 @@ const AdminProfile = lazy(() => import("@/pages/admin/AdminProfile"));
 const SupportAgentsPage = lazy(() => import("@/pages/admin/SupportAgentsPage"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 const AdminAuditLogs = lazy(() => import("@/pages/admin/AdminAuditLogs"));
+const AdminLegalPolicies = lazy(() => import("@/pages/admin/AdminLegalPolicies"));
 
 
 // Support pages
@@ -102,6 +103,8 @@ export const PrivateRoutes = () => (
       <Route path="profile" element={<AdminProfile />} />
       <Route path="support-agents" element={<SupportAgentsPage />} />
       <Route path="settings" element={<AdminSettings />} />
+      <Route path="terms" element={<AdminLegalPolicies />} />
+      <Route path="privacy-policy" element={<AdminLegalPolicies />} />
       <Route path="audit-logs" element={<AdminAuditLogs />} />
     </Route>
 

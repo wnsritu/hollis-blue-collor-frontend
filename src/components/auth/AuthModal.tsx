@@ -25,6 +25,7 @@ import OtpLogin from "./OtpLogin";
 import Spinner from "@/components/ui/spinner";
 import VerifyOtpModal from "./VerifyOtpModal";
 import ForgotPasswordModal from "./ForgotPasswordModal";
+import { LegalPolicyModal } from "@/components/shared/LegalPolicyModal";
 import { isValidEmail, isValidPhone } from "@/validations";
 import type { AuthModalProps } from "@/types/auth.types";
 
@@ -1078,88 +1079,18 @@ const handleVerifyOtp = async (otp: string) => {
                 </div>
 
                 {/* ✅ Terms & Privacy Modal */}
-                {showTermsModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl overflow-y-auto max-h-[80vh] relative">
-                      {/* Header */}
-                      <div className="flex items-center justify-between px-6 py-4 border-b">
-                        <h2 className="text-xl font-semibold">Terms of Service & Privacy Policy</h2>
-                        <button
-                          onClick={() => setShowTermsModal(false)}
-                          className="p-2 hover:bg-slate-100 rounded-full transition"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-
-                      {/* Content */}
-                      <div className="px-6 py-4 space-y-4 text-sm text-gray-700">
-                        {/* TERMS OF SERVICE */}
-                        <h3 className="font-semibold text-lg">TERMS OF SERVICE</h3>
-                        <p>Hollis<br />Effective Date: March 31, 2026</p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li><strong>Overview:</strong> Hollis is a marketplace platform connecting customers with independent service providers. Hollis does not directly provide services.</li>
-                          <li><strong>User Accounts:</strong> Users must provide accurate information and maintain account security. Providers must complete verification before activation.</li>
-                          <li><strong>Services:</strong> Providers independently offer home and local services. Hollis is not responsible for how services are performed.</li>
-                          <li><strong>Booking & Payments:</strong> Customer requests → Provider accepts → Customer pays via Stripe. Funds are released upon confirmation or automatically after 4 hours.</li>
-                          <li><strong>Pricing:</strong> Includes provider pricing, service fees, pickup/delivery fees, and platform fees.</li>
-                          <li><strong>Cancellations:</strong> Late cancellation: 50% customer refund, 10% provider, 40% platform.</li>
-                          <li><strong>Disputes:</strong> Must be reported within 24 hours. Admin makes final decision.</li>
-                          <li><strong>Messaging & Conduct:</strong> No sharing of contact info before booking. Violations may lead to suspension.</li>
-                          <li><strong>Privacy & Location Sharing:</strong> Approximate location shown before booking. Full address revealed after acceptance and payment.</li>
-                          <li><strong>Provider Responsibility:</strong> Providers handle services and item care independently.</li>
-                          <li><strong>Ratings & Reviews:</strong> Users may leave public ratings and reviews.</li>
-                          <li><strong>Payments & Payouts:</strong> Processed via Stripe.</li>
-                          <li><strong>Platform Role & Disclaimer of Liability:</strong> Hollis is not liable for loss, theft, damage, injury, or death related to services.</li>
-                          <li><strong>Assumption of Risk:</strong> Users accept risks associated with services and interactions.</li>
-                          <li><strong>Limitation of Liability:</strong> Liability is limited to the transaction amount.</li>
-                          <li><strong>Indemnification:</strong> Users agree to protect Hollis from claims arising from use.</li>
-                          <li><strong>Customer Responsibility:</strong> Customers must provide accurate information and safe environments.</li>
-                        </ol>
-
-                        {/* PRIVACY POLICY */}
-                        <h3 className="font-semibold text-lg mt-4">PRIVACY POLICY</h3>
-                        <p>Effective Date: March 31, 2026</p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li><strong>Information Collected:</strong> Name, email, phone, address, usage data.</li>
-                          <li><strong>Use of Information:</strong> Account management, bookings, communication, support.</li>
-                          <li><strong>Payments:</strong> Handled via Stripe.</li>
-                          <li><strong>Location Data:</strong> Approximate before booking, full after confirmation.</li>
-                          <li><strong>Data Sharing:</strong> Only as necessary for service operation.</li>
-                          <li><strong>Security:</strong> Reasonable safeguards implemented.</li>
-                          <li><strong>User Rights:</strong> Access, update, delete account data.</li>
-                          <li><strong>Data Retention:</strong> Retained for legal and operational needs.</li>
-                          <li><strong>Cookies:</strong> Used for functionality and analytics.</li>
-                          <li><strong>Children:</strong> Not intended for users under 18.</li>
-                          <li><strong>Updates:</strong> Policy may change; continued use implies acceptance.</li>
-                          <li><strong>Contact:</strong> [admin@gmail.com]</li>
-                        </ol>
-
-                        {/* Checkbox to accept inside modal */}
-                        <div className="flex items-center gap-2 mt-4">
-                          <Checkbox
-                            checked={agree}
-                            onCheckedChange={(v) => setAgree(v === true)}
-                          />
-                          <span>I have read and agree to the Terms & Privacy Policy</span>
-                        </div>
-
-                        {/* Close Button */}
-                        <div className="mt-2 flex justify-end">
-                          <button
-                            disabled={!agree}
-                            onClick={() => setShowTermsModal(false)}
-                            className={`px-4 py-2 rounded-lg text-white ${
-                              agree ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
-                            }`}
-                          >
-                            Accept & Close
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <LegalPolicyModal
+                  isOpen={showTermsModal}
+                  onClose={() => setShowTermsModal(false)}
+                  onAccept={() => {
+                    setAgree(true);
+                    setErrors((prev) => ({
+                      ...prev,
+                      agree: "",
+                    }));
+                  }}
+                  showAcceptButton
+                />
 
                 {errors.agree && (
                   <p className="text-xs text-destructive">{errors.agree}</p>
