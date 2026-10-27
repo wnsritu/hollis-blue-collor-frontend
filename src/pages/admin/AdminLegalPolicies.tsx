@@ -16,10 +16,29 @@ import {
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/shared/primitives";
 import { FormattedPolicyContent } from "@/components/shared/LegalPolicyModal";
 import { getPlatformSettings, updatePlatformSettings } from "@/services/admin";
+
+import { CKEditor } from "@ckeditor/ckeditor5-react";
+import {
+  ClassicEditor,
+  Essentials,
+  Paragraph,
+  Heading,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Link,
+  List,
+  BlockQuote,
+  Table,
+  TableToolbar,
+  HorizontalLine,
+  Undo,
+} from "ckeditor5";
+import "ckeditor5/ckeditor5.css";
 
 const DEFAULT_TERMS_TEMPLATE = `# Terms of Service & Conditions
 
@@ -118,6 +137,105 @@ We may update this Privacy Policy periodically. Significant changes will be post
 ---
 If you have questions about this Privacy Policy, please reach out to us at privacy@hollis.com or support@hollis.com.`;
 
+/**
+ * Converts legacy markdown strings to clean HTML for CKEditor.
+ * If the string already contains HTML tags, it returns it directly.
+ */
+function markdownToHtml(content: string): string {
+  if (!content) return "";
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return content;
+  }
+
+  const lines = content.split("\n");
+  const htmlParts: string[] = [];
+  let inUl = false;
+  let inOl = false;
+
+  const closeLists = () => {
+    if (inUl) {
+      htmlParts.push("</ul>");
+      inUl = false;
+    }
+    if (inOl) {
+      htmlParts.push("</ol>");
+      inOl = false;
+    }
+  };
+
+  const formatInline = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>");
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    if (!trimmed) {
+      closeLists();
+      continue;
+    }
+
+    if (trimmed.startsWith("---") || trimmed.startsWith("***")) {
+      closeLists();
+      htmlParts.push("<hr />");
+      continue;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      closeLists();
+      htmlParts.push(`<h1>${formatInline(trimmed.slice(2))}</h1>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      closeLists();
+      htmlParts.push(`<h2>${formatInline(trimmed.slice(3))}</h2>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      closeLists();
+      htmlParts.push(`<h3>${formatInline(trimmed.slice(4))}</h3>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (inOl) {
+        htmlParts.push("</ol>");
+        inOl = false;
+      }
+      if (!inUl) {
+        htmlParts.push("<ul>");
+        inUl = true;
+      }
+      htmlParts.push(`<li>${formatInline(trimmed.slice(2))}</li>`);
+      continue;
+    }
+
+    const olMatch = trimmed.match(/^\d+\.\s+(.*)/);
+    if (olMatch) {
+      if (inUl) {
+        htmlParts.push("</ul>");
+        inUl = false;
+      }
+      if (!inOl) {
+        htmlParts.push("<ol>");
+        inOl = true;
+      }
+      htmlParts.push(`<li>${formatInline(olMatch[1])}</li>`);
+      continue;
+    }
+
+    closeLists();
+    htmlParts.push(`<p>${formatInline(trimmed)}</p>`);
+  }
+
+  closeLists();
+  return htmlParts.join("");
+}
+
 export function AdminLegalPolicies() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -140,8 +258,8 @@ export function AdminLegalPolicies() {
         const res: any = await getPlatformSettings();
         const data = res?.data?.data || res?.data || res?.settings || res;
         if (data) {
-          setTermsContent(data.terms_and_conditions || DEFAULT_TERMS_TEMPLATE);
-          setPrivacyContent(data.privacy_policy || DEFAULT_PRIVACY_TEMPLATE);
+          setTermsContent(markdownToHtml(data.terms_and_conditions || DEFAULT_TERMS_TEMPLATE));
+          setPrivacyContent(markdownToHtml(data.privacy_policy || DEFAULT_PRIVACY_TEMPLATE));
           if (data.updated_at) {
             setLastUpdated(data.updated_at);
           }
@@ -149,8 +267,8 @@ export function AdminLegalPolicies() {
       } catch (err: any) {
         console.error("Failed to load legal policies:", err);
         toast.error("Failed to load current policies. You can still edit and save.");
-        setTermsContent(DEFAULT_TERMS_TEMPLATE);
-        setPrivacyContent(DEFAULT_PRIVACY_TEMPLATE);
+        setTermsContent(markdownToHtml(DEFAULT_TERMS_TEMPLATE));
+        setPrivacyContent(markdownToHtml(DEFAULT_PRIVACY_TEMPLATE));
       } finally {
         setLoading(false);
       }
@@ -199,9 +317,9 @@ export function AdminLegalPolicies() {
       )
     ) {
       if (activeTab === "terms") {
-        setTermsContent(DEFAULT_TERMS_TEMPLATE);
+        setTermsContent(markdownToHtml(DEFAULT_TERMS_TEMPLATE));
       } else {
-        setPrivacyContent(DEFAULT_PRIVACY_TEMPLATE);
+        setPrivacyContent(markdownToHtml(DEFAULT_PRIVACY_TEMPLATE));
       }
       toast.success("Standard template loaded. Remember to click Save.");
     }
@@ -210,15 +328,62 @@ export function AdminLegalPolicies() {
   const currentContent = activeTab === "terms" ? termsContent : privacyContent;
   const setCurrentContent = activeTab === "terms" ? setTermsContent : setPrivacyContent;
 
-  const wordCount = currentContent.trim() ? currentContent.trim().split(/\s+/).length : 0;
-  const charCount = currentContent.length;
-
-  const insertSnippet = (snippet: string) => {
-    setCurrentContent((prev) => prev + "\n" + snippet);
-  };
+  const plainText = currentContent.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const wordCount = plainText ? plainText.split(/\s+/).length : 0;
+  const charCount = plainText.length;
 
   return (
     <div className="space-y-6">
+      {/* Scoped CKEditor dark/light styling */}
+      <style>{`
+        .admin-ckeditor-wrapper .ck.ck-editor__editable_inline {
+          min-height: 520px;
+          max-height: 700px;
+          overflow-y: auto;
+          font-size: 0.925rem;
+          line-height: 1.65;
+          padding: 1.25rem 1.5rem;
+        }
+        .admin-ckeditor-wrapper .ck.ck-toolbar {
+          border-top-left-radius: 0.75rem !important;
+          border-top-right-radius: 0.75rem !important;
+          border-color: hsl(var(--border)) !important;
+          background: hsl(var(--muted) / 0.5) !important;
+          padding: 0.5rem !important;
+        }
+        .admin-ckeditor-wrapper .ck.ck-content {
+          border-bottom-left-radius: 0.75rem !important;
+          border-bottom-right-radius: 0.75rem !important;
+          border-color: hsl(var(--border)) !important;
+          background: hsl(var(--card)) !important;
+          color: hsl(var(--foreground)) !important;
+        }
+        .admin-ckeditor-wrapper .ck.ck-content.ck-focused {
+          border-color: hsl(var(--primary)) !important;
+          box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-toolbar {
+          background: hsl(var(--muted) / 0.8) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-button {
+          color: hsl(var(--foreground)) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-button:hover {
+          background: hsl(var(--accent)) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-button.ck-on {
+          background: hsl(var(--primary) / 0.2) !important;
+          color: hsl(var(--primary)) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-dropdown__panel {
+          background: hsl(var(--card)) !important;
+          border-color: hsl(var(--border)) !important;
+        }
+        .dark .admin-ckeditor-wrapper .ck.ck-list__item .ck-button {
+          color: hsl(var(--foreground)) !important;
+        }
+      `}</style>
+
       <PageHeader
         title={activeTab === "terms" ? "Terms & Conditions" : "Privacy Policy"}
         subtitle="Manage the legal policies displayed to customers and providers during signup and across the platform."
@@ -312,90 +477,76 @@ export function AdminLegalPolicies() {
         </div>
       ) : (
         <div className="grid gap-6">
-          {/* Helper toolbar for quick markdown formatting */}
-          {viewMode !== "preview" && (
-            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card/70 text-xs">
-              <span className="font-semibold text-muted-foreground mr-1">Insert Formatting:</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2.5"
-                onClick={() => insertSnippet("### Section Title")}
-              >
-                + Heading
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2.5"
-                onClick={() => insertSnippet("- Bullet item")}
-              >
-                + Bullet list
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2.5"
-                onClick={() => insertSnippet("1. First numbered item")}
-              >
-                + Numbered list
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2.5"
-                onClick={() => insertSnippet("**Important note:** Details here")}
-              >
-                + Bold highlight
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2.5"
-                onClick={() => insertSnippet("---")}
-              >
-                + Divider
-              </Button>
-            </div>
-          )}
-
           {/* Editor and Preview Containers */}
           <div
             className={`grid gap-6 ${
               viewMode === "split" ? "md:grid-cols-2" : "grid-cols-1"
             }`}
           >
-            {/* Editor Pane */}
+            {/* CKEditor Pane */}
             {(viewMode === "edit" || viewMode === "split") && (
               <div className="flex flex-col rounded-2xl border border-border bg-card shadow-card overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Edit3 size={14} className="text-primary" />
-                    <span>Markdown & Text Editor</span>
+                    <span>CKEditor WYSIWYG Editor</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs font-normal">
                     <span>{wordCount} words</span>
                     <span>{charCount} characters</span>
                   </div>
                 </div>
-                <div className="p-4 flex-1 flex flex-col">
-                  <Textarea
-                    value={currentContent}
-                    onChange={(e) => setCurrentContent(e.target.value)}
-                    placeholder="Enter policy markdown text here..."
-                    className="flex-1 min-h-[500px] font-mono text-sm leading-relaxed border-border resize-y focus-visible:ring-1"
+                <div className="p-4 flex-1 flex flex-col admin-ckeditor-wrapper">
+                  <CKEditor
+                    key={activeTab}
+                    editor={ClassicEditor}
+                    config={{
+                      licenseKey: "GPL",
+                      plugins: [
+                        Essentials,
+                        Paragraph,
+                        Heading,
+                        Bold,
+                        Italic,
+                        Underline,
+                        Strikethrough,
+                        Link,
+                        List,
+                        BlockQuote,
+                        Table,
+                        TableToolbar,
+                        HorizontalLine,
+                        Undo,
+                      ],
+                      toolbar: [
+                        "undo",
+                        "redo",
+                        "|",
+                        "heading",
+                        "|",
+                        "bold",
+                        "italic",
+                        "underline",
+                        "strikethrough",
+                        "|",
+                        "link",
+                        "bulletedList",
+                        "numberedList",
+                        "|",
+                        "blockQuote",
+                        "insertTable",
+                        "horizontalLine",
+                      ],
+                      table: {
+                        contentToolbar: ["tableColumn", "tableRow", "mergeTableCells"],
+                      },
+                    }}
+                    data={currentContent}
+                    onChange={(_event, editor) => {
+                      const data = editor.getData();
+                      setCurrentContent(data);
+                    }}
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Supports Markdown formatting: <code className="text-foreground"># Header</code>,{" "}
-                    <code className="text-foreground">**bold**</code>,{" "}
-                    <code className="text-foreground">- bullet points</code>, and{" "}
-                    <code className="text-foreground">1. numbered lists</code>.
-                  </p>
                 </div>
               </div>
             )}
@@ -412,7 +563,7 @@ export function AdminLegalPolicies() {
                     <CheckCircle2 size={12} /> Live Preview
                   </span>
                 </div>
-                <div className="p-6 flex-1 overflow-y-auto max-h-[600px] bg-background/50">
+                <div className="p-6 flex-1 overflow-y-auto max-h-[660px] bg-background/50">
                   <div className="rounded-xl border border-border/80 bg-card p-6 shadow-sm">
                     <FormattedPolicyContent content={currentContent} />
                   </div>

@@ -17,7 +17,17 @@ export function FormattedPolicyContent({ content }: { content: string }) {
     return <p className="text-muted-foreground italic py-8 text-center">No policy content available.</p>;
   }
 
-  // Parse lines into clean structured elements
+  // If content contains HTML markup (e.g., from CKEditor), render it cleanly as HTML
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return (
+      <div
+        className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:tracking-tight [&_h1]:text-foreground [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-foreground [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-4 [&_h3]:mb-1.5 [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-3 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:my-3 [&_ol]:space-y-1 [&_li]:text-muted-foreground [&_li]:leading-relaxed [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_p]:my-2 [&_strong]:text-foreground [&_strong]:font-semibold [&_hr]:my-5 [&_hr]:border-border [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-border [&_th]:p-2 [&_td]:border [&_td]:border-border [&_td]:p-2 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+
+  // Parse lines into clean structured elements (legacy Markdown fallback)
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
   let currentList: { type: "ul" | "ol"; items: string[] } | null = null;
