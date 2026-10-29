@@ -53,6 +53,9 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   // Brand Blue - Proposals & Quotes & Open
   proposalsreceived: "brand",
   quotereceived: "brand",
+  quotesreceived: "brand",
+  quotesent: "brand",
+  proposalsubmitted: "brand",
   submitted: "brand",
   open: "brand",
   thisweek: "brand",
@@ -94,6 +97,8 @@ export const STATUS_TO_TONE_MAP: Record<string, StatusTone> = {
   canceled: "danger",
   declined: "danger",
   rejected: "danger",
+  quoterejected: "danger",
+  quotesrejected: "danger",
   suspended: "danger",
   noshow: "danger",
   emergency: "danger",

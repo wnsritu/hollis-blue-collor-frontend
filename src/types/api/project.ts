@@ -8,7 +8,9 @@ export type ProjectStatus =
   | "in_progress"
   | "completed"
   | "cancelled"
-  | "expired";
+  | "expired"
+  | "rejected"
+  | "quote_rejected";
 
 export type ProjectUrgency = "flexible" | "soon" | "urgent";
 

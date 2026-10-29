@@ -63,17 +63,28 @@ export const ProviderLeads: React.FC = () => {
     );
   };
 
+  const getProposalStatus = (match: ProjectMatch) => {
+    const p =
+      (match as any).proposal ||
+      (match.project as any)?.my_proposal ||
+      (match.project as any)?.proposals?.[0];
+    return p?.status ? String(p.status).toLowerCase() : null;
+  };
+
   const isQuotedLead = (match: ProjectMatch) => {
     const project = match.project;
     const matchStatus = String(match.status || "").toLowerCase();
     const projectStatus = String(project?.status || "").toLowerCase();
+    const propStatus = getProposalStatus(match);
     return (
+      Boolean(propStatus) ||
       matchStatus === "quoted" ||
       matchStatus === "accepted" ||
       matchStatus === "in_progress" ||
       matchStatus === "proposals_received" ||
       projectStatus === "proposals_received" ||
       projectStatus === "in_progress" ||
+      projectStatus === "rejected" ||
       Boolean(project?.accepted_proposal_id)
     );
   };
@@ -100,7 +111,19 @@ export const ProviderLeads: React.FC = () => {
     const isDirect = isDirectQuoteLead(match);
     const requestTypeLabel = isDirect ? "Direct Quote" : "Custom Request";
     const isQuoted = isQuotedLead(match);
-    const statusLabel = isQuoted ? "Quote Received" : "Quote Pending";
+    const propStatus = getProposalStatus(match);
+    const projectStatus = String(project?.status || "").toLowerCase();
+
+    const isRejected =
+      propStatus === "rejected" ||
+      projectStatus === "rejected" ||
+      match.status === "declined";
+
+    const statusLabel = isRejected
+      ? "Quote Rejected"
+      : isQuoted
+        ? "Quote Sent"
+        : "Quote Pending";
 
     // Customer Name
     const customerName =
@@ -142,10 +165,12 @@ export const ProviderLeads: React.FC = () => {
                 {requestTypeLabel}
               </span>
               <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${
-                  isQuoted
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-slate-100 text-slate-600 border-slate-200"
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                  isRejected
+                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                    : isQuoted
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-slate-100 text-slate-600 border-slate-200"
                 }`}
               >
                 {statusLabel}

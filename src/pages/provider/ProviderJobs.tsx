@@ -66,6 +66,22 @@ export function ProviderJobs() {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
 
+  const [tabCounts, setTabCounts] = useState<{
+    all: number;
+    upcoming: number;
+    active: number;
+    completed: number;
+    fixed: number;
+    quote: number;
+  }>({
+    all: 0,
+    upcoming: 0,
+    active: 0,
+    completed: 0,
+    fixed: 0,
+    quote: 0,
+  });
+
   // Reset page when tab changes
   useEffect(() => {
     setPage(1);
@@ -91,17 +107,90 @@ export function ProviderJobs() {
   const [isEditingReply, setIsEditingReply] = useState(false);
   const [submittingReply, setSubmittingReply] = useState(false);
 
+  // Classify direct fixed services vs request a quote / project flow
+  const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
+
+  const isCompletedJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "COMPLETED";
+  };
+
+  const isCancelledJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "CANCELLED";
+  };
+
+  const isUpcomingJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "UPCOMING";
+  };
+
+  const isActiveJob = (b: any) => {
+    return getBookingLifecycleCategory(b) === "ACTIVE";
+  };
+
+  const fetchTabCounts = async () => {
+    try {
+      const res: any = await appointmentApi.listMine({ page: 1, limit: 1000 });
+      const rawData = res?.data || res;
+      const serverCounts = rawData?.tab_counts || res?.tab_counts;
+      if (serverCounts) {
+        setTabCounts({
+          all: Number(serverCounts.all ?? 0),
+          upcoming: Number(serverCounts.upcoming ?? 0),
+          active: Number(serverCounts.active ?? 0),
+          completed: Number(serverCounts.completed ?? 0),
+          fixed: Number(serverCounts.fixed ?? 0),
+          quote: Number(serverCounts.quote ?? 0),
+        });
+        return;
+      }
+
+      let allItems: any[] = [];
+      if (rawData && typeof rawData === "object" && "items" in rawData && Array.isArray(rawData.items)) {
+        allItems = rawData.items;
+      } else if (Array.isArray(rawData)) {
+        allItems = rawData;
+      }
+
+      setTabCounts({
+        all: allItems.length,
+        upcoming: allItems.filter(isUpcomingJob).length,
+        active: allItems.filter(isActiveJob).length,
+        completed: allItems.filter(isCompletedJob).length,
+        fixed: allItems.filter((b) => !isQuoteJob(b)).length,
+        quote: allItems.filter((b) => isQuoteJob(b)).length,
+      });
+    } catch (e) {
+      console.error("Failed to fetch tab counts:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchTabCounts();
+  }, []);
+
   const fetchActiveJobs = async (tabOverride?: string) => {
     setLoading(true);
     try {
       const tabToUse = tabOverride !== undefined ? tabOverride : activeTab;
       const queryParams: Record<string, unknown> = { page, limit };
       if (tabToUse === "active") queryParams.status_tab = "active";
+      else if (tabToUse === "upcoming") queryParams.status_tab = "upcoming";
       else if (tabToUse === "completed") queryParams.status_tab = "completed";
       else if (tabToUse === "fixed") queryParams.job_type = "fixed";
       else if (tabToUse === "quote") queryParams.job_type = "quote";
 
       const val: any = await appointmentApi.listMine(queryParams);
+
+      const serverCounts = val?.data?.tab_counts || val?.tab_counts;
+      if (serverCounts) {
+        setTabCounts({
+          all: Number(serverCounts.all ?? 0),
+          upcoming: Number(serverCounts.upcoming ?? 0),
+          active: Number(serverCounts.active ?? 0),
+          completed: Number(serverCounts.completed ?? 0),
+          fixed: Number(serverCounts.fixed ?? 0),
+          quote: Number(serverCounts.quote ?? 0),
+        });
+      }
 
       let aptList: any[] = [];
       let totalItems = 0;
@@ -164,25 +253,6 @@ export function ProviderJobs() {
     fetchActiveJobs();
   }, [page, limit, activeTab]);
 
-  // Classify direct fixed services vs request a quote / project flow
-  const isQuoteJob = (b: any) => Boolean(b.project_id || b.proposal_id);
-
-  const isCompletedJob = (b: any) => {
-    return getBookingLifecycleCategory(b) === "COMPLETED";
-  };
-
-  const isCancelledJob = (b: any) => {
-    return getBookingLifecycleCategory(b) === "CANCELLED";
-  };
-
-  const isUpcomingJob = (b: any) => {
-    return getBookingLifecycleCategory(b) === "UPCOMING";
-  };
-
-  const isActiveJob = (b: any) => {
-    return getBookingLifecycleCategory(b) === "ACTIVE";
-  };
-
   const myBookings = appointments;
 
   const filteredBookings = myBookings.filter((b: any) => {
@@ -193,12 +263,6 @@ export function ProviderJobs() {
     if (activeTab === "quote") return isQuoteJob(b);
     return true;
   });
-
-  const upcomingCount = myBookings.filter(isUpcomingJob).length;
-  const activeCount = myBookings.filter(isActiveJob).length;
-  const completedCount = myBookings.filter(isCompletedJob).length;
-  const fixedCount = myBookings.filter((b) => !isQuoteJob(b)).length;
-  const quoteCount = myBookings.filter((b) => isQuoteJob(b)).length;
 
   const handleUpdateStatus = async (
     bookingId: number,
@@ -225,6 +289,7 @@ export function ProviderJobs() {
       } as any);
       toast.success(`Job status updated to ${nextStatus}.`);
       await fetchActiveJobs();
+      fetchTabCounts();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update status.");
     } finally {
@@ -265,6 +330,7 @@ export function ProviderJobs() {
       toast.success("Job request declined successfully.");
       setSelectedBookingForDecline(null);
       await fetchActiveJobs();
+      fetchTabCounts();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to decline job.");
     } finally {
@@ -299,6 +365,7 @@ export function ProviderJobs() {
       toast.success(`Updated price sent to customer! Proposed: ${usd(newPrice)}`);
       setSelectedBookingForPrice(null);
       await fetchActiveJobs();
+      fetchTabCounts();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update price.");
     } finally {
@@ -392,21 +459,21 @@ export function ProviderJobs() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
           <TabsList className="flex h-auto w-full flex-wrap items-center justify-start gap-1.5 rounded-xl bg-muted p-1.5 text-muted-foreground">
-            <TabsTrigger value="all" className="text-xs sm:text-sm px-3 py-1.5">All Requests ({myBookings.length})</TabsTrigger>
-            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-3 py-1.5">Upcoming Jobs ({upcomingCount})</TabsTrigger>
-            <TabsTrigger value="active" className="text-xs sm:text-sm px-3 py-1.5">Active Jobs ({activeCount})</TabsTrigger>
-            <TabsTrigger value="completed" className="text-xs sm:text-sm px-3 py-1.5">Completed ({completedCount})</TabsTrigger>
-            <TabsTrigger value="fixed" className="text-xs sm:text-sm px-3 py-1.5">Fixed Services ({fixedCount})</TabsTrigger>
-            <TabsTrigger value="quote" className="text-xs sm:text-sm px-3 py-1.5">Request a Quote ({quoteCount})</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-3 py-1.5">All Requests ({tabCounts.all})</TabsTrigger>
+            <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-3 py-1.5">Upcoming Jobs ({tabCounts.upcoming})</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm px-3 py-1.5">Active Jobs ({tabCounts.active})</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs sm:text-sm px-3 py-1.5">Completed ({tabCounts.completed})</TabsTrigger>
+            <TabsTrigger value="fixed" className="text-xs sm:text-sm px-3 py-1.5">Fixed Services ({tabCounts.fixed})</TabsTrigger>
+            <TabsTrigger value="quote" className="text-xs sm:text-sm px-3 py-1.5">Request a Quote ({tabCounts.quote})</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground shrink-0">
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-primary" /> {fixedCount} Fixed Bookings
+            <span className="size-2 rounded-full bg-primary" /> {tabCounts.fixed} Fixed Bookings
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-amber-500" /> {quoteCount} Custom Quotes
+            <span className="size-2 rounded-full bg-amber-500" /> {tabCounts.quote} Custom Quotes
           </span>
         </div>
       </div>
