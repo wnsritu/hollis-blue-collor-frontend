@@ -29,4 +29,6 @@ export * from "./public.route";
 export * from "./private.route";
 export { default as ProtectedRoute } from "./ProtectedRoute";
 export { default as HomeRoute } from "./HomeRoute";
+export { default as CustomerOrGuestRoute } from "./CustomerOrGuestRoute";
+export { default as ProviderOnboardingRoute } from "./ProviderOnboardingRoute";
 export default AppRoutes;

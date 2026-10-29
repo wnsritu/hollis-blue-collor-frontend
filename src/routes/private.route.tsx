@@ -1,10 +1,11 @@
 import { lazy } from "react";
-import { Route, Navigate } from "react-router-dom";
+import { Route } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import { routeMap } from "./routeMap";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { SupportLayout } from "@/components/layout/SupportLayout";
 import { ProviderPortal, CustomerPortal, RolePortal } from "@/components/layout/portals";
+import { ROLES } from "@/constants/roles";
 
 // Admin pages
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
@@ -18,7 +19,6 @@ const AdminDisputes = lazy(() => import("@/pages/admin/AdminDisputes"));
 const AdminDisputeDetail = lazy(() => import("@/pages/admin/AdminDisputeDetail"));
 const AdminReviews = lazy(() => import("@/pages/admin/AdminReviews"));
 const AdminSponsored = lazy(() => import("@/pages/admin/AdminSponsored"));
-const AdminFeaturedPricing = lazy(() => import("@/pages/admin/AdminFeaturedPricing"));
 const AdminReports = lazy(() => import("@/pages/admin/AdminReports"));
 const AdminPayouts = lazy(() => import("@/pages/admin/AdminPayouts"));
 const AdminCommission = lazy(() => import("@/pages/admin/AdminCommission"));
@@ -76,7 +76,7 @@ export const PrivateRoutes = () => (
     <Route
       path={routeMap.ADMIN_DASHBOARD.path}
       element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
           <AdminLayout />
         </ProtectedRoute>
       }
@@ -112,7 +112,7 @@ export const PrivateRoutes = () => (
     <Route
       path={routeMap.SUPPORT_DASHBOARD.path}
       element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={[ROLES.SUPPORT]}>
           <SupportLayout />
         </ProtectedRoute>
       }
@@ -129,18 +129,21 @@ export const PrivateRoutes = () => (
     {/* ================= CUSTOMER PORTAL ================= */}
     <Route
       element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
           <CustomerPortal />
         </ProtectedRoute>
       }
     >
       <Route path={routeMap.CUSTOMER_DASHBOARD.path} element={<CustomerDashboard />} />
+      <Route path="/customer/dashboard" element={<CustomerDashboard />} />
       <Route path={routeMap.CUSTOMER_ORDER_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path="/customer/order/:id" element={<CustomerOrderDetail />} />
+      <Route path={routeMap.CUSTOMER_BOOKINGS.path} element={<AppointmentsPage />} />
       <Route path={routeMap.CUSTOMER_BOOKINGS_DETAIL.path} element={<CustomerOrderDetail />} />
       <Route path={routeMap.CUSTOMER_REPORT_ISSUE.path} element={<ReportIssue />} />
       <Route path={routeMap.CUSTOMER_PROFILE.path} element={<CustomerProfile />} />
       <Route path={routeMap.CUSTOMER_PROJECTS.path} element={<CustomerProjects />} />
+      <Route path="/customer/projects" element={<CustomerProjects />} />
       <Route path={routeMap.CUSTOMER_PAYMENTS.path} element={<CustomerPayments />} />
       <Route path={routeMap.CUSTOMER_REVIEWS.path} element={<CustomerReviews />} />
     </Route>
@@ -148,7 +151,7 @@ export const PrivateRoutes = () => (
     {/* ================= ROLE-ADAPTIVE PORTAL (Customer / Provider) ================= */}
     <Route
       element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={[ROLES.CUSTOMER, ROLES.PROVIDER]}>
           <RolePortal />
         </ProtectedRoute>
       }
@@ -156,13 +159,12 @@ export const PrivateRoutes = () => (
       <Route path={routeMap.CUSTOMER_MESSAGES.path} element={<Messages />} />
       <Route path={routeMap.PROJECT_DETAIL.path} element={<ProjectDetail />} />
       <Route path={routeMap.APPOINTMENTS.path} element={<AppointmentsPage />} />
-      <Route path={routeMap.CUSTOMER_BOOKINGS.path} element={<AppointmentsPage />} />
     </Route>
 
     {/* ================= PROVIDER PORTAL ================= */}
     <Route
       element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={[ROLES.PROVIDER]}>
           <ProviderPortal />
         </ProtectedRoute>
       }
