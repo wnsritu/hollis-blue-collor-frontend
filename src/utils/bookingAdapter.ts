@@ -188,17 +188,23 @@ export function normalizeBooking(b: any): NormalizedBooking {
     (typeof b.id === "string" && b.id.startsWith("BKG-") ? b.id : `BKG-${id}`);
 
   // Status mapping
-  const rawStatus = String(b.appointment_status || b.status || "Requested");
+  const rawRootStatus = String(b.status || "").toLowerCase();
+  const rawAptStatus = String(b.appointment_status || "").toLowerCase();
+  const isNoShow = ["no-show", "noshow"].includes(rawRootStatus) || ["no-show", "noshow"].includes(rawAptStatus);
+  const isRejected = ["rejected", "declined"].includes(rawRootStatus);
+  const isCancelledOnly = ["cancelled", "canceled", "expired"].includes(rawRootStatus) || ["cancelled", "canceled"].includes(rawAptStatus);
+  const isCancelled = isCancelledOnly || isRejected || isNoShow;
+  const isCompleted = ["completed", "delivered", "reviewed", "finished", "work completed"].includes(rawRootStatus) || rawAptStatus === "completed";
+  const isPriceUpdated = rawRootStatus === "price updated" || rawRootStatus === "price_updated" || rawAptStatus === "price updated";
+
+  const rawStatus = isCancelled
+    ? (isNoShow ? "No-show" : "Cancelled")
+    : (isCompleted ? "Completed" : String(b.appointment_status || b.status || "Requested"));
   const normalizedRaw = rawStatus.toLowerCase();
   const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
-  const appointmentStatus = String(b.appointment_status || status);
-
-  const isRejected = ["rejected", "declined"].includes(normalizedRaw);
-  const isNoShow = ["no-show", "noshow"].includes(normalizedRaw);
-  const isCancelledOnly = ["cancelled", "canceled"].includes(normalizedRaw);
-  const isCancelled = isCancelledOnly || isRejected || isNoShow;
-  const isCompleted = ["completed", "delivered", "reviewed", "finished", "work completed"].includes(normalizedRaw);
-  const isPriceUpdated = normalizedRaw === "price updated" || normalizedRaw === "price_updated";
+  const appointmentStatus = isCancelled
+    ? (isNoShow ? "No-show" : "Cancelled")
+    : String(b.appointment_status || status);
 
   // Service Line items
   const rawServices = Array.isArray(b.services)

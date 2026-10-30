@@ -94,12 +94,18 @@ export const ProviderLeads: React.FC = () => {
   const openLeadsCount = leads.filter((m) => !isDirectQuoteLead(m)).length;
   const awaitingQuoteCount = leads.filter((m) => !isQuotedLead(m)).length;
 
-  // Filtered by active tab
-  const tabFilteredLeads = leads.filter((match) => {
-    if (activeTab === "direct") return isDirectQuoteLead(match);
-    if (activeTab === "open") return !isDirectQuoteLead(match);
-    return true;
-  });
+  // Filtered by active tab (sorted newest first)
+  const tabFilteredLeads = leads
+    .filter((match) => {
+      if (activeTab === "direct") return isDirectQuoteLead(match);
+      if (activeTab === "open") return !isDirectQuoteLead(match);
+      return true;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.project?.createdAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.project?.createdAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
 
   const needsQuoteLeads = tabFilteredLeads.filter((m) => !isQuotedLead(m));
   const quotedLeads = tabFilteredLeads.filter((m) => isQuotedLead(m));

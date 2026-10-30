@@ -60,7 +60,7 @@ const AdminDashboard = () => {
   const commissionRate = data?.commissionRate ?? 10;
   const commission = data?.commission ?? Math.round((gmv * commissionRate) / 100);
   const activeJobs = data?.activeJobs ?? data?.stats?.activeBookings ?? 0;
-  const providersCount = data?.providersCount ?? data?.stats?.totalProviders ?? 0;
+  const providersCount = data?.activeProvidersCount ?? data?.providersCount ?? data?.stats?.activeProviders ?? data?.stats?.totalProviders ?? 0;
   const customersCount = data?.customersCount ?? data?.stats?.totalUsers ?? 0;
   const pendingPayouts = data?.pendingPayouts ?? { totalAmount: 0, count: 0 };
   const revenueSeries = data?.revenueSeries ?? [];
@@ -133,9 +133,9 @@ const AdminDashboard = () => {
           icon={Briefcase}
         />
         <StatCard
-          label="Providers / customers"
+          label="Active providers / customers"
           value={`${providersCount} / ${customersCount}`}
-          hint="Registered accounts"
+          hint="Active providers & registered accounts"
           icon={Users}
         />
         <StatCard
