@@ -322,15 +322,22 @@ export const ProjectDetail: React.FC = () => {
     }
   };
 
-  const effectiveStatus =
-    (project as any).booking?.appointment_status ||
-    (project as any).booking?.status ||
-    project.status;
+  const isRejected =
+    project.status === "rejected" ||
+    project.status === "quote_rejected" ||
+    (proposals.length > 0 && proposals.every((p) => p.status === "rejected"));
 
-  const currentTimelineStep = mapProjectStatusToTimelineStep(effectiveStatus, proposals.length);
+  const effectiveStatus = isRejected
+    ? "rejected"
+    : (project as any).booking?.appointment_status ||
+      (project as any).booking?.status ||
+      project.status;
+
+  const currentTimelineStep = mapProjectStatusToTimelineStep(effectiveStatus, proposals.length, isRejected);
   const timelineStepStates = getProjectTimelineStepStates(
     effectiveStatus,
-    (project as any).payment_status || (project as any).booking?.payment_status
+    (project as any).payment_status || (project as any).booking?.payment_status,
+    isRejected
   );
 
   return (

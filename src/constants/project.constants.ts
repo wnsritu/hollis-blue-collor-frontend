@@ -39,8 +39,15 @@ export const REQUEST_TIMELINE_STEPS = [
 
 export const STATUS_TIMELINE_STEPS = REQUEST_TIMELINE_STEPS;
 
-export const mapProjectStatusToTimelineStep = (status?: string, proposalsCount = 0): string => {
+export const mapProjectStatusToTimelineStep = (
+  status?: string,
+  proposalsCount = 0,
+  isRejected = false
+): string => {
   const s = (status || "").toLowerCase().trim();
+  if (isRejected || ["rejected", "quote_rejected", "quote rejected", "declined"].includes(s)) {
+    return "Quote Rejected";
+  }
   if (!s || s === "draft" || s === "request sent") {
     return "Request Sent";
   }
@@ -76,10 +83,19 @@ export const mapProjectStatusToTimelineStep = (status?: string, proposalsCount =
 
 export const getProjectTimelineStepStates = (
   status?: string,
-  paymentStatus?: string
+  paymentStatus?: string,
+  isRejected = false
 ): Record<string, TimelineStepState> => {
   const s = (status || "").toLowerCase().trim();
   const ps = (paymentStatus || "").toLowerCase().trim();
+  const states: Record<string, TimelineStepState> = {};
+
+  if (isRejected || ["rejected", "quote_rejected", "quote rejected", "declined"].includes(s)) {
+    states["Request Sent"] = "done";
+    states["Quote Pending"] = "done";
+    states["Quote Received"] = "crossed";
+    return states;
+  }
 
   // Paid if payment_status is explicitly paid, or status is paid
   const isPaid = ps === "paid" || ps === "succeeded" || s === "paid";
@@ -101,8 +117,6 @@ export const getProjectTimelineStepStates = (
     "completed",
     "reviewed",
   ].includes(s);
-
-  const states: Record<string, TimelineStepState> = {};
 
   if (isPastAcceptance) {
     if (isPaid) {

@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Lock,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,9 +105,14 @@ export const ProviderCustomRequestDetail: React.FC = () => {
         const propRes = await proposalApi.listForProject(projectId);
         const propList = (propRes as any)?.data || propRes || [];
         const activeProp = Array.isArray(propList)
-          ? propList.find((p: any) => p.status === "submitted" || p.status === "accepted" || p.status === "draft")
+          ? propList.find((p: any) => p.status === "submitted" || p.status === "accepted" || p.status === "draft") ||
+            propList.find((p: any) => p.status === "rejected") ||
+            propList[0]
           : null;
         setExistingProposal(activeProp || null);
+        if (activeProp?.status === "rejected") {
+          setIsEditingQuote(false);
+        }
       } catch (propErr) {
         console.log("No proposals or error fetching proposals for project", propErr);
       }
@@ -258,7 +264,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
   };
 
   const handleStartEditing = () => {
-    if (!existingProposal) return;
+    if (!existingProposal || existingProposal.status === "rejected") return;
     const lineItems = Array.isArray(existingProposal.line_items) ? existingProposal.line_items : [];
     const laborItem = lineItems.find((l: any) => l.description?.toLowerCase().includes("labor")) || lineItems[0];
     const materialsItem = lineItems.find((l: any) => l.description?.toLowerCase().includes("material"));
@@ -508,7 +514,19 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           }`}
         action={
           <div className="flex items-center gap-2">
-            <StatusPill status={existingProposal ? (existingProposal.status === "submitted" ? "Proposal Submitted" : existingProposal.status) : (project.status || "Quote Pending")} />
+            <StatusPill
+              status={
+                existingProposal
+                  ? existingProposal.status === "submitted"
+                    ? "Quote Sent"
+                    : existingProposal.status === "rejected"
+                      ? "Quote Rejected"
+                      : existingProposal.status
+                  : project.status === "rejected"
+                    ? "Quote Rejected"
+                    : project.status || "Quote Pending"
+              }
+            />
             <Button
               variant="outline"
               size="sm"
@@ -668,8 +686,16 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                     Submitted on {existingProposal.createdAt ? formatDate(existingProposal.createdAt) : "recently"}
                   </p>
                 </div>
-                <StatusPill status={existingProposal.status === "submitted" ? "Submitted" : existingProposal.status} />
+                <StatusPill status={existingProposal.status === "submitted" ? "Quote Sent" : existingProposal.status === "rejected" ? "Quote Rejected" : existingProposal.status} />
               </div>
+
+              {/* Rejection alert banner */}
+              {existingProposal.status === "rejected" && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700 flex items-center gap-2.5">
+                  <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                  <span>This quotation has been rejected by the customer.</span>
+                </div>
+              )}
 
               {/* Quote summary banner */}
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -733,28 +759,17 @@ export const ProviderCustomRequestDetail: React.FC = () => {
               )}
 
               {/* Actions */}
-              <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleStartEditing}
-                  className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <FileText size={15} /> Edit Quote
-                </Button>
-                {/* <Button
-                  variant="destructive"
-                  onClick={handleWithdrawQuote}
-                  disabled={withdrawing}
-                  className="flex-1 gap-2"
-                >
-                  {withdrawing ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <FileQuestion size={15} />
-                  )}
-                  Withdraw Quote
-                </Button> */}
-              </div>
+              {existingProposal.status !== "rejected" && (
+                <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleStartEditing}
+                    className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    <FileText size={15} /> Edit Quote
+                  </Button>
+                </div>
+              )}
             </div>
           ) : isProposalBlocked ? (
             <div className="space-y-6 py-8 px-4 text-center">

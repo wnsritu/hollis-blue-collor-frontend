@@ -6,6 +6,7 @@ import { setApiAuthHandlers } from "@/lib/api/interceptors";
 import { userApi } from "@/services/customer";
 import type { AuthResponse, AuthUser, LoginPayload, RegisterPayload } from "@/types/api/auth";
 import { isAdmin, isCustomer, isProvider, isSupport } from "@/constants/roles";
+import { tokenStorage } from "@/utils/tokenStorage";
 
 function pickTokens(res: AuthResponse) {
   const nested = res.data;
@@ -100,7 +101,7 @@ export function useAuthSession() {
     }
   }, []);
 
-  const roleId = state.user?.role_id;
+  const roleId = state.user?.role_id ?? tokenStorage.getRoleId();
 
   return {
     ...state,

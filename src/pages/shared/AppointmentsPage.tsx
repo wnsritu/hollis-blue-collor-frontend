@@ -17,7 +17,7 @@ import { PaginationController } from "@/components/ui/PaginationController";
 import { useAppointments } from "@/hooks/useAppointments";
 import { normalizeBooking, formatTimeSlotLabel } from "@/utils/bookingAdapter";
 import { formatDisplayDate } from "@/utils/format";
-import { getTodayDateString } from "@/utils/date";
+import { getTodayDateString, isSlotEarlierThanNow } from "@/utils/date";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TruncatedText } from "@/components/ui/truncated-text";
 import { getBookingLifecycleCategory, canProviderPerformAction, formatUpcomingTimeNotice } from "@/utils/bookingLifecycle";
@@ -118,23 +118,30 @@ export const AppointmentsPage: React.FC = () => {
                   label: s.slot_name
                     ? `${s.slot_name} (${s.start_time?.slice(0, 5) || ""}-${s.end_time?.slice(0, 5) || ""})`
                     : s.name || `Slot #${s.id}`,
+                  isPast: isSlotEarlierThanNow(rescheduleDate, s),
                 }))
-                : timeSlots.map((t) => ({ id: t, name: t, label: t }))
+                : timeSlots.map((t) => ({ id: t, name: t, label: t, isPast: false }))
               ).map((slotObj) => (
                 <button
                   key={slotObj.name}
                   type="button"
-                  onClick={() => setSelectedSlot(slotObj.name)}
+                  disabled={slotObj.isPast}
+                  onClick={() => !slotObj.isPast && setSelectedSlot(slotObj.name)}
                   className={cn(
                     "rounded-xl border px-3 py-2 text-xs text-left transition-colors font-medium flex flex-col justify-center",
-                    selectedSlot === slotObj.name || selectedSlot === String(slotObj.id)
-                      ? "border-primary bg-primary text-primary-foreground font-semibold shadow-sm"
-                      : "border-border hover:bg-muted text-foreground"
+                    slotObj.isPast
+                      ? "border-border/40 bg-muted/40 text-muted-foreground cursor-not-allowed opacity-50"
+                      : selectedSlot === slotObj.name || selectedSlot === String(slotObj.id)
+                        ? "border-primary bg-primary text-primary-foreground font-semibold shadow-sm"
+                        : "border-border hover:bg-muted text-foreground"
                   )}
                 >
                   <span className="font-bold">{slotObj.name}</span>
                   {slotObj.label !== slotObj.name && (
                     <span className="text-[10px] opacity-80">{slotObj.label.split("(")[1]?.replace(")", "") || ""}</span>
+                  )}
+                  {slotObj.isPast && (
+                    <span className="text-[9px] text-muted-foreground">Passed</span>
                   )}
                 </button>
               ))}

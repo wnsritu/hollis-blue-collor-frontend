@@ -3,7 +3,10 @@ import { Route } from "react-router-dom";
 import { routeMap } from "./routeMap";
 import HomeRoute from "./HomeRoute";
 import ProtectedRoute from "./ProtectedRoute";
+import CustomerOrGuestRoute from "./CustomerOrGuestRoute";
+import ProviderOnboardingRoute from "./ProviderOnboardingRoute";
 import PublicLayout from "@/components/layout/PublicLayout";
+import { ROLES } from "@/constants/roles";
 
 // Public pages
 const Index = lazy(() => import("@/pages/public/Home"));
@@ -37,15 +40,19 @@ export const PublicRoutes = () => (
         <Route path={routeMap.HOW_IT_WORKS.path} element={<HowItWorks />} />
       </Route>
 
-      {/* General Public Pages */}
+      {/* General Public Pages (Open to all visitors and users) */}
       <Route path={routeMap.ABOUT.path} element={<About />} />
-      <Route path={routeMap.SEARCH.path} element={<SearchProviders />} />
-      <Route path={routeMap.PROVIDER_PROFILE.path} element={<ProviderProfile />} />
       <Route path={routeMap.TERMS.path} element={<LegalPage />} />
       <Route path={routeMap.PRIVACY.path} element={<LegalPage />} />
 
-      {/* Booking Flow (Requires Authentication) */}
-      <Route element={<ProtectedRoute />}>
+      {/* Customer & Guest Marketplace Discovery (Providers/Admin/Support redirected) */}
+      <Route element={<CustomerOrGuestRoute />}>
+        <Route path={routeMap.SEARCH.path} element={<SearchProviders />} />
+        <Route path={routeMap.PROVIDER_PROFILE.path} element={<ProviderProfile />} />
+      </Route>
+
+      {/* Booking Flow (Requires Authentication & Role = CUSTOMER) */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.CUSTOMER]} />}>
         <Route path={routeMap.BOOK_PROVIDER.path} element={<BookService />} />
         <Route path={routeMap.BOOKING_DETAIL.path} element={<BookService />} />
         <Route path={routeMap.CHECKOUT.path} element={<Checkout />} />
@@ -64,7 +71,9 @@ export const PublicRoutes = () => (
     {/* Verification & Onboarding */}
     <Route path={routeMap.VERIFY_EMAIL.path} element={<VerifyEmail />} />
     <Route path={routeMap.VERIFY_OTP.path} element={<VerifyEmail />} />
-    <Route path={routeMap.PROVIDER_ONBOARDING.path} element={<ProviderOnboarding />} />
+    <Route element={<ProviderOnboardingRoute />}>
+      <Route path={routeMap.PROVIDER_ONBOARDING.path} element={<ProviderOnboarding />} />
+    </Route>
   </>
 );
 

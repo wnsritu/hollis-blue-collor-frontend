@@ -134,8 +134,16 @@ export const CustomerProjects: React.FC = () => {
               project.service_type?.name ||
               "Local Professional";
 
-            const statusLabel =
-              project.status === "matching" || project.status === "open"
+            const isRejected =
+              project.status === "rejected" ||
+              project.status === "quote_rejected" ||
+              (Array.isArray(project.proposals) &&
+                project.proposals.length > 0 &&
+                project.proposals.every((p: any) => p.status === "rejected"));
+
+            const statusLabel = isRejected
+              ? "Quote Rejected"
+              : project.status === "matching" || project.status === "open"
                 ? "Quote Pending"
                 : project.status === "proposals_received"
                   ? "Quotes Received"
