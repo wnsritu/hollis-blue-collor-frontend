@@ -356,7 +356,7 @@ export const AppointmentsPage: React.FC = () => {
               const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
               const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
               const canReschedule = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived && !isRescheduled;
-              const canCancel = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived;
+              const canCancel = !n.isCompleted && !n.isCancelled && !isInProgressOrArrived && !isRescheduled;
               const isUpcoming = getBookingLifecycleCategory(apt) === "UPCOMING";
 
               return (
@@ -462,9 +462,27 @@ export const AppointmentsPage: React.FC = () => {
                             }
                             if (isRequester) {
                               return (
-                                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 py-1">
-                                  ⏳ Reschedule requested. Awaiting confirmation from the other party.
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 py-1">
+                                    ⏳ Reschedule requested. Awaiting confirmation.
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isThisAptUpdating}
+                                    className="text-xs h-8 text-destructive border-destructive/20 hover:bg-destructive/10"
+                                    onClick={() => handleRejectReschedule(apt.id)}
+                                  >
+                                    {isActionUpdating("reject_reschedule") ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                        Cancelling...
+                                      </>
+                                    ) : (
+                                      "Cancel Reschedule"
+                                    )}
+                                  </Button>
+                                </div>
                               );
                             }
                             return (
@@ -494,10 +512,10 @@ export const AppointmentsPage: React.FC = () => {
                                   {isActionUpdating("reject_reschedule") ? (
                                     <>
                                       <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                                      Declining...
+                                      Cancelling...
                                     </>
                                   ) : (
-                                    "Decline Reschedule"
+                                    "Cancel Reschedule"
                                   )}
                                 </Button>
                               </>
@@ -850,7 +868,7 @@ export const AppointmentsPage: React.FC = () => {
             const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
             const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
             const canReschedule = !isTerminal && !isInProgressOrArrived && !isRescheduled;
-            const canCancel = !isTerminal && !isInProgressOrArrived;
+            const canCancel = !isTerminal && !isInProgressOrArrived && !isRescheduled;
 
             return (
               <div
@@ -959,32 +977,73 @@ export const AppointmentsPage: React.FC = () => {
                       const isRequester = Number(n.reschedule.requestedBy) === Number(user?.id);
                       if (isRequester) {
                         return (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-center rounded-xl border border-border/80 bg-background text-xs font-semibold text-foreground hover:bg-muted/50 transition shadow-none h-9"
-                            onClick={() => navigate(`/customer/bookings/${apt.id}`)}
-                          >
-                            View booking (Pending)
-                          </Button>
+                          <div className="flex flex-col gap-2 w-full">
+                            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 text-center py-1">
+                              ⏳ Reschedule requested (Awaiting confirmation)
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-xs h-9 justify-center rounded-xl"
+                                onClick={() => navigate(`/customer/bookings/${apt.id}`)}
+                              >
+                                View booking
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={Boolean(updatingStatusId)}
+                                className="flex-1 text-xs h-9 justify-center rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={() => handleRejectReschedule(apt.id)}
+                              >
+                                {updatingAction === `${apt.id}:reject_reschedule` ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                    Cancelling...
+                                  </>
+                                ) : (
+                                  "Cancel Reschedule"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
                         );
                       }
                       return (
-                        <Button
-                          size="sm"
-                          disabled={Boolean(updatingStatusId)}
-                          className="w-full justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 h-9"
-                          onClick={() => handleConfirmReschedule(apt.id)}
-                        >
-                          {updatingAction === `${apt.id}:confirm_reschedule` ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                              Confirming...
-                            </>
-                          ) : (
-                            "Confirm Reschedule"
-                          )}
-                        </Button>
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            size="sm"
+                            disabled={Boolean(updatingStatusId)}
+                            className="flex-1 justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 h-9"
+                            onClick={() => handleConfirmReschedule(apt.id)}
+                          >
+                            {updatingAction === `${apt.id}:confirm_reschedule` ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                Confirming...
+                              </>
+                            ) : (
+                              "Confirm Reschedule"
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={Boolean(updatingStatusId)}
+                            className="flex-1 justify-center rounded-xl text-xs font-semibold text-destructive border-destructive/30 hover:bg-destructive/10 h-9"
+                            onClick={() => handleRejectReschedule(apt.id)}
+                          >
+                            {updatingAction === `${apt.id}:reject_reschedule` ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              "Cancel Reschedule"
+                            )}
+                          </Button>
+                        </div>
                       );
                     })()
                   ) : (

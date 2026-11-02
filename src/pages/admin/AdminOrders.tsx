@@ -16,6 +16,7 @@ import {
   Building2,
   CreditCard,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ import PaginationController from "@/components/ui/PaginationController";
 import { getOrderDetails, getOrderList } from "@/services/order.service";
 import { appointmentApi } from "@/services/booking/booking.service";
 import { formatDate } from "@/utils/date";
+import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 import toast from "react-hot-toast";
 
@@ -86,6 +88,58 @@ export const AdminOrders: React.FC = () => {
   const [searchFilter, setSearchFilter] = useState("");
   const debouncedSearch = useDebounce(searchFilter, 350);
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Partial Refund Custom Modal state
+  const [partialRefundModalOpen, setPartialRefundModalOpen] = useState(false);
+  const [refundBooking, setRefundBooking] = useState<any>(null);
+  const [customRefundAmount, setCustomRefundAmount] = useState<string>("");
+  const [refundNotes, setRefundNotes] = useState<string>("");
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+
+  const handleOpenPartialRefundModal = (booking: any) => {
+    setRefundBooking(booking);
+    const paid = Number(booking.total_paid_amount || booking.amount || booking.total_amount || 0);
+    setCustomRefundAmount(String(paid > 0 ? (paid / 2).toFixed(2) : "0"));
+    setRefundNotes("");
+    setPartialRefundModalOpen(true);
+  };
+
+  const handleSubmitPartialRefund = async () => {
+    if (!refundBooking) return;
+    const maxPaid = Number(refundBooking.total_paid_amount || refundBooking.amount || refundBooking.total_amount || 0);
+    const numAmount = Number(customRefundAmount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      toast.error("Please enter a valid positive refund amount.");
+      return;
+    }
+    if (numAmount > maxPaid) {
+      toast.error(`Refund amount cannot exceed total paid amount (${usd(maxPaid)}).`);
+      return;
+    }
+
+    try {
+      setIsSubmittingRefund(true);
+      await toast.promise(
+        appointmentApi.resolveCancellation(refundBooking.id, {
+          action: "approve_partial",
+          custom_refund_amount: numAmount,
+          notes: refundNotes.trim() || undefined,
+        }),
+        {
+          loading: `Processing ${usd(numAmount)} partial refund...`,
+          success: `Partial refund of ${usd(numAmount)} issued successfully!`,
+          error: "Failed to resolve partial refund.",
+        }
+      );
+      setPartialRefundModalOpen(false);
+      setSelected(null);
+      fetchOrderList();
+    } catch (err: any) {
+      console.error("Partial refund error:", err);
+    } finally {
+      setIsSubmittingRefund(false);
+    }
+  };
 
   // Fetch orders with server-side filters
   const fetchOrderList = async (
@@ -727,30 +781,7 @@ export const AdminOrders: React.FC = () => {
                                   size="sm"
                                   variant="outline"
                                   className="text-xs h-8 border-amber-500 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                                  onClick={async () => {
-                                    const amountStr = prompt(`Enter refund amount for customer (Max ${usd(selected.total_amount || 0)}):`, String(selected.total_amount || 0));
-                                    if (!amountStr) return;
-                                    const customAmount = Number(amountStr);
-                                    if (isNaN(customAmount) || customAmount <= 0) {
-                                      toast.error("Please enter a valid positive refund amount.");
-                                      return;
-                                    }
-                                    try {
-                                      await toast.promise(
-                                        appointmentApi.resolveCancellation(selected.id, {
-                                          action: "approve_partial",
-                                          custom_refund_amount: customAmount,
-                                        }),
-                                        {
-                                          loading: `Processing ${usd(customAmount)} partial refund...`,
-                                          success: `Partial refund of ${usd(customAmount)} issued successfully!`,
-                                          error: "Failed to resolve refund.",
-                                        }
-                                      );
-                                      setSelected(null);
-                                      fetchOrderList();
-                                    } catch (_) {}
-                                  }}
+                                  onClick={() => handleOpenPartialRefundModal(selected)}
                                 >
                                   Partial Refund Custom
                                 </Button>
@@ -861,6 +892,150 @@ export const AdminOrders: React.FC = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Partial Refund Settlement Modal */}
+      <Dialog open={partialRefundModalOpen} onOpenChange={setPartialRefundModalOpen}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-3 border-b border-border bg-muted/20">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <RotateCcw className="size-4 text-amber-500" /> Issue Custom Partial Refund
+            </DialogTitle>
+            {refundBooking && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Booking #{refundBooking.booking_reference || refundBooking.id} · {refundBooking.customer_name || refundBooking.customer?.full_name || "Customer"}
+              </p>
+            )}
+          </DialogHeader>
+
+          {refundBooking && (() => {
+            const totalPaid = Number(refundBooking.total_paid_amount || refundBooking.amount || refundBooking.total_amount || 0);
+            const numAmount = Number(customRefundAmount) || 0;
+            const validAmount = Math.min(totalPaid, Math.max(0, numAmount));
+            const retainedAmount = Math.max(0, totalPaid - validAmount);
+            const commissionRate = Number(refundBooking.commission_rate ?? 10);
+            const commissionOnRetained = Math.round(((retainedAmount * commissionRate) / 100) * 100) / 100;
+            const providerPayable = Math.max(0, Math.round((retainedAmount - commissionOnRetained) * 100) / 100);
+
+            return (
+              <div className="p-5 space-y-4">
+                {/* Paid Summary */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                  <span className="text-muted-foreground font-medium">Customer Total Paid</span>
+                  <span className="font-bold text-foreground text-sm">{usd(totalPaid)}</span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Select Preset Percentage</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[25, 50, 75, 100].map((pct) => {
+                      const val = Math.round((totalPaid * (pct / 100)) * 100) / 100;
+                      const isSelected = Math.abs(numAmount - val) < 0.01;
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setCustomRefundAmount(String(val))}
+                          className={cn(
+                            "py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center",
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background hover:bg-muted text-foreground border-border"
+                          )}
+                        >
+                          {pct}% ({usd(val)})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Refund Input */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <label className="font-semibold text-foreground">Refund to Customer ($)</label>
+                    <span className="text-[11px] text-muted-foreground">Max: {usd(totalPaid)}</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={totalPaid}
+                      value={customRefundAmount}
+                      onChange={(e) => setCustomRefundAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-7 font-bold text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Real-time Calculation Breakdown Card */}
+                <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2 text-xs">
+                  <p className="font-semibold text-foreground text-[11px] uppercase tracking-wider">Settlement Breakdown</p>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Customer Refund Amount:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">-{usd(validAmount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Retained Amount (Cancellation Fee):</span>
+                    <span className="font-medium text-foreground">{usd(retainedAmount)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Platform Commission ({commissionRate}% on retained):</span>
+                    <span className="font-medium text-foreground">{usd(commissionOnRetained)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Provider Net Payout (Compensation):</span>
+                    <span className="font-bold text-foreground">{usd(providerPayable)}</span>
+                  </div>
+                </div>
+
+                {/* Notes Input */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Admin Note / Reason (Optional)</label>
+                  <Input
+                    value={refundNotes}
+                    onChange={(e) => setRefundNotes(e.target.value)}
+                    placeholder="e.g. Approved partial refund based on policy"
+                    className="text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isSubmittingRefund}
+                    onClick={() => setPartialRefundModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isSubmittingRefund || validAmount <= 0}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                    onClick={handleSubmitPartialRefund}
+                  >
+                    {isSubmittingRefund ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Confirm & Refund ${usd(validAmount)}`
+                    )}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
