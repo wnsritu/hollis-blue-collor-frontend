@@ -108,16 +108,19 @@ export default function StripeBookingModal({
       ? "initial"
       : undefined);
 
+  const overallBookingTotal = Number(
+    norm?.totalAmount ||
+      rawBooking?.customer_payment_amount ||
+      rawBooking?.total_amount ||
+      (norm?.initialPaymentAmount && norm?.remainingBalance ? Number(norm.initialPaymentAmount) + Number(norm.remainingBalance) : 0) ||
+      subtotal + taxAmount
+  );
+
   const grandTotal = Number(
     paymentData?.grandTotal ??
       (isFinalStage && norm?.remainingBalance && norm.remainingBalance > 0
         ? norm.remainingBalance
-        : (effectivePaymentStage === "initial" && (norm?.initialPaymentAmount || rawBooking?.initial_payment_amount) && Number(norm?.initialPaymentAmount || rawBooking?.initial_payment_amount) > 0
-            ? Number(norm?.initialPaymentAmount || rawBooking?.initial_payment_amount)
-            : norm?.totalAmount ||
-              rawBooking?.customer_payment_amount ||
-              rawBooking?.total_amount ||
-              subtotal + taxAmount))
+        : overallBookingTotal)
   );
 
   // Address & customer info for billing

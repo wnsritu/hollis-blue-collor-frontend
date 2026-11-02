@@ -32,6 +32,8 @@ import {
 } from "@/constants/project.constants";
 import { createProjectValidationSchema } from "@/validations/project";
 import { getTodayDateString } from "@/utils/date";
+import { getMyProfileApi } from "@/services/customer/customer.service";
+import { useAuthSession } from "@/hooks/useAuth";
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   open,
@@ -45,13 +47,26 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   subCategoryName,
   hasActiveSubscription,
 }) => {
+  const { user: authUser } = useAuthSession();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [customerAddress, setCustomerAddress] = useState<Partial<CreateProjectFormValues>>({});
+
+  const authAddr: Partial<CreateProjectFormValues> = {
+    address_line: (authUser as any)?.address_line || (authUser as any)?.address || "",
+    city: (authUser as any)?.city || "",
+    state: (authUser as any)?.state || "",
+    zip_code: (authUser as any)?.zip_code || (authUser as any)?.zip || "",
+    latitude: (authUser as any)?.latitude ? Number((authUser as any).latitude) : null,
+    longitude: (authUser as any)?.longitude ? Number((authUser as any).longitude) : null,
+  };
 
   const formik = useFormik<CreateProjectFormValues>({
     initialValues: {
       ...DEFAULT_CREATE_PROJECT_VALUES,
+      ...authAddr,
+      ...customerAddress,
       category_id: initialCategoryId ? String(initialCategoryId) : "",
       service_type_id: initialServiceTypeId ? String(initialServiceTypeId) : "",
     },
@@ -132,6 +147,45 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+
+    // Prefill customer profile address
+    (async () => {
+      try {
+        const res: any = await getMyProfileApi();
+        if (cancelled) return;
+        const profile = res?.data?.data || res?.data?.user || res?.data || res || authUser;
+        const defaultAddr = Array.isArray(profile?.addresses) && profile.addresses.length > 0
+          ? profile.addresses.find((a: any) => a.is_default) || profile.addresses[0]
+          : null;
+
+        const addr = profile?.address_line || profile?.address || defaultAddr?.address_line || (authUser as any)?.address_line || (authUser as any)?.address || "";
+        const city = profile?.city || defaultAddr?.city || (authUser as any)?.city || "";
+        const state = profile?.state || defaultAddr?.state || (authUser as any)?.state || "";
+        const zip = profile?.zip_code || profile?.zip || defaultAddr?.zip_code || (authUser as any)?.zip_code || "";
+        const lat = profile?.latitude ? Number(profile.latitude) : (defaultAddr?.latitude ? Number(defaultAddr.latitude) : null);
+        const lng = profile?.longitude ? Number(profile.longitude) : (defaultAddr?.longitude ? Number(defaultAddr.longitude) : null);
+
+        const addrObj: Partial<CreateProjectFormValues> = {};
+        if (addr) addrObj.address_line = addr;
+        if (city) addrObj.city = city;
+        if (state) addrObj.state = state;
+        if (zip) addrObj.zip_code = zip;
+        if (lat) addrObj.latitude = lat;
+        if (lng) addrObj.longitude = lng;
+
+        setCustomerAddress(addrObj);
+
+        if (addr) formik.setFieldValue("address_line", addr);
+        if (city) formik.setFieldValue("city", city);
+        if (state) formik.setFieldValue("state", state);
+        if (zip) formik.setFieldValue("zip_code", zip);
+        if (lat) formik.setFieldValue("latitude", lat);
+        if (lng) formik.setFieldValue("longitude", lng);
+      } catch (err) {
+        console.warn("Could not prefill customer address in quote modal:", err);
+      }
+    })();
+
     (async () => {
       setLoadingCatalog(true);
       try {
@@ -380,7 +434,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                 <Input
                   id="city"
                   name="city"
-                  placeholder="Austin"
+                  placeholder="City"
                   value={formik.values.city}
                   onChange={formik.handleChange}
                 />
@@ -390,7 +444,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                 <Input
                   id="state"
                   name="state"
-                  placeholder="TX"
+                  placeholder="State"
                   value={formik.values.state}
                   onChange={formik.handleChange}
                 />
@@ -400,7 +454,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                 <Input
                   id="zip"
                   name="zip_code"
-                  placeholder="78701"
+                  placeholder="ZIP Code"
                   value={formik.values.zip_code}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}

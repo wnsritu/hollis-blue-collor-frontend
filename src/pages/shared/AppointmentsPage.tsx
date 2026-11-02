@@ -56,6 +56,9 @@ export const AppointmentsPage: React.FC = () => {
     handleConfirmReschedule,
     handleRejectReschedule,
     handleUpdateStatus,
+    updatingStatusId,
+    updatingAction,
+    updatingMap,
     cancelModalOpen,
     setCancelModalOpen,
     selectedCancelAppointment,
@@ -347,6 +350,8 @@ export const AppointmentsPage: React.FC = () => {
           ) : (
             filteredAppointments.map((apt) => {
               const n = normalizeBooking(apt);
+              const isThisAptUpdating = Boolean(updatingMap?.[String(apt.id)]);
+              const isActionUpdating = (action: string) => updatingMap?.[String(apt.id)] === action;
               const isRescheduled = n.reschedule.requested || n.appointmentStatus === "Rescheduled";
               const rawSt = String(apt.appointment_status || apt.status || n.status || "").toLowerCase();
               const isInProgressOrArrived = ["in_process", "in_progress", "in process", "arrived", "arrived at site", "arrived_at_site"].includes(rawSt) || n.appointmentStatus === "In Progress" || n.appointmentStatus === "Arrived";
@@ -466,18 +471,34 @@ export const AppointmentsPage: React.FC = () => {
                               <>
                                 <Button
                                   size="sm"
+                                  disabled={isThisAptUpdating}
                                   className="bg-primary text-primary-foreground hover:bg-primary/90"
                                   onClick={() => handleConfirmReschedule(apt.id)}
                                 >
-                                  Confirm Reschedule
+                                  {isActionUpdating("confirm_reschedule") ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                      Confirming...
+                                    </>
+                                  ) : (
+                                    "Confirm Reschedule"
+                                  )}
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  disabled={isThisAptUpdating}
                                   className="text-destructive border-destructive/20 hover:bg-destructive/10"
                                   onClick={() => handleRejectReschedule(apt.id)}
                                 >
-                                  Decline Reschedule
+                                  {isActionUpdating("reject_reschedule") ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                      Declining...
+                                    </>
+                                  ) : (
+                                    "Decline Reschedule"
+                                  )}
                                 </Button>
                               </>
                             );
@@ -487,9 +508,17 @@ export const AppointmentsPage: React.FC = () => {
                             {n.appointmentStatus === "Requested" && (
                               <Button
                                 size="sm"
+                                disabled={isThisAptUpdating}
                                 onClick={() => handleUpdateStatus(apt.id, "Confirmed", undefined, apt)}
                               >
-                                Confirm
+                                {isActionUpdating("Confirmed") ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                    Confirming...
+                                  </>
+                                ) : (
+                                  "Confirm"
+                                )}
                               </Button>
                             )}
                             {n.appointmentStatus === "Confirmed" && (() => {
@@ -504,10 +533,17 @@ export const AppointmentsPage: React.FC = () => {
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            disabled={!checkEnRoute.allowed}
+                                            disabled={!checkEnRoute.allowed || isThisAptUpdating}
                                             onClick={() => handleUpdateStatus(apt.id, "En Route", undefined, apt)}
                                           >
-                                            On My Way
+                                            {isActionUpdating("En Route") ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                                Updating...
+                                              </>
+                                            ) : (
+                                              "On My Way"
+                                            )}
                                           </Button>
                                         </span>
                                       </TooltipTrigger>
@@ -525,10 +561,17 @@ export const AppointmentsPage: React.FC = () => {
                                         <span>
                                           <Button
                                             size="sm"
-                                            disabled={!checkArrived.allowed}
+                                            disabled={!checkArrived.allowed || isThisAptUpdating}
                                             onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
                                           >
-                                            Mark Arrived
+                                            {isActionUpdating("Arrived") ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                                Updating...
+                                              </>
+                                            ) : (
+                                              "Mark Arrived"
+                                            )}
                                           </Button>
                                         </span>
                                       </TooltipTrigger>
@@ -551,10 +594,17 @@ export const AppointmentsPage: React.FC = () => {
                                       <span>
                                         <Button
                                           size="sm"
-                                          disabled={!checkArrived.allowed}
+                                          disabled={!checkArrived.allowed || isThisAptUpdating}
                                           onClick={() => handleUpdateStatus(apt.id, "Arrived", undefined, apt)}
                                         >
-                                          Mark Arrived
+                                          {isActionUpdating("Arrived") ? (
+                                            <>
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                              Updating...
+                                            </>
+                                          ) : (
+                                            "Mark Arrived"
+                                          )}
                                         </Button>
                                       </span>
                                     </TooltipTrigger>
@@ -577,10 +627,17 @@ export const AppointmentsPage: React.FC = () => {
                                         <span>
                                           <Button
                                             size="sm"
-                                            disabled={!checkStart.allowed}
+                                            disabled={!checkStart.allowed || isThisAptUpdating}
                                             onClick={() => handleUpdateStatus(apt.id, "In Progress", undefined, apt)}
                                           >
-                                            Start Job
+                                            {isActionUpdating("In Progress") ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                                Starting...
+                                              </>
+                                            ) : (
+                                              "Start Job"
+                                            )}
                                           </Button>
                                         </span>
                                       </TooltipTrigger>
@@ -595,17 +652,33 @@ export const AppointmentsPage: React.FC = () => {
                                   <Button
                                     size="sm"
                                     className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                    disabled={isThisAptUpdating}
                                     onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
                                   >
-                                    Mark Complete
+                                    {isActionUpdating("Completed") ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                        Completing...
+                                      </>
+                                    ) : (
+                                      "Mark Complete"
+                                    )}
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"
+                                    disabled={isThisAptUpdating}
                                     className="text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
                                     onClick={() => handleUpdateStatus(apt.id, "No-show", undefined, apt)}
                                   >
-                                    Mark No-Show
+                                    {isActionUpdating("No-show") ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                        Updating...
+                                      </>
+                                    ) : (
+                                      "Mark No-Show"
+                                    )}
                                   </Button>
                                 </>
                               );
@@ -614,9 +687,17 @@ export const AppointmentsPage: React.FC = () => {
                               <Button
                                 size="sm"
                                 className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                disabled={isThisAptUpdating}
                                 onClick={() => handleUpdateStatus(apt.id, "Completed", undefined, apt)}
                               >
-                                Mark Complete
+                                {isActionUpdating("Completed") ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                    Completing...
+                                  </>
+                                ) : (
+                                  "Mark Complete"
+                                )}
                               </Button>
                             )}
                           </>
@@ -625,6 +706,7 @@ export const AppointmentsPage: React.FC = () => {
                           <Button
                             size="sm"
                             variant="outline"
+                            disabled={isThisAptUpdating}
                             onClick={() => handleOpenReschedule(apt)}
                           >
                             Reschedule
@@ -634,6 +716,7 @@ export const AppointmentsPage: React.FC = () => {
                           <Button
                             size="sm"
                             variant="ghost"
+                            disabled={isThisAptUpdating}
                             onClick={() => handleOpenCancelModal(apt)}
                           >
                             Cancel
@@ -889,10 +972,18 @@ export const AppointmentsPage: React.FC = () => {
                       return (
                         <Button
                           size="sm"
+                          disabled={Boolean(updatingStatusId)}
                           className="w-full justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90 h-9"
                           onClick={() => handleConfirmReschedule(apt.id)}
                         >
-                          Confirm Reschedule
+                          {updatingAction === `${apt.id}:confirm_reschedule` ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                              Confirming...
+                            </>
+                          ) : (
+                            "Confirm Reschedule"
+                          )}
                         </Button>
                       );
                     })()
@@ -913,6 +1004,7 @@ export const AppointmentsPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={Boolean(updatingStatusId)}
                           className="flex-1 text-xs h-8"
                           onClick={() => handleOpenReschedule(apt)}
                         >
@@ -923,6 +1015,7 @@ export const AppointmentsPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="ghost"
+                          disabled={Boolean(updatingStatusId)}
                           className="flex-1 text-xs h-8 text-destructive hover:bg-destructive/10"
                           onClick={() => handleOpenCancelModal(apt)}
                         >

@@ -193,7 +193,7 @@ const CustomerProfile = () => {
                               onClick={() => fileInputRef.current?.click()}
                             >
                               <Camera size={13} />
-                              Change Photo
+                              {avatarPreview ? "Update Photo" : "Upload Photo"}
                             </Button>
 
                             {avatarPreview && (

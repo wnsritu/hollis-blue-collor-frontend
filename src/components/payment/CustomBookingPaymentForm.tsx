@@ -404,6 +404,11 @@ export default function CustomBookingPaymentForm({
 
   const isDisabled = !stripe || isProcessing || submitting;
 
+  const overallTotal =
+    isPartialPayment && initialPaymentAmount != null && remainingBalance != null && (grandTotal <= initialPaymentAmount || grandTotal < (initialPaymentAmount + remainingBalance))
+      ? (initialPaymentAmount + remainingBalance)
+      : grandTotal;
+
   const effectiveDueAmount =
     paymentStage === "final"
       ? (remainingBalance ?? grandTotal)
@@ -759,7 +764,7 @@ export default function CustomBookingPaymentForm({
                 <div className="flex items-center justify-between gap-3">
                   <dt className="text-foreground">Total Service Amount</dt>
                   <dd className="font-semibold text-foreground">
-                    ${grandTotal.toFixed(2)}
+                    ${overallTotal.toFixed(2)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3 text-primary font-medium">

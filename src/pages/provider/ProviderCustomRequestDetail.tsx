@@ -25,6 +25,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { TruncatedText } from "@/components/ui/truncated-text";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,48 @@ import {
   calculateGrossQuoteAmount,
 } from "@/validations";
 
+const calculateExpiryDate = (val: string): Date => {
+  const d = new Date();
+  if (!val) {
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+  const clean = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const parts = clean.split("-").map(Number);
+    const customD = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59);
+    if (!isNaN(customD.getTime())) return customD;
+  }
+  const lower = clean.toLowerCase();
+  if (lower.includes("24 hour") || lower.includes("1 day")) {
+    d.setDate(d.getDate() + 1);
+    return d;
+  }
+  if (lower.includes("3 day")) {
+    d.setDate(d.getDate() + 3);
+    return d;
+  }
+  if (lower.includes("7 day")) {
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+  if (lower.includes("14 day")) {
+    d.setDate(d.getDate() + 14);
+    return d;
+  }
+  if (lower.includes("30 day")) {
+    d.setDate(d.getDate() + 30);
+    return d;
+  }
+  const match = lower.match(/(\d+)/);
+  if (match) {
+    d.setDate(d.getDate() + parseInt(match[1], 10));
+    return d;
+  }
+  d.setDate(d.getDate() + 7);
+  return d;
+};
+
 export const ProviderCustomRequestDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -74,6 +117,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
   const [existingProposal, setExistingProposal] = useState<any | null>(null);
   const [isEditingQuote, setIsEditingQuote] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [confirmWithdrawOpen, setConfirmWithdrawOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   interface PriceBreakdownState {
@@ -155,8 +199,7 @@ export const ProviderCustomRequestDetail: React.FC = () => {
 
       setSubmitting(true);
       try {
-        const validUntilDate = new Date();
-        validUntilDate.setDate(validUntilDate.getDate() + 7);
+        const validUntilDate = calculateExpiryDate(values.expires);
 
         const lineItems = [
           {
@@ -247,11 +290,11 @@ export const ProviderCustomRequestDetail: React.FC = () => {
 
   const handleWithdrawQuote = async () => {
     if (!existingProposal) return;
-    if (!window.confirm("Are you sure you want to withdraw this quote?")) return;
     setWithdrawing(true);
     try {
       await proposalApi.remove(existingProposal.id);
       toast.success("Quote withdrawn successfully.");
+      setConfirmWithdrawOpen(false);
       setExistingProposal(null);
       setIsEditingQuote(false);
       formik.resetForm();
@@ -291,7 +334,18 @@ export const ProviderCustomRequestDetail: React.FC = () => {
       completion: "1 business day",
       proposedDate: existingProposal.proposed_date || project?.preferred_date || "",
       proposedTimeSlot: existingProposal.proposed_time_slot?.slot_name || "Morning Slot",
-      expires: existingProposal.valid_until ? formatDate(existingProposal.valid_until) : "7 days",
+      expires: (() => {
+        if (!existingProposal.valid_until) return "7 days";
+        const existingDate = new Date(existingProposal.valid_until);
+        if (isNaN(existingDate.getTime())) return "7 days";
+        const diffDays = Math.round((existingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 1 && diffDays > 0) return "24 hours";
+        if (diffDays === 3) return "3 days";
+        if (diffDays === 7) return "7 days";
+        if (diffDays === 14) return "14 days";
+        if (diffDays === 30) return "30 days";
+        return String(existingProposal.valid_until).slice(0, 10);
+      })(),
       terms: "Standard service terms apply.",
       partialPaymentPercentage:
         existingProposal.partial_payment_percentage != null
@@ -768,6 +822,16 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                   >
                     <FileText size={15} /> Edit Quote
                   </Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setConfirmWithdrawOpen(true)}
+                    disabled={withdrawing}
+                    className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  >
+                    {withdrawing && <Loader2 size={14} className="animate-spin" />}
+                    Withdraw Quote
+                  </Button>
                 </div>
               )}
             </div>
@@ -1166,21 +1230,60 @@ export const ProviderCustomRequestDetail: React.FC = () => {
                 </div>
 
                 <div className={CUSTOM_QUOTE_FORM_STYLES.fieldWrapper}>
-                  <Label htmlFor="expires" className={CUSTOM_QUOTE_FORM_STYLES.label}>
+                  <Label htmlFor="expires-select" className={CUSTOM_QUOTE_FORM_STYLES.label}>
                     Quote expiry <span className={CUSTOM_QUOTE_FORM_STYLES.requiredStar}>*</span>
                   </Label>
-                  <Input
-                    id="expires"
-                    name="expires"
-                    value={formik.values.expires}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    className={cn(
-                      formik.touched.expires &&
-                      formik.errors.expires &&
-                      CUSTOM_QUOTE_FORM_STYLES.inputError
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      id="expires-select"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={
+                        ["24 hours", "3 days", "7 days", "14 days", "30 days"].includes(formik.values.expires)
+                          ? formik.values.expires
+                          : "custom"
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "custom") {
+                          const customDate = new Date();
+                          customDate.setDate(customDate.getDate() + 7);
+                          formik.setFieldValue("expires", customDate.toISOString().slice(0, 10));
+                        } else {
+                          formik.setFieldValue("expires", val);
+                        }
+                      }}
+                    >
+                      <option value="24 hours">24 hours (1 day)</option>
+                      <option value="3 days">3 days</option>
+                      <option value="7 days">7 days (1 week)</option>
+                      <option value="14 days">14 days (2 weeks)</option>
+                      <option value="30 days">30 days (1 month)</option>
+                      <option value="custom">Custom expiration date...</option>
+                    </select>
+
+                    {!["24 hours", "3 days", "7 days", "14 days", "30 days"].includes(formik.values.expires) && (
+                      <Input
+                        type="date"
+                        id="expires-date"
+                        name="expires"
+                        min={getTodayDateString()}
+                        value={formik.values.expires}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        className={cn(
+                          formik.touched.expires &&
+                          formik.errors.expires &&
+                          CUSTOM_QUOTE_FORM_STYLES.inputError
+                        )}
+                      />
                     )}
-                  />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                    <Clock size={12} className="text-primary shrink-0" />
+                    <span>
+                      Valid until: <strong className="text-foreground">{formatDate(calculateExpiryDate(formik.values.expires), "EEEE, MMMM d, yyyy")}</strong>
+                    </span>
+                  </div>
                   {formik.touched.expires && formik.errors.expires && (
                     <p className={CUSTOM_QUOTE_FORM_STYLES.errorText}>{formik.errors.expires}</p>
                   )}
@@ -1341,6 +1444,18 @@ export const ProviderCustomRequestDetail: React.FC = () => {
           )}
         </section>
       </div>
+      {/* Reusable Confirm Dialog for Quote Withdrawal */}
+      <ConfirmDialog
+        open={confirmWithdrawOpen}
+        onOpenChange={setConfirmWithdrawOpen}
+        title="Withdraw Quote"
+        description="Are you sure you want to withdraw this quote? The customer will no longer be able to accept it."
+        confirmText="Withdraw Quote"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={withdrawing}
+        onConfirm={handleWithdrawQuote}
+      />
     </div>
   );
 };

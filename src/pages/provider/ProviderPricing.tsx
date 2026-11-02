@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Home, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -90,10 +90,18 @@ export default function ProviderPricing() {
       }
       setSelectedCategoryId((prev) => prev || initialCatId);
 
-      // Initialize accordion open states
+      // Initialize accordion open states for all registered subcategories
       const initialOpen: Record<string, boolean> = {};
       if (pData?.service_type_id) {
         initialOpen[String(pData.service_type_id)] = true;
+      }
+      if (pData?.sub_category?.id) {
+        initialOpen[String(pData.sub_category.id)] = true;
+      }
+      if (Array.isArray(pData?.service_types)) {
+        pData.service_types.forEach((st: any) => {
+          if (st?.id) initialOpen[String(st.id)] = true;
+        });
       }
       setOpenAccordions(initialOpen);
 
@@ -179,8 +187,6 @@ export default function ProviderPricing() {
   }, [categories, selectedCategoryId]);
 
   const selectedSubcategories = useMemo(() => {
-    if (!parentCategoryObj || !parentCategoryObj.service_types) return [];
-
     // All subcategory IDs associated with this provider
     const providerSubIds = new Set<string>();
     if (provider?.service_type_id != null) providerSubIds.add(String(provider.service_type_id));
@@ -192,18 +198,29 @@ export default function ProviderPricing() {
     }
 
     // Match subcategories under the current active category
-    const registered = parentCategoryObj.service_types.filter((sub) =>
+    const registered = (parentCategoryObj?.service_types || []).filter((sub) =>
       providerSubIds.has(String(sub.id))
     );
 
-    // If provider has registered subcategories in this category and showAllSubcategories is false, show registered
-    if (!showAllSubcategories && registered.length > 0) {
+    if (registered.length > 0) {
       return registered;
     }
 
-    // Otherwise show all subcategories in the category so services are never hidden
-    return parentCategoryObj.service_types;
-  }, [parentCategoryObj, provider, showAllSubcategories]);
+    // Fallback: check across all categories for provider's registered subcategory
+    const allRegisteredAcrossCats: any[] = [];
+    categories.forEach((cat) => {
+      cat.service_types?.forEach((sub) => {
+        if (providerSubIds.has(String(sub.id))) {
+          allRegisteredAcrossCats.push(sub);
+        }
+      });
+    });
+    if (allRegisteredAcrossCats.length > 0) {
+      return allRegisteredAcrossCats;
+    }
+
+    return parentCategoryObj?.service_types || [];
+  }, [parentCategoryObj, provider, categories]);
 
   const getConfig = (svcKey: string, defaultPrice = 100): ProviderServiceConfig => {
     return (
@@ -332,57 +349,12 @@ export default function ProviderPricing() {
         }
       />
 
-      {/* Selected Parent Category Badge Banner */}
+      {/* Registered Subcategory Banner */}
       <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground font-bold shrink-0">
-            <Home size={20} />
-          </span>
-          <div>
-            <p className="text-xs text-muted-foreground font-semibold">Service Category</p>
-            {categories.length > 1 ? (
-              <div className="mt-1">
-                <Select
-                  value={String(parentCategoryObj?.id || "")}
-                  onValueChange={(val) => {
-                    setSelectedCategoryId(val);
-                    setShowAllSubcategories(true);
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-sm font-extrabold bg-background border-border/80 text-foreground w-[220px]">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)} className="font-semibold text-xs">
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <h2 className="text-base font-extrabold text-foreground">{parentName}</h2>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          {parentCategoryObj?.service_types && parentCategoryObj.service_types.length > 1 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAllSubcategories((prev) => !prev)}
-              className="text-xs h-8 px-3 font-semibold bg-background/80"
-            >
-              {showAllSubcategories ? "Show My Registered Area" : "View All Service Areas"}
-            </Button>
-          )}
-          <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1">
-            {selectedSubcategories.length} {selectedSubcategories.length === 1 ? "Selected Subcategory" : "Subcategories"}
-            {selectedSubcategories.length === 1 && ` (${selectedSubcategories[0]?.name})`}
-          </span>
-        </div>
+        <span className="rounded-full bg-primary/10 text-primary font-bold text-xs px-3 py-1.5">
+          {selectedSubcategories.length} {selectedSubcategories.length === 1 ? "Registered Subcategory" : "Registered Subcategories"}
+          {selectedSubcategories.length === 1 && ` (${selectedSubcategories[0]?.name})`}
+        </span>
       </div>
 
       {/* Accordion Subcategories List */}

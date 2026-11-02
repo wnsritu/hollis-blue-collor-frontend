@@ -16,6 +16,9 @@ export function useAppointments() {
   const { user } = useAuthSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingMap, setUpdatingMap] = useState<Record<string, string>>({});
+  const updatingStatusId = Object.keys(updatingMap)[0] || null;
+  const updatingAction = Object.values(updatingMap)[0] || null;
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -100,8 +103,11 @@ export function useAppointments() {
     day?: number | null;
     page?: number;
     limit?: number;
+    silent?: boolean;
   }) => {
-    setLoading(true);
+    if (!overrideParams?.silent) {
+      setLoading(true);
+    }
     try {
       const tabToUse = overrideParams?.tab !== undefined ? overrideParams.tab : activeTab;
       const queryToUse = overrideParams?.query !== undefined ? overrideParams.query : searchQuery;
@@ -110,7 +116,8 @@ export function useAppointments() {
       const limitToUse = overrideParams?.limit !== undefined ? overrideParams.limit : limit;
 
       let statusTab: string | undefined = undefined;
-      if (tabToUse === "Upcoming") statusTab = "upcoming";
+      if (tabToUse === "Requested") statusTab = "requested";
+      else if (tabToUse === "Upcoming") statusTab = "upcoming";
       else if (tabToUse === "In Progress") statusTab = "in_progress";
       else if (tabToUse === "Completed") statusTab = "completed";
       else if (tabToUse === "Cancelled") statusTab = "cancelled";
@@ -140,7 +147,9 @@ export function useAppointments() {
       console.error("Failed to load appointments", err);
       toast.error("Failed to load your appointments.");
     } finally {
-      setLoading(false);
+      if (!overrideParams?.silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -177,6 +186,8 @@ export function useAppointments() {
     reason?: string,
     targetAppointment?: any
   ) => {
+    const key = String(id);
+    if (updatingMap[key]) return; // Prevent double click for this specific appointment
     if (userIsProvider && targetAppointment) {
       const check = canProviderPerformAction(targetAppointment, newStatus);
       if (!check.allowed) {
@@ -184,12 +195,19 @@ export function useAppointments() {
         return;
       }
     }
+    setUpdatingMap((prev) => ({ ...prev, [key]: newStatus }));
     try {
       await appointmentApi.updateStatus(id, { appointment_status: newStatus, reason });
       toast.success(`Appointment marked as ${newStatus}`);
-      fetchAppointments();
+      await fetchAppointments({ silent: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update appointment status.");
+    } finally {
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -306,34 +324,80 @@ export function useAppointments() {
   };
 
   const handleConfirmReschedule = async (id: number | string) => {
+    const key = String(id);
+    if (updatingMap[key]) return;
+    setUpdatingMap((prev) => ({ ...prev, [key]: "confirm_reschedule" }));
     try {
       await appointmentApi.confirmReschedule(id);
       toast.success("Reschedule confirmed successfully!");
-      fetchAppointments();
+      await fetchAppointments({ silent: true });
     } catch (err: any) {
       try {
         await appointmentApi.updateStatus(id, { appointment_status: "Confirmed" });
         toast.success("Reschedule confirmed!");
-        fetchAppointments();
+        await fetchAppointments({ silent: true });
       } catch (err2: any) {
         toast.error(err?.response?.data?.message || err?.message || "Failed to confirm reschedule.");
       }
+    } finally {
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
   const handleRejectReschedule = async (id: number | string) => {
+    const key = String(id);
+    if (updatingMap[key]) return;
+    setUpdatingMap((prev) => ({ ...prev, [key]: "reject_reschedule" }));
     try {
       await appointmentApi.rejectReschedule(id);
       toast.success("Reschedule request declined.");
-      fetchAppointments();
+      await fetchAppointments({ silent: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to decline reschedule.");
+    } finally {
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
   const filteredAppointments = useMemo(() => {
-    return appointments;
-  }, [appointments]);
+    if (!Array.isArray(appointments)) return [];
+    if (!activeTab || activeTab === "All") return appointments;
+    return appointments.filter((apt) => {
+      const n = normalizeBooking(apt);
+      if (activeTab === "Requested") {
+        return n.appointmentStatus === "Requested" && !n.isCancelled && !n.isCompleted;
+      }
+      if (activeTab === "Upcoming") {
+        return (
+          ["Confirmed", "Scheduled", "Rescheduled"].includes(n.appointmentStatus) &&
+          !n.isCancelled &&
+          !n.isCompleted
+        );
+      }
+      if (activeTab === "In Progress") {
+        return (
+          ["En Route", "Arrived", "In Progress"].includes(n.appointmentStatus) &&
+          !n.isCancelled &&
+          !n.isCompleted
+        );
+      }
+      if (activeTab === "Completed") {
+        return n.isCompleted;
+      }
+      if (activeTab === "Cancelled") {
+        return n.isCancelled;
+      }
+      return true;
+    });
+  }, [appointments, activeTab]);
 
   return {
     navigate,
@@ -367,6 +431,9 @@ export function useAppointments() {
     handleConfirmReschedule,
     handleRejectReschedule,
     handleUpdateStatus,
+    updatingStatusId,
+    updatingAction,
+    updatingMap,
     filteredAppointments,
     fetchAppointments,
     cancelModalOpen,

@@ -492,44 +492,31 @@ export function AdminPayouts() {
     }
   };
 
-  // Open Admin Override Modal
-  const openOverrideModal = (payout: PayoutRecord) => {
-    setOverrideModalPayout(payout);
-    setOverrideReason("");
-  };
-
-  const handleConfirmOverride = async () => {
-    if (!overrideModalPayout) return;
-    if (!overrideReason.trim()) {
+  // Execute Admin Override for Hold Payout
+  const handleConfirmOverride = async (targetPayout?: PayoutRecord | null) => {
+    const payout = targetPayout || selectedPayout || overrideModalPayout;
+    if (!payout) return;
+    const trimmedReason = overrideReason.trim();
+    if (!trimmedReason) {
       toast.error("Mandatory override reason is required");
       return;
     }
 
-    setConfirmModal({
-      open: true,
-      title: "Confirm Admin Hold Override",
-      description: `Are you sure you want to override hold and force Payout PO-${overrideModalPayout.id} to ELIGIBLE? Reason: "${overrideReason.trim()}"`,
-      confirmText: "Confirm Override",
-      variant: "default",
-      onConfirm: async () => {
-        setSubmittingOverride(true);
-        try {
-          await overridePayoutHoldApi(overrideModalPayout.id, {
-            reason: overrideReason.trim(),
-          });
-          toast.success(`Payout PO-${overrideModalPayout.id} overridden to ELIGIBLE!`);
-          setOverrideModalPayout(null);
-          setSelectedPayout(null);
-          fetchPayouts();
-          fetchSummary();
-        } catch (err: any) {
-          toast.error(err?.response?.data?.message || "Failed to override hold.");
-        } finally {
-          setSubmittingOverride(false);
-          setConfirmModal((prev) => ({ ...prev, open: false }));
-        }
-      },
-    });
+    setSubmittingOverride(true);
+    try {
+      await overridePayoutHoldApi(payout.id, {
+        reason: trimmedReason,
+      });
+      toast.success(`Payout PO-${payout.id} overridden to ELIGIBLE!`);
+      setOverrideReason("");
+      setOverrideModalPayout(null);
+      setSelectedPayout(null);
+      await Promise.all([fetchPayouts(), fetchSummary()]);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to override hold.");
+    } finally {
+      setSubmittingOverride(false);
+    }
   };
 
   const handleRetryPayout = async (payoutId: number) => {
@@ -1315,7 +1302,7 @@ export function AdminPayouts() {
                     size="sm"
                     variant="destructive"
                     disabled={!overrideReason.trim() || submittingOverride}
-                    onClick={() => { openOverrideModal(selectedPayout); handleConfirmOverride(); }}
+                    onClick={() => handleConfirmOverride(selectedPayout)}
                     className="w-full text-xs font-semibold gap-1 mt-1"
                   >
                     {submittingOverride ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}

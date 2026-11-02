@@ -38,7 +38,8 @@ export const CustomerPayments: React.FC = () => {
         page,
         limit: 10,
         search,
-        status_tab: tab,
+        payment_status: tab !== "all" ? tab : undefined,
+        payment_tab: tab !== "all" ? tab : undefined,
       });
 
       const dataObj = res?.data || res;
@@ -69,6 +70,22 @@ export const CustomerPayments: React.FC = () => {
   };
 
   const normalizedBookings = bookings.map((b) => normalizeBooking(b));
+
+  const displayedBookings = normalizedBookings.filter((b) => {
+    const pStat = (b.paymentStatus || "").toLowerCase();
+    const isPaid =
+      b.isPaid ||
+      ["paid", "success", "succeeded", "completed"].includes(pStat) ||
+      b.status === "Completed";
+
+    if (activeTab === "completed") {
+      return isPaid;
+    }
+    if (activeTab === "pending") {
+      return !isPaid && !["cancelled", "rejected", "expired"].includes((b.status || "").toLowerCase());
+    }
+    return true;
+  });
 
   // Compute metrics
   const totalPaid = normalizedBookings.reduce((sum, b) => {
@@ -165,7 +182,7 @@ export const CustomerPayments: React.FC = () => {
           <Loader2 size={36} className="animate-spin text-primary mb-3" />
           <p className="text-sm text-muted-foreground">Loading payment records...</p>
         </div>
-      ) : normalizedBookings.length === 0 ? (
+      ) : displayedBookings.length === 0 ? (
         <EmptyState
           icon={CreditCard}
           title="No payment records found"
@@ -195,7 +212,7 @@ export const CustomerPayments: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {normalizedBookings.map((b) => {
+                {displayedBookings.map((b) => {
 
                   const pStat = (b.paymentStatus || "").toLowerCase();
                   const isPaid =

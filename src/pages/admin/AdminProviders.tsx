@@ -385,7 +385,21 @@ export function AdminProviders() {
                     </TableCell>
 
                     <TableCell>
-                      <span className="font-semibold text-xs text-foreground">{subPlan}</span>
+                      {p.subscription ? (
+                        <div className="flex flex-col">
+                          <span className="font-bold text-xs text-foreground">
+                            {p.subscription.name || p.subscription.plan?.name || "Subscription"}
+                          </span>
+                          <span className={`text-[10px] font-semibold inline-flex items-center gap-1 ${
+                            p.subscription.status === "active" ? "text-emerald-600" : "text-muted-foreground"
+                          }`}>
+                            <span className={`size-1.5 rounded-full ${p.subscription.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/60"}`} />
+                            {p.subscription.status ? p.subscription.status.toUpperCase() : "ACTIVE"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">No Subscription</span>
+                      )}
                     </TableCell>
 
                     {/* THREE-DOT DROPDOWN MENU FOR ACTIONS */}

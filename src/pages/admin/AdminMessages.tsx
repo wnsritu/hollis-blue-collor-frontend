@@ -115,6 +115,11 @@ const AdminMessages = () => {
     }
   };
 
+  // Eagerly fetch reported chat count on initial load so the tab badge is never missing
+  useEffect(() => {
+    fetchChatReports(1, "all");
+  }, []);
+
   useEffect(() => {
     if (activeTab === "all_chats") {
       fetchAllChats();

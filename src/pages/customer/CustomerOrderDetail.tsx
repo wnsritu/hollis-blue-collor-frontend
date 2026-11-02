@@ -492,6 +492,14 @@ export const CustomerOrderDetail: React.FC = () => {
                         </p>
                       );
                     }
+                    if (isPartiallyPaid || (initialPaymentAmountNum > 0 && Number(booking?.initial_payment_amount || 0) > 0)) {
+                      const depositPaid = Number(booking?.total_paid_amount || booking?.initial_payment_amount || initialPaymentAmountNum);
+                      return (
+                        <p className="text-xs text-muted-foreground pt-1">
+                          💳 <strong>Refund Status:</strong> Upfront deposit of {usd(depositPaid)} was received. A refund has been initiated according to the cancellation policy.
+                        </p>
+                      );
+                    }
                     return (
                       <p className="text-xs text-muted-foreground pt-1">
                         No payment was captured for this booking.
@@ -637,24 +645,7 @@ export const CustomerOrderDetail: React.FC = () => {
                         <p className="text-muted-foreground mt-0.5">
                           Quantity: {svc.quantity} × {usd(svc.unit_price)}
                         </p>
-                        {depositPct != null && (
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-                            {depositPct < 100 ? (
-                              <>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">
-                                  Deposit: {depositPct}% ({usd(itemDeposit)})
-                                </span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-                                  Remaining: {usd(itemRemaining)}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-medium">
-                                Full Payment (100%)
-                              </span>
-                            )}
-                          </div>
-                        )}
+
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-extrabold text-foreground text-sm">
@@ -867,12 +858,33 @@ export const CustomerOrderDetail: React.FC = () => {
         <div className="space-y-6 min-w-0">
           {/* Order Lifecycle Timeline */}
           <section className={`${CARD_SECTION_SHADOW} space-y-4 overflow-hidden min-w-0`}>
-            <h2 className="font-display text-base sm:text-lg font-bold mb-4">Order Lifecycle Status</h2>
-            <Timeline
-              steps={timelineSteps}
-              current={currentTimelineStep}
-              stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial)}
-            />
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h2 className="font-display text-base sm:text-lg font-bold">Order Lifecycle Status</h2>
+              {isCancelled && (
+                <span className="rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-bold text-xs px-2.5 py-0.5">
+                  Cancelled
+                </span>
+              )}
+            </div>
+            {isCancelled ? (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 flex items-center gap-3">
+                <span className="grid size-9 place-items-center rounded-lg bg-destructive/10 text-destructive shrink-0">
+                  <XCircle size={18} />
+                </span>
+                <div>
+                  <p className="font-bold text-destructive text-sm">Order Cancelled</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    This order has been cancelled and its lifecycle has ended.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Timeline
+                steps={timelineSteps}
+                current={currentTimelineStep}
+                stepStates={getBookingTimelineStepStates(isPaid, currentTimelineStep, isPartiallyPaid, isFullyCompletedAndPaid, isCustomOrPartial)}
+              />
+            )}
           </section>
 
           {/* Payment Breakdown Card */}

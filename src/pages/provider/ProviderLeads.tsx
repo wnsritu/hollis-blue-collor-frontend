@@ -94,12 +94,18 @@ export const ProviderLeads: React.FC = () => {
   const openLeadsCount = leads.filter((m) => !isDirectQuoteLead(m)).length;
   const awaitingQuoteCount = leads.filter((m) => !isQuotedLead(m)).length;
 
-  // Filtered by active tab
-  const tabFilteredLeads = leads.filter((match) => {
-    if (activeTab === "direct") return isDirectQuoteLead(match);
-    if (activeTab === "open") return !isDirectQuoteLead(match);
-    return true;
-  });
+  // Filtered by active tab (sorted newest first)
+  const tabFilteredLeads = leads
+    .filter((match) => {
+      if (activeTab === "direct") return isDirectQuoteLead(match);
+      if (activeTab === "open") return !isDirectQuoteLead(match);
+      return true;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.project?.createdAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.project?.createdAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
 
   const needsQuoteLeads = tabFilteredLeads.filter((m) => !isQuotedLead(m));
   const quotedLeads = tabFilteredLeads.filter((m) => isQuotedLead(m));
@@ -240,7 +246,7 @@ export const ProviderLeads: React.FC = () => {
             Custom Quotes & Leads
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            {awaitingQuoteCount} awaiting your quote · {directLeadsCount} direct quote requests
+            {awaitingQuoteCount} awaiting your quote · {leads.length} quote requests
           </p>
         </div>
         <Button
@@ -255,7 +261,8 @@ export const ProviderLeads: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs (Commented out: directly displaying all custom quote requests) */}
+      {/*
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => setActiveTab("all")}
@@ -291,6 +298,7 @@ export const ProviderLeads: React.FC = () => {
           Open Quote Leads ({openLeadsCount})
         </button>
       </div>
+      */}
 
       {/* Content Area */}
       {loading ? (

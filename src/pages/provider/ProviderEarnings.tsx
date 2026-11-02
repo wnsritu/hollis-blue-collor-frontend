@@ -82,7 +82,7 @@ export const ProviderEarnings: React.FC = () => {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Gross service revenue" value={usd(gross)} hint="All paid jobs" icon={Receipt} />
-        <StatCard label="Platform commission" value={usd(commission)} hint={`${commissionRate}% of gross`} icon={Percent} tone="warning" />
+        <StatCard label="Platform commission" value={usd(commission)} icon={Percent} tone="warning" />
         <StatCard label="Payable balance" value={usd(payable)} hint="Awaiting payout release" icon={Wallet} tone="accent" />
         <StatCard label="Paid out to date" value={usd(released)} hint="Deposited to your bank" icon={Banknote} tone="success" />
       </div>

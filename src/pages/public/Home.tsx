@@ -26,19 +26,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProviderCard, mapProviderToGeneric, type GenericProvider } from "@/components/shared/cards";
 import { providerApi } from "@/services/provider";
+import { catalogApi } from "@/services/catalog/catalog.service";
 import { SectionHeading, Stars } from "@/components/shared/primitives";
 import SiteFooter from "@/components/SiteFooter";
 
 const categories = [
-  { id: "1", name: "Plumbing", description: "Leaks, pipe repair, drain clearing & water heater install.", icon: Droplets, pros: 128 },
-  { id: "2", name: "Electrical", description: "Wiring, panel upgrades, light fixture install & outlets.", icon: Zap, pros: 94 },
-  { id: "3", name: "HVAC", description: "AC repair, furnace tune-up, duct cleaning & thermostats.", icon: WindIcon, pros: 76 },
-  { id: "4", name: "Cleaning", description: "Deep cleaning, move-in/out, maid service & carpet wash.", icon: Sparkles, pros: 112 },
-  { id: "5", name: "Roofing", description: "Shingle repair, leak patch, gutter cleaning & roof inspection.", icon: HomeIcon, pros: 64 },
-  { id: "6", name: "Landscaping", description: "Lawn care, tree trimming, garden design & sprinkler repair.", icon: Trees, pros: 88 },
-  { id: "7", name: "Remodeling", description: "Kitchen remodel, bathroom update, flooring & drywall.", icon: Hammer, pros: 52 },
-  { id: "8", name: "Handyman", description: "Small repairs, TV mounting, assembly & door fix.", icon: Wrench, pros: 140 },
+  { id: "1", name: "Plumbing", description: "Leaks, pipe repair, drain clearing & water heater install.", icon: Droplets, pros: 0 },
+  { id: "2", name: "Electrical", description: "Wiring, panel upgrades, light fixture install & outlets.", icon: Zap, pros: 0 },
+  { id: "3", name: "HVAC", description: "AC repair, furnace tune-up, duct cleaning & thermostats.", icon: WindIcon, pros: 0 },
+  { id: "4", name: "Cleaning", description: "Deep cleaning, move-in/out, maid service & carpet wash.", icon: Sparkles, pros: 0 },
+  { id: "5", name: "Roofing", description: "Shingle repair, leak patch, gutter cleaning & roof inspection.", icon: HomeIcon, pros: 0 },
+  { id: "6", name: "Landscaping", description: "Lawn care, tree trimming, garden design & sprinkler repair.", icon: Trees, pros: 0 },
+  { id: "7", name: "Remodeling", description: "Kitchen remodel, bathroom update, flooring & drywall.", icon: Hammer, pros: 0 },
+  { id: "8", name: "Handyman", description: "Small repairs, TV mounting, assembly & door fix.", icon: Wrench, pros: 0 },
 ];
+
+const DEFAULT_SUB_DESCRIPTIONS: Record<string, string> = {
+  Plumbing: "Leaks, pipe repair, drain clearing & water heater install.",
+  Electrical: "Wiring, panel upgrades, light fixture install & outlets.",
+  HVAC: "AC repair, furnace tune-up, duct cleaning & thermostats.",
+  Cleaning: "Deep cleaning, move-in/out, maid service & carpet wash.",
+  Roofing: "Shingle repair, leak patch, gutter cleaning & roof inspection.",
+  Landscaping: "Lawn care, tree trimming, garden design & sprinkler repair.",
+  Remodeling: "Kitchen remodel, bathroom update, flooring & drywall.",
+  Handyman: "Small repairs, TV mounting, assembly & door fix.",
+};
+
+const getCategoryIcon = (name: string) => {
+  const lower = (name || "").toLowerCase();
+  if (lower.includes("plumb")) return Droplets;
+  if (lower.includes("electr")) return Zap;
+  if (lower.includes("hvac") || lower.includes("air") || lower.includes("cool") || lower.includes("heat")) return WindIcon;
+  if (lower.includes("clean") || lower.includes("maid")) return Sparkles;
+  if (lower.includes("roof")) return HomeIcon;
+  if (lower.includes("landscap") || lower.includes("lawn") || lower.includes("garden")) return Trees;
+  if (lower.includes("remodel") || lower.includes("paint") || lower.includes("construct")) return Hammer;
+  if (lower.includes("handy") || lower.includes("repair")) return Wrench;
+  return Wrench;
+};
+
+interface DisplayCategory {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  pros: number;
+}
+
+interface DisplayPopularService {
+  top: string;
+  name: string;
+  description: string;
+}
 
 function WindIcon(props: any) {
   return (
@@ -92,6 +131,75 @@ export function Index() {
   const [location, setLocation] = useState(() => getStoredLocation()?.city || "");
   const [providers, setProviders] = useState<GenericProvider[]>([]);
   const [loadingProviders, setLoadingProviders] = useState<boolean>(true);
+  const [dynamicCategories, setDynamicCategories] = useState<DisplayCategory[]>(categories);
+  const [dynamicPopularServices, setDynamicPopularServices] = useState<DisplayPopularService[]>(popularServicesGrid);
+  const [, setLoadingCatalog] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalog = async () => {
+      try {
+        setLoadingCatalog(true);
+        const res: any = await catalogApi.getTree();
+        const treeData: any[] = res?.data || res || [];
+        if (!Array.isArray(treeData) || treeData.length === 0) return;
+
+        const extractedSubs: DisplayCategory[] = [];
+        const extractedServices: DisplayPopularService[] = [];
+
+        treeData.forEach((cat: any) => {
+          const subList = Array.isArray(cat.service_types) ? cat.service_types : [];
+          subList.forEach((st: any) => {
+            if (st.is_active !== false) {
+              const livePros = Number(st.provider_count || 0);
+              extractedSubs.push({
+                id: String(st.id),
+                name: st.name,
+                description: st.description || DEFAULT_SUB_DESCRIPTIONS[st.name] || `${st.name} services by verified licensed professionals.`,
+                icon: getCategoryIcon(st.name),
+                pros: livePros,
+              });
+
+              const svcs = Array.isArray(st.services) ? st.services : [];
+              svcs.forEach((svc: any) => {
+                if (svc.is_active !== false) {
+                  extractedServices.push({
+                    top: (st.name || cat.name || "POPULAR SERVICE").toUpperCase(),
+                    name: svc.name,
+                    description: svc.description || `${svc.name} service available on fixed platform pricing.`,
+                  });
+                }
+              });
+            }
+          });
+        });
+
+        if (isMounted) {
+          if (extractedSubs.length > 0) {
+            setDynamicCategories(extractedSubs.slice(0, 8));
+          }
+          if (extractedServices.length > 0) {
+            const mergedServices = [...extractedServices];
+            popularServicesGrid.forEach((fallbackSvc) => {
+              if (mergedServices.length < 6 && !mergedServices.some(s => s.name.toLowerCase() === fallbackSvc.name.toLowerCase())) {
+                mergedServices.push(fallbackSvc);
+              }
+            });
+            setDynamicPopularServices(mergedServices.slice(0, 6));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic catalog on landing page:", err);
+      } finally {
+        if (isMounted) setLoadingCatalog(false);
+      }
+    };
+
+    fetchCatalog();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -308,10 +416,10 @@ export function Index() {
           }
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((c) => (
+          {dynamicCategories.map((c) => (
             <Link
               key={c.id}
-              to="/search"
+              to={`/search?category_id=st_${c.id}&query=${encodeURIComponent(c.name)}`}
               className="group rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
             >
               <span className="grid size-11 place-items-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -320,7 +428,7 @@ export function Index() {
               <h3 className="mt-4 font-display text-base font-bold">{c.name}</h3>
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
               <p className="mt-3 text-xs font-semibold text-primary">
-                {c.pros} professionals
+                {c.pros} {c.pros === 1 ? "professional" : "professionals"}
               </p>
             </Link>
           ))}
@@ -435,10 +543,10 @@ export function Index() {
           }
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {popularServicesGrid.map((s) => (
+          {dynamicPopularServices.map((s) => (
             <Link
               key={`${s.top}-${s.name}`}
-              to="/search"
+              to={`/search?query=${encodeURIComponent(s.name)}`}
               className="rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift"
             >
               <span className="text-[11px] font-bold uppercase tracking-wider text-primary">{s.top}</span>

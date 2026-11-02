@@ -54,6 +54,17 @@ import { isCustomer } from "@/constants/roles";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { cn } from "@/lib/utils";
 
+const formatMessageTime = (dateInput: any): string => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export const Messages: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -476,7 +487,7 @@ export const Messages: React.FC = () => {
                       <span className="truncate text-sm font-semibold">{title}</span>
                       {lastTime && (
                         <span className="shrink-0 text-[11px] text-muted-foreground">
-                          {new Date(lastTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatMessageTime(lastTime)}
                         </span>
                       )}
                     </span>
@@ -661,9 +672,7 @@ export const Messages: React.FC = () => {
                         {/* TIMESTAMP & READ/SENT STATUS */}
                         <div className={cn("flex items-center justify-end gap-1 text-[10px]", mine ? "opacity-80" : "text-muted-foreground")}>
                           <span>
-                            {m.createdAt || m.created_at || m.at
-                              ? new Date(m.createdAt || m.created_at || m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                              : ""}
+                            {formatMessageTime(m.createdAt || m.created_at || m.at)}
                           </span>
                           {mine && (
                             <span title={m.is_read || m.read ? "Read" : "Sent / Delivered"}>

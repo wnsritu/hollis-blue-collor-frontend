@@ -7,6 +7,7 @@ import { PageHeader, StatusPill } from "@/components/shared/primitives";
 import { usd } from "@/components/shared/cards";
 import { subscriptionApi } from "@/services/payment";
 import StripeSubscriptionModal from "@/components/payment/StripeSubscriptionModal";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useProviderAccess } from "@/hooks/useProviderAccess";
 
 export interface PlanData {
@@ -103,14 +104,15 @@ export default function ProviderSubscriptionPage() {
   }, [loadSubscriptionData]);
 
   const [cancelling, setCancelling] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const handleCancelSubscription = async () => {
     if (!subscription?.id) return;
-    if (!window.confirm("Are you sure you want to cancel your current subscription?")) return;
     try {
       setCancelling(true);
       await subscriptionApi.cancel({ subscription_id: subscription.id });
       toast.success("Subscription cancelled successfully.");
+      setConfirmCancelOpen(false);
       await refreshAccess();
       await loadSubscriptionData();
     } catch (err: any) {
@@ -210,7 +212,7 @@ export default function ProviderSubscriptionPage() {
                 size="sm"
                 className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive h-7 px-2"
                 disabled={cancelling}
-                onClick={handleCancelSubscription}
+                onClick={() => setConfirmCancelOpen(true)}
               >
                 {cancelling ? "Cancelling…" : "Cancel Subscription"}
               </Button>
@@ -328,6 +330,19 @@ export default function ProviderSubscriptionPage() {
           }}
         />
       )}
+
+      {/* Reusable Confirm Dialog for Subscription Cancellation */}
+      <ConfirmDialog
+        open={confirmCancelOpen}
+        onOpenChange={setConfirmCancelOpen}
+        title="Cancel Subscription"
+        description="Are you sure you want to cancel your current subscription? Your benefits will remain active until the end of your billing cycle."
+        confirmText="Yes, Cancel Subscription"
+        cancelText="Keep Subscription"
+        variant="destructive"
+        loading={cancelling}
+        onConfirm={handleCancelSubscription}
+      />
     </div>
   );
 }

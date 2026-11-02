@@ -275,6 +275,19 @@ export function useAdminServices() {
     }
   };
 
+  // Real-time client-side filter overlay for instantaneous responsiveness
+  const displayedServices = useMemo(() => {
+    if (!searchTerm.trim()) return filteredServices;
+    const q = searchTerm.trim().toLowerCase();
+    return filteredServices.filter(
+      (s) =>
+        s.serviceName?.toLowerCase().includes(q) ||
+        s.description?.toLowerCase().includes(q) ||
+        s.subcategoryName?.toLowerCase().includes(q) ||
+        s.parentCategoryName?.toLowerCase().includes(q)
+    );
+  }, [filteredServices, searchTerm]);
+
   return {
     categories,
     loading,
@@ -303,7 +316,7 @@ export function useAdminServices() {
     setEditDesc,
     availableSubcategories,
     modalSubcategories,
-    filteredServices,
+    filteredServices: displayedServices,
     confirmModal,
     setConfirmModal,
     handleOpenAddModal,

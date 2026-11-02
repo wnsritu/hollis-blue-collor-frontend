@@ -78,6 +78,36 @@ export function useBookService() {
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  
+  // Fetch Customer Profile details to auto-populate address & contact info
+  useEffect(() => {
+    const fetchCustomerProfile = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const profileRes = await getMyProfileApi();
+        const customer = profileRes?.data?.data || profileRes?.data?.user || profileRes?.data;
+        if (customer) {
+          const defaultAddr = Array.isArray(customer.addresses) && customer.addresses.length > 0
+            ? customer.addresses.find((a: any) => a.is_default) || customer.addresses[0]
+            : null;
+
+          setDetails((prev) => ({
+            ...prev,
+            name: prev.name || customer.full_name || customer.name || "",
+            email: prev.email || customer.email || "",
+            phone: prev.phone || customer.phone || "",
+            address: prev.address || customer.address_line || customer.address || defaultAddr?.address_line || "",
+            city: prev.city || customer.city || defaultAddr?.city || "",
+            zip: prev.zip || customer.zip_code || defaultAddr?.zip_code || "",
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to fetch customer profile in booking", e);
+      }
+    };
+    fetchCustomerProfile();
+  }, [isAuthenticated]);
+
   // Fetch Provider Data, Time Slots & Availability Schedule
   useEffect(() => {
     const fetchData = async () => {
@@ -93,11 +123,7 @@ export function useBookService() {
         const provData = provRes?.data?.data || provRes?.data || null;
         if (provData) {
           setProvider(provData);
-          setDetails((prev) => ({
-            ...prev,
-            city: provData.city || prev.city,
-            zip: provData.zip_code || prev.zip,
-          }));
+          // Kept customer address independent from provider location
 
           let servicesList: OfferedService[] = [];
           if (provData.service_pricing) {

@@ -114,7 +114,15 @@ export const AdminOrders: React.FC = () => {
 
       if (response?.data?.success) {
         const ordersData = response.data.bookings || [];
-        setOrders(ordersData);
+        const sortedOrders = [...ordersData].sort((a: any, b: any) => {
+          const idA = Number(a.id || 0);
+          const idB = Number(b.id || 0);
+          if (idB !== idA) return idB - idA;
+          const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+          const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+        setOrders(sortedOrders);
         const total = response.data.total ?? response.data.count ?? ordersData.length;
         const totalP = response.data.pagination?.totalPages || response.data.total_pages || Math.ceil(total / 10) || 1;
         setTotalPages(totalP);
