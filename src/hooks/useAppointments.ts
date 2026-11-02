@@ -354,10 +354,10 @@ export function useAppointments() {
     setUpdatingMap((prev) => ({ ...prev, [key]: "reject_reschedule" }));
     try {
       await appointmentApi.rejectReschedule(id);
-      toast.success("Reschedule request declined.");
+      toast.success("Reschedule request cancelled. Booking remains confirmed.");
       await fetchAppointments({ silent: true });
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to decline reschedule.");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to cancel reschedule.");
     } finally {
       setUpdatingMap((prev) => {
         const next = { ...prev };
