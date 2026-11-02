@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/primitives";
 import { FormattedPolicyContent } from "@/components/shared/LegalPolicyModal";
@@ -247,6 +248,7 @@ export function AdminLegalPolicies() {
   const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">("split");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [termsContent, setTermsContent] = useState("");
   const [privacyContent, setPrivacyContent] = useState("");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -309,20 +311,13 @@ export function AdminLegalPolicies() {
   };
 
   const handleResetToDefault = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to reset ${
-          activeTab === "terms" ? "Terms & Conditions" : "Privacy Policy"
-        } to the standard recommended template? This will replace unsaved edits.`
-      )
-    ) {
-      if (activeTab === "terms") {
-        setTermsContent(markdownToHtml(DEFAULT_TERMS_TEMPLATE));
-      } else {
-        setPrivacyContent(markdownToHtml(DEFAULT_PRIVACY_TEMPLATE));
-      }
-      toast.success("Standard template loaded. Remember to click Save.");
+    if (activeTab === "terms") {
+      setTermsContent(markdownToHtml(DEFAULT_TERMS_TEMPLATE));
+    } else {
+      setPrivacyContent(markdownToHtml(DEFAULT_PRIVACY_TEMPLATE));
     }
+    toast.success("Standard template loaded. Remember to click Save.");
+    setConfirmResetOpen(false);
   };
 
   const currentContent = activeTab === "terms" ? termsContent : privacyContent;
@@ -392,7 +387,7 @@ export function AdminLegalPolicies() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleResetToDefault}
+              onClick={() => setConfirmResetOpen(true)}
               disabled={loading || saving}
               className="gap-1.5"
             >
@@ -589,6 +584,19 @@ export function AdminLegalPolicies() {
           </div>
         </div>
       )}
+      {/* Reusable Confirm Dialog for Reset to Default Template */}
+      <ConfirmDialog
+        open={confirmResetOpen}
+        onOpenChange={setConfirmResetOpen}
+        title="Reset Policy Template"
+        description={`Are you sure you want to reset ${
+          activeTab === "terms" ? "Terms & Conditions" : "Privacy Policy"
+        } to the standard recommended template? This will replace unsaved edits.`}
+        confirmText="Reset to Template"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleResetToDefault}
+      />
     </div>
   );
 }

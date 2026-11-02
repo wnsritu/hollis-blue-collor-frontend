@@ -246,7 +246,7 @@ export const ProviderLeads: React.FC = () => {
             Custom Quotes & Leads
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            {awaitingQuoteCount} awaiting your quote · {directLeadsCount} direct quote requests
+            {awaitingQuoteCount} awaiting your quote · {leads.length} quote requests
           </p>
         </div>
         <Button
@@ -261,7 +261,8 @@ export const ProviderLeads: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs (Commented out: directly displaying all custom quote requests) */}
+      {/*
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => setActiveTab("all")}
@@ -297,6 +298,7 @@ export const ProviderLeads: React.FC = () => {
           Open Quote Leads ({openLeadsCount})
         </button>
       </div>
+      */}
 
       {/* Content Area */}
       {loading ? (

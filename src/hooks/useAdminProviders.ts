@@ -12,7 +12,12 @@ export function getCategoryName(cat: any): string {
 export function getSubscriptionPlan(sub: any): string {
   if (!sub) return "No Subscription";
   if (typeof sub === "string") return sub;
-  if (typeof sub === "object") return sub.name || sub.title || sub.plan || "Pro Unlimited";
+  if (typeof sub === "object") {
+    const name = sub.name || sub.title || sub.plan?.name || sub.plan;
+    if (!name) return "No Subscription";
+    const status = sub.status ? ` (${sub.status.charAt(0).toUpperCase() + sub.status.slice(1)})` : "";
+    return `${name}${status}`;
+  }
   return String(sub);
 }
 

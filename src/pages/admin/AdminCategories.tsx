@@ -5,7 +5,8 @@ import {
   Plus,
   Trash2,
   Edit2,
-  Layers,
+  Power,
+Layers,
   Wrench,
   Loader2,
   Lock,
@@ -37,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { EmptyState, PageHeader, StatusPill } from "@/components/shared/primitives";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useAdminCategories } from "@/hooks/useAdminCategories";
@@ -55,6 +57,8 @@ export const AdminCategoriesPage: React.FC = () => {
     setSubName,
     subDesc,
     setSubDesc,
+    subIsActive,
+    setSubIsActive,
     submittingSub,
     isAddServiceOpen,
     setIsAddServiceOpen,
@@ -71,6 +75,7 @@ export const AdminCategoriesPage: React.FC = () => {
     handleOpenAddSubModal,
     handleOpenEditSubModal,
     handleSaveSubcategory,
+    handleToggleSubcategoryStatus,
     handleDeleteSubcategory,
     handleOpenAddServiceModal,
     handleOpenEditServiceModal,
@@ -263,7 +268,15 @@ export const AdminCategoriesPage: React.FC = () => {
                     </TableCell>
 
                     <TableCell>
-                      <StatusPill status={sub.is_active !== false ? "Active" : "Inactive"} />
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSubcategoryStatus(sub)}
+                        className="cursor-pointer transition-opacity hover:opacity-80 inline-flex items-center gap-1.5"
+                        title="Click to toggle Active / Inactive status"
+                      >
+                        <StatusPill status={Boolean(sub.is_active) ? "Active" : "Inactive"} />
+                        <Power size={12} className={Boolean(sub.is_active) ? "text-muted-foreground hover:text-amber-500" : "text-emerald-500"} />
+                      </button>
                     </TableCell>
 
                     <TableCell className="text-right">
@@ -295,6 +308,13 @@ export const AdminCategoriesPage: React.FC = () => {
                               className="gap-2 cursor-pointer"
                             >
                               <Wrench size={14} /> Manage Services
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleToggleSubcategoryStatus(sub)}
+                              className="gap-2 cursor-pointer"
+                            >
+                              <Power size={14} className={Boolean(sub.is_active) ? "text-amber-500" : "text-emerald-500"} />
+                              {Boolean(sub.is_active) ? "Deactivate Subcategory" : "Activate Subcategory"}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -355,6 +375,22 @@ export const AdminCategoriesPage: React.FC = () => {
                 value={subDesc}
                 onChange={(e) => setSubDesc(e.target.value)}
                 rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/40">
+              <div>
+                <Label htmlFor="subActive" className="text-sm font-semibold cursor-pointer">
+                  Subcategory Status
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {subIsActive ? "Active (visible in public catalogue)" : "Inactive (hidden from public catalogue)"}
+                </p>
+              </div>
+              <Switch
+                id="subActive"
+                checked={subIsActive}
+                onCheckedChange={setSubIsActive}
               />
             </div>
 

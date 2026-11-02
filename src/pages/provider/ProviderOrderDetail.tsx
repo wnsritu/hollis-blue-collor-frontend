@@ -8,6 +8,7 @@ import {
   Star,
   Upload,
   X,
+  XCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/utils/date";
@@ -63,6 +64,27 @@ const ProviderOrderDetail = () => {
 
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  const cancellationReason =
+    orderData?.cancellation_reason ||
+    order?.cancellation_reason ||
+    orderData?.notes?.cancellation_reason ||
+    (() => {
+      try {
+        if (typeof order?.notes === "string" && order.notes.startsWith("{")) {
+          return JSON.parse(order.notes)?.cancellation_reason;
+        }
+        if (typeof orderData?.notes === "string" && orderData.notes.startsWith("{")) {
+          return JSON.parse(orderData.notes)?.cancellation_reason;
+        }
+      } catch (e) {}
+      return null;
+    })();
+
+  const isOrderCancelled =
+    ["cancelled", "canceled", "rejected", "declined"].includes(String(order?.status || "").toLowerCase()) ||
+    ["cancelled", "canceled", "rejected", "declined"].includes(String(orderData?.status || "").toLowerCase()) ||
+    ["cancelled", "canceled", "rejected", "declined"].includes(String(status || "").toLowerCase());
+
   if (loading) return <div className="p-6">Loading...</div>;
   if (!order) return <div className="p-6">Order not found</div>;
 
@@ -75,6 +97,34 @@ const ProviderOrderDetail = () => {
       <p className="mt-1 text-sm text-muted-foreground">
         {`ORD-${String(order.id).padStart(3, "0")}`}
       </p>
+
+      {/* Cancellation Banner */}
+      {isOrderCancelled && (
+        <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 shadow-sm space-y-2">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-destructive/10 text-destructive shrink-0">
+              <XCircle size={20} />
+            </span>
+            <div className="space-y-1">
+              <h3 className="font-bold text-destructive text-base">
+                Booking Cancelled
+              </h3>
+              {cancellationReason ? (
+                <p className="text-sm text-foreground">
+                  <strong>Reason:</strong> {cancellationReason}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No cancellation reason was provided.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                This booking has been cancelled and no further service action is required.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Customer Info */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -536,12 +586,17 @@ const ProviderOrderDetail = () => {
           {t("updateStatus")}
         </h2>
 
-        {(order?.status === "cancelled" || order?.status === "rejected") ? (
-          <div className="flex flex-col items-center justify-center h-40 gap-2">
-            <p className="text-lg font-semibold text-red-600">
-              Booking {order?.status === "cancelled" ? "Cancelled" : "Rejected"}
+        {isOrderCancelled ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+            <p className="text-lg font-semibold text-destructive">
+              Booking Cancelled
             </p>
-            <p className="text-sm text-gray-500">
+            {cancellationReason && (
+              <p className="text-sm font-medium text-foreground max-w-md">
+                <strong>Reason:</strong> {cancellationReason}
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
               This booking is no longer active.
             </p>
           </div>

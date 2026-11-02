@@ -541,6 +541,15 @@ export function ProviderJobs() {
               } catch (e) { }
             }
             const counterNote = notesObj?.counter_note || (!String(b.notes).trim().startsWith("{") ? b.notes : null);
+            const cancellationReason =
+              b.cancellation_reason ||
+              n.cancellationReason ||
+              notesObj?.cancellation_reason ||
+              notesObj?.reason ||
+              (Array.isArray(b.status_logs)
+                ? b.status_logs.find((l: any) => ["Cancelled", "cancelled"].includes(l.new_status))?.reason
+                : null) ||
+              null;
             const originalPrice = Number(
               notesObj?.original_total_amount ||
               notesObj?.customer_total ||
@@ -637,10 +646,10 @@ export function ProviderJobs() {
             const paymentBadgeText = isPartiallyPaid
               ? "Payment: Partially Paid"
               : isPaid
-              ? "Payment: Paid"
-              : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
-                ? "Payment: Escrow Held"
-                : "Payment: Pending";
+                ? "Payment: Paid"
+                : paymentStatusRaw === "escrow" || paymentStatusRaw === "held"
+                  ? "Payment: Escrow Held"
+                  : "Payment: Pending";
 
             return (
               <Card key={b.id} className="shadow-sm border border-border overflow-hidden bg-card min-w-0">
@@ -687,8 +696,31 @@ export function ProviderJobs() {
                     </div>
                   </div>
 
+                  {/* Cancellation Reason Banner for Provider */}
+                  {(isDeclined || isCancelledJob(b)) && (
+                    <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs flex items-start gap-3 shadow-sm">
+                      <span className="grid size-8 place-items-center rounded-lg bg-destructive/10 text-destructive shrink-0 mt-0.5">
+                        <XCircle size={18} />
+                      </span>
+                      <div className="space-y-1">
+                        <p className="font-bold text-destructive text-sm">
+                          Booking Cancelled
+                        </p>
+                        {cancellationReason ? (
+                          <p className="text-xs text-foreground font-medium">
+                            <strong>Reason:</strong> {cancellationReason}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            No cancellation reason was provided.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* VISUAL ORDER LIFECYCLE STEPPER */}
-                  {!isDeclined && (
+                  {!isDeclined && !isCancelledJob(b) && (
                     <div className="mt-5 rounded-xl border border-border bg-muted/20 p-3.5 sm:p-4 overflow-x-auto min-w-0 scrollbar-none">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
                         Order Lifecycle Status Progress

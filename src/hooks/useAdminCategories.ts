@@ -13,6 +13,7 @@ export function useAdminCategories() {
   const [editingSub, setEditingSub] = useState<ServiceType | null>(null);
   const [subName, setSubName] = useState("");
   const [subDesc, setSubDesc] = useState("");
+  const [subIsActive, setSubIsActive] = useState(true);
   const [submittingSub, setSubmittingSub] = useState(false);
 
   // Service Modal State (Under a Subcategory)
@@ -54,6 +55,7 @@ export function useAdminCategories() {
     setEditingSub(null);
     setSubName("");
     setSubDesc("");
+    setSubIsActive(true);
     setIsAddSubOpen(true);
   };
 
@@ -61,6 +63,7 @@ export function useAdminCategories() {
     setEditingSub(sub);
     setSubName(sub.name);
     setSubDesc(sub.description || "");
+    setSubIsActive(Boolean(sub.is_active));
     setIsAddSubOpen(true);
   };
 
@@ -76,6 +79,7 @@ export function useAdminCategories() {
         await catalogApi.updateServiceType(editingSub.id, {
           name: subName.trim(),
           description: subDesc.trim(),
+          is_active: subIsActive,
         });
         toast.success("Subcategory updated successfully.");
       } else {
@@ -83,6 +87,7 @@ export function useAdminCategories() {
           category_id: Number(activeCategory.id),
           name: subName.trim(),
           description: subDesc.trim(),
+          is_active: subIsActive,
         });
         toast.success("Subcategory created successfully under " + activeCategory.name);
       }
@@ -113,6 +118,32 @@ export function useAdminCategories() {
     onConfirm: () => {},
   });
 
+  const handleToggleSubcategoryStatus = async (sub: ServiceType) => {
+    const isCurrentlyActive = Boolean(sub.is_active);
+    const newStatus = !isCurrentlyActive;
+
+    // Optimistic UI update so table switches immediately
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        service_types: (cat.service_types || []).map((s) =>
+          s.id === sub.id ? { ...s, is_active: newStatus } : s
+        ),
+      }))
+    );
+
+    try {
+      await catalogApi.updateServiceType(sub.id, { is_active: newStatus });
+      toast.success(`Subcategory "${sub.name}" ${newStatus ? "activated" : "deactivated"} successfully.`);
+      await fetchCatalogData();
+    } catch (err: any) {
+      console.error("Failed to toggle subcategory status", err);
+      const msg = err?.response?.data?.message || "Failed to update subcategory status.";
+      toast.error(msg);
+      await fetchCatalogData();
+    }
+  };
+
   const handleDeleteSubcategory = (sub: ServiceType) => {
     setConfirmModal({
       open: true,
@@ -128,7 +159,8 @@ export function useAdminCategories() {
           fetchCatalogData();
         } catch (err) {
           console.error("Failed to delete subcategory", err);
-          toast.error("Failed to remove subcategory.");
+          const msg = (err as any)?.response?.data?.message || "Failed to remove subcategory.";
+          toast.error(msg);
         } finally {
           setConfirmModal((prev) => ({ ...prev, open: false, loading: false }));
         }
@@ -238,6 +270,8 @@ export function useAdminCategories() {
     setSubName,
     subDesc,
     setSubDesc,
+    subIsActive,
+    setSubIsActive,
     submittingSub,
     isAddServiceOpen,
     setIsAddServiceOpen,
@@ -254,6 +288,7 @@ export function useAdminCategories() {
     handleOpenAddSubModal,
     handleOpenEditSubModal,
     handleSaveSubcategory,
+    handleToggleSubcategoryStatus,
     handleDeleteSubcategory,
     handleOpenAddServiceModal,
     handleOpenEditServiceModal,

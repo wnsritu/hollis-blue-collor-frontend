@@ -16,8 +16,9 @@ export function useAppointments() {
   const { user } = useAuthSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updatingStatusId, setUpdatingStatusId] = useState<number | string | null>(null);
-  const [updatingAction, setUpdatingAction] = useState<string | null>(null);
+  const [updatingMap, setUpdatingMap] = useState<Record<string, string>>({});
+  const updatingStatusId = Object.keys(updatingMap)[0] || null;
+  const updatingAction = Object.values(updatingMap)[0] || null;
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -185,7 +186,8 @@ export function useAppointments() {
     reason?: string,
     targetAppointment?: any
   ) => {
-    if (updatingStatusId) return; // Prevent double click
+    const key = String(id);
+    if (updatingMap[key]) return; // Prevent double click for this specific appointment
     if (userIsProvider && targetAppointment) {
       const check = canProviderPerformAction(targetAppointment, newStatus);
       if (!check.allowed) {
@@ -193,9 +195,7 @@ export function useAppointments() {
         return;
       }
     }
-    const actionKey = `${id}:${newStatus}`;
-    setUpdatingStatusId(id);
-    setUpdatingAction(actionKey);
+    setUpdatingMap((prev) => ({ ...prev, [key]: newStatus }));
     try {
       await appointmentApi.updateStatus(id, { appointment_status: newStatus, reason });
       toast.success(`Appointment marked as ${newStatus}`);
@@ -203,8 +203,11 @@ export function useAppointments() {
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update appointment status.");
     } finally {
-      setUpdatingStatusId(null);
-      setUpdatingAction(null);
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -321,10 +324,9 @@ export function useAppointments() {
   };
 
   const handleConfirmReschedule = async (id: number | string) => {
-    if (updatingStatusId) return;
-    const actionKey = `${id}:confirm_reschedule`;
-    setUpdatingStatusId(id);
-    setUpdatingAction(actionKey);
+    const key = String(id);
+    if (updatingMap[key]) return;
+    setUpdatingMap((prev) => ({ ...prev, [key]: "confirm_reschedule" }));
     try {
       await appointmentApi.confirmReschedule(id);
       toast.success("Reschedule confirmed successfully!");
@@ -338,16 +340,18 @@ export function useAppointments() {
         toast.error(err?.response?.data?.message || err?.message || "Failed to confirm reschedule.");
       }
     } finally {
-      setUpdatingStatusId(null);
-      setUpdatingAction(null);
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
   const handleRejectReschedule = async (id: number | string) => {
-    if (updatingStatusId) return;
-    const actionKey = `${id}:reject_reschedule`;
-    setUpdatingStatusId(id);
-    setUpdatingAction(actionKey);
+    const key = String(id);
+    if (updatingMap[key]) return;
+    setUpdatingMap((prev) => ({ ...prev, [key]: "reject_reschedule" }));
     try {
       await appointmentApi.rejectReschedule(id);
       toast.success("Reschedule request declined.");
@@ -355,8 +359,11 @@ export function useAppointments() {
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to decline reschedule.");
     } finally {
-      setUpdatingStatusId(null);
-      setUpdatingAction(null);
+      setUpdatingMap((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   };
 
@@ -426,6 +433,7 @@ export function useAppointments() {
     handleUpdateStatus,
     updatingStatusId,
     updatingAction,
+    updatingMap,
     filteredAppointments,
     fetchAppointments,
     cancelModalOpen,
