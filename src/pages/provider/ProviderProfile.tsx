@@ -195,14 +195,40 @@ export const ProviderProfile: React.FC = () => {
   }
 
   // Construct dynamic servicesList from parsed data
-  const servicesList: Array<{ name: string; price: number; unit: string; partial_payment_percentage?: number }> = [];
+  const servicesList: Array<{ name: string; price: number; unit: string; partial_payment_percentage?: number; is_custom?: boolean }> = [];
   const addedNames = new Set<string>();
 
+    // 1. Add provider custom specialties as individual bookable services
+  if (provider?.custom_specialty) {
+    const customSpecs = typeof provider.custom_specialty === "string"
+      ? provider.custom_specialty.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
+    customSpecs.forEach((spec: string) => {
+      const lower = spec.toLowerCase();
+      if (!addedNames.has(lower)) {
+        addedNames.add(lower);
+        let config: any = pricingMap[spec];
+        if (!config) {
+          const found = Object.entries(pricingMap).find(([k]) => k.toLowerCase() === lower);
+          if (found) config = found[1];
+        }
+        servicesList.push({
+          name: spec,
+          price: Number(config?.price) > 0 ? Number(config?.price) : Number(provider?.starting_price || 0),
+          unit: config?.unit || "flat rate",
+          partial_payment_percentage: config?.partial_payment_percentage != null ? Number(config?.partial_payment_percentage) : 100,
+          is_custom: true,
+        });
+      }
+    });
+  }
+
+  // 2. Add standard offered services (filtering out generic Not Listed placeholder)
   if (Array.isArray(offeredNames) && offeredNames.length > 0) {
     offeredNames.forEach((sItem: any) => {
       const sName = typeof sItem === "string" ? sItem : sItem.name || String(sItem);
       if (!sName || !isNaN(Number(sName))) return; // skip pure IDs
-
+      
       let config: any = pricingMap[sName] || pricingMap[String(sItem.id || "")];
       if (!config) {
         const found = Object.entries(pricingMap).find(
@@ -235,7 +261,7 @@ export const ProviderProfile: React.FC = () => {
     });
   }
 
-  // Also include any services in pricingMap marked offered: true not already present
+  // 3. Include any services in pricingMap marked offered: true not already present
   if (Object.keys(pricingMap).length > 0) {
     Object.entries(pricingMap).forEach(([k, cfg]: [string, any]) => {
       if (cfg && cfg.offered === true && Number(cfg.price) > 0) {
@@ -253,7 +279,7 @@ export const ProviderProfile: React.FC = () => {
     });
   }
 
-  // Fallback: if provider has service_types, use them if servicesList is still empty
+  // 4. Fallback: if provider has service_types, use them only if not "Not Listed"
   if (servicesList.length === 0 && Array.isArray(provider?.service_types) && provider.service_types.length > 0) {
     provider.service_types.forEach((st: any) => {
       const sName = st.name;
@@ -448,10 +474,17 @@ export const ProviderProfile: React.FC = () => {
                 {servicesList.map((s, idx) => (
                   <div
                     key={idx}
-                    className="rounded-xl border border-border p-4 bg-muted/20 hover:border-primary/40 transition-colors flex items-center justify-between gap-3"
+                    className="rounded-xl border border-border p-4 bg-muted/20 hover:border-primary/40 transition-colors flex items-center justify-between gap-3 shadow-2xs"
                   >
                     <div className="min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">{s.name}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-foreground text-sm truncate">{s.name}</p>
+                        {s.is_custom && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-bold">
+                            <Sparkles size={10} /> Custom Specialty
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {s.price > 0 ? (
                           <>
@@ -465,9 +498,8 @@ export const ProviderProfile: React.FC = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       <Button
                         size="sm"
-                        variant="outline"
                         onClick={() => handleBookService(s.name)}
-                        className="text-xs h-8 px-2.5"
+                        className="text-xs h-8 px-3 font-semibold shadow-2xs gap-1"
                       >
                         Book
                       </Button>

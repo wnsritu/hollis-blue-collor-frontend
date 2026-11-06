@@ -8,6 +8,7 @@ import {
   PauseCircle,
   PlayCircle,
   Search,
+  Sparkles,
   User,
   Users,
   XCircle,
@@ -325,7 +326,29 @@ export function AdminProviders() {
                         <User size={11} className="shrink-0 text-muted-foreground" /> {ownerName}
                       </span>
                     </TableCell>
-                    <TableCell>{category}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-foreground">{category}</span>
+                        {p.custom_specialty && (
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {String(p.custom_specialty).split(",").map((s) => s.trim()).filter(Boolean).map((spec, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-soft-foreground border border-accent/20"
+                              >
+                                <Sparkles size={10} className="text-accent shrink-0" />
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {Array.isArray(p.service_types) && p.service_types.length > 1 && (
+                          <span className="text-[11px] text-muted-foreground">
+                            +{p.service_types.length - 1} more service{p.service_types.length > 2 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="max-w-[130px]">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -386,16 +409,38 @@ export function AdminProviders() {
 
                     <TableCell>
                       {p.subscription ? (
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs text-foreground">
-                            {p.subscription.name || p.subscription.plan?.name || "Subscription"}
-                          </span>
-                          <span className={`text-[10px] font-semibold inline-flex items-center gap-1 ${
-                            p.subscription.status === "active" ? "text-emerald-600" : "text-muted-foreground"
-                          }`}>
-                            <span className={`size-1.5 rounded-full ${p.subscription.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/60"}`} />
-                            {p.subscription.status ? p.subscription.status.toUpperCase() : "ACTIVE"}
-                          </span>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-foreground">
+                              {p.subscription.name || p.subscription.plan?.name || "Subscription"}
+                            </span>
+                            {(p.subscription.plan?.slug === "gold-membership" ||
+                              p.subscription.name?.toLowerCase().includes("gold")) && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-700 border border-amber-500/20">
+                                Default Plan
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            {(p.subscription.price_paid != null || p.subscription.plan?.price != null) && (
+                              <span className="font-medium text-foreground/80">
+                                ${p.subscription.price_paid != null ? p.subscription.price_paid : p.subscription.plan?.price}
+                                <span className="text-[10px] text-muted-foreground">/{p.subscription.plan?.billing_interval === "year" ? "yr" : "mo"}</span>
+                              </span>
+                            )}
+                            <span
+                              className={`text-[10px] font-semibold inline-flex items-center gap-1 ${
+                                p.subscription.status === "active" ? "text-emerald-600" : "text-muted-foreground"
+                              }`}
+                            >
+                              <span
+                                className={`size-1.5 rounded-full ${
+                                  p.subscription.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/60"
+                                }`}
+                              />
+                              {p.subscription.status ? p.subscription.status.toUpperCase() : "ACTIVE"}
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground italic">No Subscription</span>

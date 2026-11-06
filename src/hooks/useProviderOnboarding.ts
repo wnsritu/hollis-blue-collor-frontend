@@ -65,6 +65,9 @@ export function useProviderOnboarding() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<number | null>(null);
+  const [selectedServiceTypeIds, setSelectedServiceTypeIds] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [customSpecialty, setCustomSpecialty] = useState("");
   const [form, setForm] = useState({
     address: "",
     country: "United States",
@@ -112,9 +115,13 @@ export function useProviderOnboarding() {
           list = unwrapList<Category>(res2);
         }
         if (cancelled) return;
-        setCategories(list);
-        if (list[0]?.id != null) {
-          setSelectedCategoryId(Number(list[0].id));
+        // Filter out inactive categories for new onboarding providers
+        const activeCategories = list.filter(
+          (c) => c.is_active !== false && (c as any).is_active !== 0 && (c as any).is_active !== "false"
+        );
+        setCategories(activeCategories);
+        if (activeCategories[0]?.id != null) {
+          setSelectedCategoryId(Number(activeCategories[0].id));
         }
       } catch {
         if (!cancelled) toast.error("Could not load service categories.");
@@ -164,28 +171,86 @@ export function useProviderOnboarding() {
   }, [selectedCategoryId, serviceTypes.length]);
 
   useEffect(() => {
-    if (serviceTypes.length && selectedServiceTypeId == null) {
-      setSelectedServiceTypeId(Number(serviceTypes[0].id));
+    if (serviceTypes.length > 0) {
+      const currentCatSubIds = new Set(serviceTypes.map((st) => Number(st.id)));
+      const hasValidSub = selectedServiceTypeIds.some((sid) => currentCatSubIds.has(sid));
+      if (!hasValidSub && selectedServiceTypeIds.length === 0) {
+        const firstId = Number(serviceTypes[0].id);
+        setSelectedServiceTypeIds([firstId]);
+        setSelectedServiceTypeId(firstId);
+      }
     }
-  }, [serviceTypes, selectedServiceTypeId]);
+  }, [serviceTypes]);
 
   const handleSelectCategory = (id: number) => {
+    if (Number(id) === Number(selectedCategoryId)) return;
+
     setSelectedCategoryId(id);
-    setSelectedServiceTypeId(null);
+    setSearchTerm("");
+    setError("");
+
+    // Synchronize subcategories immediately to the selected category
+    const targetCat = categories.find((c) => Number(c.id) === Number(id));
+    const targetSubs = targetCat?.service_types || [];
+
+    if (targetSubs.length > 0) {
+      const firstId = Number(targetSubs[0].id);
+      setSelectedServiceTypeIds([firstId]);
+      setSelectedServiceTypeId(firstId);
+    } else {
+      setSelectedServiceTypeIds([]);
+      setSelectedServiceTypeId(null);
+    }
+
+    if (targetCat?.name?.toLowerCase().includes("not listed")) {
+      setTimeout(() => {
+        const el = document.getElementById("custom-specialty");
+        if (el) {
+          el.focus();
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+    }
+  };
+
+  const handleToggleServiceType = (id: number) => {
+    setSelectedServiceTypeIds((prev) => {
+      const exists = prev.includes(id);
+      const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
+      setSelectedServiceTypeId(next[0] || null);
+      return next;
+    });
     setError("");
   };
+
+  const allServiceTypes = useMemo(() => {
+    const list: Array<{ id: number; name: string; category_id?: number; category_name?: string }> = [];
+    categories.forEach((cat) => {
+      if (Array.isArray(cat.service_types)) {
+        cat.service_types.forEach((st) => {
+          list.push({
+            id: Number(st.id),
+            name: st.name,
+            category_id: Number(cat.id),
+            category_name: cat.name,
+          });
+        });
+      }
+    });
+    return list;
+  }, [categories]);
 
   const handleNext = async () => {
     setError("");
     setFieldErrors({});
 
     if (step === 0) {
-      if (!selectedCategoryId) {
-        setError("Please select a service category.");
-        return;
-      }
-      if (!selectedServiceTypeId) {
-        setError("Please select a service area.");
+      if (
+        selectedServiceTypeIds.length === 0 &&
+        !selectedServiceTypeId &&
+        !customSpecialty.trim()
+      ) {
+        setError("Please select at least one service you provide or enter your custom specialty.");
         return;
       }
     }
@@ -287,8 +352,16 @@ export function useProviderOnboarding() {
         password: draft.password,
         role: ROLES.PROVIDER,
         business_name: draft.businessName,
-        category_id: Number(selectedCategoryId),
-        service_type_ids: [Number(selectedServiceTypeId)],
+        category_id: Number(selectedCategoryId) || (categories[0]?.id ? Number(categories[0].id) : 1),
+        service_type_ids:
+          selectedServiceTypeIds.length > 0
+            ? selectedServiceTypeIds
+            : selectedServiceTypeId
+            ? [Number(selectedServiceTypeId)]
+            : serviceTypes[0]?.id
+            ? [Number(serviceTypes[0].id)]
+            : [],
+        custom_specialty: customSpecialty.trim() || undefined,
         ...profilePayload,
       });
       try {
@@ -460,6 +533,14 @@ export function useProviderOnboarding() {
     selectedCategory,
     selectedServiceTypeId,
     setSelectedServiceTypeId,
+    selectedServiceTypeIds,
+    setSelectedServiceTypeIds,
+    handleToggleServiceType,
+    searchTerm,
+    setSearchTerm,
+    customSpecialty,
+    setCustomSpecialty,
+    allServiceTypes,
     serviceTypes,
     handleSelectCategory,
     form,

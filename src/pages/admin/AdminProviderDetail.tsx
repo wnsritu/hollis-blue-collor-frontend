@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Award,
   Building2,
+  Calendar,
   CheckCircle2,
   Clock,
   CreditCard,
@@ -40,7 +41,7 @@ import { Avatar, StatusPill, VerifiedBadge } from "@/components/shared/primitive
 import { usd } from "@/components/shared/cards";
 import Spinner from "@/components/ui/spinner";
 import { useAdminProviderDetail, maskLast4 } from "@/hooks/useAdminProviderDetail";
-import { formatPhone } from "@/utils/format";
+import { formatPhone, formatDate } from "@/utils/format";
 import { resolveMediaUrl } from "@/utils/mediaUrl";
 import { CARD_SECTION_SHADOW } from "@/styles";
 
@@ -92,6 +93,8 @@ export function AdminProviderDetail() {
     displayServices,
     displayYears,
     availabilityByDay,
+    customSpecialty,
+    selectedServiceTypes,
   } = useAdminProviderDetail();
 
   if (loading) {
@@ -312,6 +315,14 @@ export function AdminProviderDetail() {
                 <dt className="text-xs text-muted-foreground font-medium">Primary Category</dt>
                 <dd className="font-medium text-foreground mt-0.5">{categoryName}</dd>
               </div>
+              {customSpecialty && (
+                <div className="rounded-xl border border-accent/30 bg-accent-soft/30 p-2.5 sm:col-span-2">
+                  <dt className="text-xs font-bold text-accent-soft-foreground flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-accent shrink-0" /> Custom Specialty Added by Provider
+                  </dt>
+                  <dd className="font-extrabold text-foreground mt-1 text-sm">{customSpecialty}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-xs text-muted-foreground font-medium">Account Status</dt>
                 <dd className="font-medium text-foreground capitalize mt-0.5">{provider.status || "active"}</dd>
@@ -329,6 +340,126 @@ export function AdminProviderDetail() {
           </CardContent>
         </Card>
 
+        {/* SECTION: SUBSCRIPTION & MEMBERSHIP PLAN */}
+        <Card className="shadow-card">
+          <CardHeader className="pb-3 border-b border-border">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <CreditCard size={18} className="text-primary" /> Subscription &amp; Membership Plan
+              </CardTitle>
+              {provider?.subscription && (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                    provider.subscription.status === "active"
+                      ? "bg-success-soft text-success"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${
+                      provider.subscription.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/60"
+                    }`}
+                  />
+                  {provider.subscription.status ? String(provider.subscription.status).toUpperCase() : "ACTIVE"}
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {provider?.subscription ? (
+              <div className="space-y-6">
+                {/* Main Plan Highlight Box */}
+                <div className="rounded-xl border border-primary/20 bg-primary-soft/30 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-lg font-bold text-foreground">
+                        {provider.subscription.name || provider.subscription.plan?.name || "Subscription Plan"}
+                      </h4>
+                      {(provider.subscription.plan?.slug === "gold-membership" ||
+                        provider.subscription.name?.toLowerCase().includes("gold")) && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-500/20">
+                          <Sparkles size={12} className="text-amber-600 shrink-0" /> Default Registration Plan
+                        </span>
+                      )}
+                    </div>
+                    {provider.subscription.plan?.description && (
+                      <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+                        {provider.subscription.plan.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <div className="text-2xl font-extrabold text-foreground">
+                      ${provider.subscription.price_paid != null ? provider.subscription.price_paid : (provider.subscription.plan?.price ?? 0)}
+                      <span className="text-xs font-medium text-muted-foreground">
+                        /{provider.subscription.plan?.billing_interval || "month"}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-emerald-600 capitalize block mt-0.5">
+                      Payment: {provider.subscription.payment_status || "Paid"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Plan Metrics / Details Grid */}
+                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                  <div>
+                    <dt className="text-xs text-muted-foreground font-medium">Billing Interval</dt>
+                    <dd className="font-semibold text-foreground mt-0.5 capitalize">
+                      {provider.subscription.plan?.billing_interval ? `Per ${provider.subscription.plan.billing_interval}` : "Monthly"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground font-medium">Proposal Limit</dt>
+                    <dd className="font-semibold text-foreground mt-0.5">
+                      {provider.subscription.plan?.proposal_limit != null
+                        ? `${provider.subscription.plan.proposal_limit} proposals / mo`
+                        : "Unlimited proposals"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground font-medium">Plan Start Date</dt>
+                    <dd className="font-semibold text-foreground mt-0.5">
+                      {provider.subscription.start_date ? formatDate(provider.subscription.start_date) : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground font-medium">Renewal / Expiration</dt>
+                    <dd className="font-semibold text-foreground mt-0.5">
+                      {provider.subscription.end_date ? formatDate(provider.subscription.end_date) : "—"}
+                    </dd>
+                  </div>
+                </dl>
+
+                {/* Plan Features / Inclusions if available */}
+                {Array.isArray(provider.subscription.plan?.features) && provider.subscription.plan.features.length > 0 && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground font-semibold mb-2">Plan Inclusions &amp; Benefits</dt>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {provider.subscription.plan.features.map((feat: any, idx: number) => {
+                        const featText = typeof feat === "string" ? feat : feat?.name || feat?.text || JSON.stringify(feat);
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-xs font-medium text-foreground bg-muted/40 rounded-lg p-2.5 border border-border"
+                          >
+                            <CheckCircle2 size={14} className="text-success shrink-0" />
+                            <span>{featText}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-sm text-muted-foreground italic">
+                No active or historical subscription found for this provider.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* SECTION 3: SERVICES & PRICING */}
         <Card className="shadow-card">
           <CardHeader className="pb-3 border-b border-border">
@@ -337,14 +468,46 @@ export function AdminProviderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground block">Category:</span>
-              <span className="font-bold text-primary text-base">{categoryName}</span>
-              {subCategoryName && (
-                <>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="font-semibold text-foreground">{subCategoryName}</span>
-                </>
+            <div className="rounded-xl bg-primary-soft/50 p-4 border border-primary/20 text-sm flex flex-col gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground block font-medium">Primary Category:</span>
+                <span className="font-bold text-primary text-base">{categoryName}</span>
+              </div>
+
+              {selectedServiceTypes.length > 0 && (
+                <div>
+                  <span className="text-xs text-muted-foreground font-medium block mb-1.5">
+                    Selected Trades &amp; Subcategories ({selectedServiceTypes.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedServiceTypes.map((st: any) => (
+                      <span
+                        key={st.id}
+                        className="inline-flex items-center rounded-lg bg-background px-2.5 py-1 text-xs font-semibold text-foreground border border-border shadow-xs"
+                      >
+                        {st.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {customSpecialty && (
+                <div className="rounded-lg bg-accent-soft/60 border border-accent/30 p-3 mt-1">
+                  <span className="text-xs font-bold text-accent-soft-foreground flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-accent shrink-0" /> Provider-Added Custom Specialties:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {customSpecialty.split(",").map((s: string) => s.trim()).filter(Boolean).map((spec: string, idx: number) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center rounded-lg bg-card border border-border px-2.5 py-1 text-xs font-bold text-foreground shadow-xs"
+                      >
+                        {spec}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 

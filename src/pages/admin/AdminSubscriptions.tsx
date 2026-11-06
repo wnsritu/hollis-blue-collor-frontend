@@ -26,6 +26,7 @@ import {
 export interface SubPlan {
   id: number | string;
   name: string;
+  slug?: string;
   price: number;
   currency?: string;
   billing_interval?: string;
@@ -99,6 +100,7 @@ export function AdminSubscriptions() {
           return {
             id: p.id,
             name: p.name || "Unnamed Plan",
+            slug: p.slug,
             price: Number(p.price) >= 0 ? Number(p.price) : 0,
             currency: p.currency || "usd",
             billing_interval: p.billing_interval || "month",
@@ -331,16 +333,18 @@ export function AdminSubscriptions() {
               className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card hover:border-primary/30 transition-all"
             >
               <div className="flex items-center justify-between gap-2 min-h-[32px]">
-                <TruncatedText
-                  as="h3"
-                  text={p.name}
-                  className="font-display text-lg font-bold text-foreground leading-snug flex-1"
-                />
+                <div className="min-w-0 flex-1">
+                  <TruncatedText
+                    as="h3"
+                    text={p.name}
+                    className="font-display text-lg font-bold text-foreground leading-snug truncate"
+                  />
+                </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0"
                     onClick={() => handleOpenEditModal(p)}
                     title="Edit Plan"
                   >
@@ -350,8 +354,13 @@ export function AdminSubscriptions() {
                 </div>
               </div>
 
-              {/* Proposal Limit Badge */}
-              <div className="mt-1.5 flex items-center min-h-[26px]">
+              {/* Badges Row */}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 min-h-[26px]">
+                {(p.slug === "gold-membership" || p.name?.toLowerCase().includes("gold")) && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    <Sparkles size={11} className="shrink-0" /> Default Plan
+                  </span>
+                )}
                 {p.proposal_limit != null ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
                     {p.proposal_limit} proposals/mo

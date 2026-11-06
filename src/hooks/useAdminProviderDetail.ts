@@ -238,6 +238,13 @@ export function useAdminProviderDetail() {
       unit: cfg.unit || "flat rate",
     }));
 
+  const selectedServiceTypes = Array.isArray(provider?.service_types)
+    ? provider.service_types
+    : Array.isArray(provider?.category?.service_types)
+    ? provider.category.service_types
+    : [];
+  const customSpecialty = String(provider?.custom_specialty || "").trim();
+
   const displayServices =
     pricingItems.length > 0
       ? pricingItems
@@ -247,6 +254,13 @@ export function useAdminProviderDetail() {
           name: s.service_type?.name || s.name || "Service",
           price: Number(s.amount || s.price || 0),
           unit: "flat rate",
+        }))
+      : selectedServiceTypes.length > 0
+      ? selectedServiceTypes.map((st: any) => ({
+          id: String(st.id),
+          name: st.name,
+          price: Number(st.provider_service?.amount || st.amount || 0),
+          unit: "quoted price",
         }))
       : offeredServices.map((name, idx) => ({
           id: String(idx),
@@ -367,5 +381,7 @@ export function useAdminProviderDetail() {
     displayServices,
     displayYears,
     availabilityByDay,
+    customSpecialty,
+    selectedServiceTypes,
   };
 }
