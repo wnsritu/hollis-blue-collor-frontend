@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Loader2, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,17 @@ export default function ProviderPricing() {
   const [showAllSubcategories, setShowAllSubcategories] = useState<boolean>(false);
 
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
+
+  const customServiceNames = useMemo(() => {
+    const raw = provider?.custom_specialty;
+    if (!raw || !String(raw).trim()) return [];
+    try {
+      if (String(raw).startsWith("[")) {
+        return JSON.parse(raw);
+      }
+    } catch {}
+    return String(raw).split(",").map((s) => s.trim()).filter(Boolean);
+  }, [provider?.custom_specialty]);
   const [pricingState, setPricingState] = useState<Record<string, ProviderServiceConfig>>({});
   const [priceErrors, setPriceErrors] = useState<Record<string, string>>({});
 
@@ -167,6 +178,31 @@ export default function ProviderPricing() {
           });
         });
       }
+      // Initialize custom specialties pricing
+      const customRaw = pData?.custom_specialty;
+      if (customRaw) {
+        let customList: string[] = [];
+        try {
+          if (String(customRaw).startsWith("[")) customList = JSON.parse(String(customRaw));
+        } catch {}
+        if (!customList.length) {
+          customList = String(customRaw).split(",").map((s) => s.trim()).filter(Boolean);
+        }
+        customList.forEach((cName) => {
+          const savedConfig = savedPricing[cName];
+          const isOffered = savedConfig?.offered !== undefined ? Boolean(savedConfig.offered) : true;
+          const priceVal = savedConfig?.price !== undefined && savedConfig?.price !== null ? Number(savedConfig.price) : (pData?.starting_price != null ? Number(pData.starting_price) : 0);
+          const unitVal = savedConfig?.unit || "flat rate";
+          const partialPct = savedConfig?.partial_payment_percentage != null ? Number(savedConfig.partial_payment_percentage) : 100;
+          initPricing[cName] = {
+            price: priceVal,
+            offered: isOffered,
+            unit: unitVal,
+            partial_payment_percentage: partialPct,
+          };
+        });
+      }
+
       setPricingState(initPricing);
     } catch (err) {
       console.error("Failed to load provider pricing data", err);
@@ -294,6 +330,34 @@ export default function ProviderPricing() {
         });
       });
 
+      // Validate and collect custom services
+      customServiceNames.forEach((name) => {
+        const cfg = getConfig(name, 100);
+        const configWithMeta: ProviderServiceConfig = {
+          ...cfg,
+          id: name,
+          name,
+          service_id: name,
+          service_name: name,
+        };
+        servicePricingObj[name] = configWithMeta;
+
+        if (cfg.offered) {
+          if (!offeredServiceNames.includes(name)) {
+            offeredServiceNames.push(name);
+          }
+          if (!cfg.price || Number(cfg.price) <= 0 || isNaN(Number(cfg.price))) {
+            errors[name] = "Price must be greater than 0";
+            hasError = true;
+          }
+          const depositPct = Number(cfg.partial_payment_percentage ?? 100);
+          if (isNaN(depositPct) || depositPct < 1 || depositPct > 100) {
+            errors[`${name}_deposit`] = "Deposit must be between 1% and 100%";
+            hasError = true;
+          }
+        }
+      });
+
       // Preserve previously offered services from other categories in pricingState
       Object.entries(servicePricingObj).forEach(([k, cfg]) => {
         if (cfg.offered && !offeredServiceNames.includes(k) && isNaN(Number(k))) {
@@ -356,6 +420,156 @@ export default function ProviderPricing() {
           {selectedSubcategories.length === 1 && ` (${selectedSubcategories[0]?.name})`}
         </span>
       </div>
+
+      {/* Provider Custom Services & Added Specialties Section */}
+      {customServiceNames.length > 0 && (
+        <Card className="shadow-card border-accent/40 overflow-hidden">
+          <CardHeader className="bg-accent-soft/30 border-b border-accent/20 py-4 px-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Sparkles size={18} className="text-accent" />
+                  Custom Services &amp; Added Specialties
+                </CardTitle>
+                <span className="text-xs font-semibold rounded-full bg-accent text-accent-foreground px-2.5 py-0.5">
+                  {customServiceNames.length} Custom Added
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Set the price, billing rate, and deposit requirements for your custom-added trade specialties.
+            </p>
+          </CardHeader>
+
+          <CardContent className="p-0 divide-y divide-border">
+            {customServiceNames.map((svcName, idx) => {
+              const config = getConfig(svcName, (idx + 1) * 75);
+              return (
+                <div
+                  key={svcName}
+                  className={`p-4 sm:p-5 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    config.offered ? "bg-card" : "bg-muted/20 opacity-75"
+                  }`}
+                >
+                  <div className="space-y-1 min-w-0 max-w-md">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-foreground">
+                        {svcName}
+                      </span>
+                      <span className="inline-flex items-center rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent-soft-foreground border border-accent/30">
+                        Custom Specialty
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Custom trade service offered directly by your business.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4 shrink-0 flex-wrap sm:flex-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={config.offered}
+                        onCheckedChange={(checked) => {
+                          const currentPrice = config.price;
+                          const newPrice = checked && currentPrice <= 0 ? 75 : currentPrice;
+                          updateServiceConfig(svcName, { offered: checked, price: newPrice });
+                          if (priceErrors[svcName]) {
+                            setPriceErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[svcName];
+                              return next;
+                            });
+                          }
+                        }}
+                        aria-label={`Toggle ${svcName}`}
+                      />
+                      <span className="text-xs font-medium text-muted-foreground w-14">
+                        {config.offered ? "Offered" : "Hidden"}
+                      </span>
+                    </div>
+
+                    {config.offered && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Price Input */}
+                        <div className="w-28">
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">
+                              $
+                            </span>
+                            <Input
+                              type="number"
+                              min={1}
+                              step="any"
+                              value={config.price || ""}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                updateServiceConfig(svcName, { price: val });
+                                if (val > 0 && priceErrors[svcName]) {
+                                  setPriceErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete next[svcName];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              placeholder="Price"
+                              className={`h-9 pl-6 pr-2 text-xs font-semibold ${
+                                priceErrors[svcName] ? "border-destructive focus-visible:ring-destructive" : ""
+                              }`}
+                            />
+                          </div>
+                          {priceErrors[svcName] && (
+                            <p className="text-[10px] text-destructive mt-0.5">{priceErrors[svcName]}</p>
+                          )}
+                        </div>
+
+                        {/* Unit Select */}
+                        <div className="w-28">
+                          <Select
+                            value={config.unit || "flat rate"}
+                            onValueChange={(val) => updateServiceConfig(svcName, { unit: val })}
+                          >
+                            <SelectTrigger className="h-9 text-xs">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="flat rate">Flat Rate</SelectItem>
+                              <SelectItem value="hourly">Hourly</SelectItem>
+                              <SelectItem value="per sq ft">Per Sq Ft</SelectItem>
+                              <SelectItem value="per item">Per Item</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Deposit % */}
+                        <div className="w-24">
+                          <Select
+                            value={String(config.partial_payment_percentage ?? 100)}
+                            onValueChange={(val) =>
+                              updateServiceConfig(svcName, { partial_payment_percentage: Number(val) })
+                            }
+                          >
+                            <SelectTrigger className="h-9 text-xs">
+                              <SelectValue placeholder="Deposit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10% Deposit</SelectItem>
+                              <SelectItem value="20">20% Deposit</SelectItem>
+                              <SelectItem value="30">30% Deposit</SelectItem>
+                              <SelectItem value="50">50% Deposit</SelectItem>
+                              <SelectItem value="100">100% Full</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Accordion Subcategories List */}
       <div className="space-y-6">

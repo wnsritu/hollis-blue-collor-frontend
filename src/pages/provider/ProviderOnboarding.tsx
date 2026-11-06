@@ -7,13 +7,17 @@ import {
   FileCheck,
   ShieldCheck,
   RefreshCw,
+  Search,
+  Sparkles,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { Logo } from "@/components/shared/primitives";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ServiceChipsInput } from "@/components/ui/service-chips-input";
 import GooglePlaceAutocomplete from "@/components/ui/GooglePlaceAutocomplete";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -50,6 +54,13 @@ export default function ProviderOnboarding() {
     selectedCategory,
     selectedServiceTypeId,
     setSelectedServiceTypeId,
+    selectedServiceTypeIds,
+    handleToggleServiceType,
+    searchTerm,
+    setSearchTerm,
+    customSpecialty,
+    setCustomSpecialty,
+    allServiceTypes,
     serviceTypes,
     handleSelectCategory,
     form,
@@ -170,28 +181,42 @@ export default function ProviderOnboarding() {
 
         <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
           {step === 0 && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Select your service category
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Choose the primary category that best describes your services. You can
-                  select exactly one category.
-                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground">
+                      Select your services & trades
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Choose all occupations and trade services your business provides. You can select multiple.
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-xs font-bold text-accent-soft-foreground">
+                    {selectedServiceTypeIds.length} Selected
+                  </span>
+                </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {/* Primary Category Switcher / Filter */}
+                <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
                   {categories.map((cat, idx) => {
                     const active = Number(selectedCategoryId) === Number(cat.id);
                     const Icon = CATEGORY_ICONS[idx % CATEGORY_ICONS.length];
-                    const desc =
-                      CATEGORY_FALLBACK_DESC[idx % CATEGORY_FALLBACK_DESC.length];
+                    const isNotListedCat = cat.name.toLowerCase().includes("not listed");
+                    const countSelectedInCat = (cat.service_types || []).filter((st) =>
+                      selectedServiceTypeIds.includes(Number(st.id))
+                    ).length;
+                    const customChipsCount = isNotListedCat
+                      ? customSpecialty.split(",").map((s) => s.trim()).filter(Boolean).length
+                      : 0;
+                    const totalSelected = countSelectedInCat + customChipsCount;
+
                     return (
                       <button
                         key={cat.id}
                         type="button"
                         onClick={() => handleSelectCategory(Number(cat.id))}
-                        className={`rounded-2xl border p-4 text-left transition-all ${
+                        className={`rounded-2xl border p-3.5 text-left transition-all ${
                           active
                             ? "border-accent bg-accent-soft shadow-sm ring-2 ring-accent/20"
                             : "border-border bg-card hover:border-accent/40"
@@ -199,95 +224,193 @@ export default function ProviderOnboarding() {
                       >
                         <div className="flex items-center justify-between">
                           <span
-                            className={`grid size-10 place-items-center rounded-xl ${
+                            className={`grid size-9 place-items-center rounded-xl ${
                               active
                                 ? "bg-accent text-accent-foreground"
                                 : "bg-muted text-muted-foreground"
                             }`}
                           >
-                            <Icon size={20} />
+                            <Icon size={18} />
                           </span>
-                          {active && (
-                            <span className="grid size-5 place-items-center rounded-full bg-accent text-accent-foreground">
-                              <Check size={12} />
+                          {totalSelected > 0 && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                              {totalSelected} selected
                             </span>
                           )}
                         </div>
-                        <h3 className="mt-3 text-sm font-bold text-foreground">{cat.name}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {desc}
-                        </p>
+                        <h3 className="mt-2 text-sm font-bold text-foreground">{cat.name}</h3>
                       </button>
                     );
                   })}
                 </div>
-                {categories.length === 0 && (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    No categories available yet. Ask an admin to seed the catalog.
-                  </p>
-                )}
               </div>
 
-              {selectedCategoryId != null && (
-                <div className="border-t border-border pt-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-bold text-foreground">
-                        Select the service you provide
-                      </h2>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Select the primary service area under{" "}
-                        <span className="font-bold text-foreground">
-                          {selectedCategory?.name}
-                        </span>
-                        . Only 1 service can be selected.
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-xs font-bold text-accent-soft-foreground">
-                      {selectedServiceTypeId ? "1 Selected" : "0 Selected"}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {serviceTypes.map((sub) => {
-                      const checked = Number(selectedServiceTypeId) === Number(sub.id);
-                      return (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedServiceTypeId(Number(sub.id));
-                            setError("");
-                          }}
-                          className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all ${
-                            checked
-                              ? "border-accent bg-accent-soft font-semibold shadow-xs ring-2 ring-accent/20"
-                              : "border-border bg-card hover:border-accent/40"
-                          }`}
-                        >
-                          <div
-                            className={`grid size-5 place-items-center rounded-full border text-[10px] transition-colors ${
-                              checked
-                                ? "border-accent bg-accent font-bold text-accent-foreground"
-                                : "border-muted-foreground/40 bg-background"
-                            }`}
-                          >
-                            {checked && <Check size={12} />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground">{sub.name}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {serviceTypes.length === 0 && (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      No services under this category yet.
-                    </p>
+              {/* Search Bar for 35 Subcategories & 440 Services */}
+              <div className="border-t border-border pt-4">
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    placeholder="Search all services & trades (e.g., Plumber, Cleaner, Electrician, Roof...)"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-10 pl-9 pr-9 text-sm"
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X size={15} />
+                    </button>
                   )}
                 </div>
-              )}
+
+                {/* Selected Pills */}
+                {(selectedServiceTypeIds.length > 0 || customSpecialty.trim()) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground mr-1">
+                      Selected:
+                    </span>
+                    {selectedServiceTypeIds.map((id) => {
+                      const item = allServiceTypes.find((st) => st.id === id);
+                      if (!item) return null;
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent-soft-foreground border border-accent/20"
+                        >
+                          {item.name}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleServiceType(id)}
+                            className="hover:text-destructive"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    {customSpecialty
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                      .map((chip) => (
+                        <span
+                          key={chip}
+                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20"
+                        >
+                          <Sparkles size={11} className="text-primary" />
+                          {chip}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const remaining = customSpecialty
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter((s) => s && s.toLowerCase() !== chip.toLowerCase());
+                              setCustomSpecialty(remaining.join(", "));
+                            }}
+                            className="hover:text-destructive"
+                            title="Remove custom specialty"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                )}
+
+                {/* Services List Grid */}
+                <div className="mt-4">
+                  {(() => {
+                    const sourceList = searchTerm.trim()
+                      ? allServiceTypes.filter((st) =>
+                          st.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+                        )
+                      : (serviceTypes || []).map((st) => ({
+                          id: Number(st.id),
+                          name: st.name,
+                          category_name: selectedCategory?.name,
+                        }));
+
+                    if (sourceList.length === 0) {
+                      return (
+                        <p className="py-6 text-center text-xs text-muted-foreground">
+                          No services found matching &quot;{searchTerm}&quot;. Try a different keyword or check below.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-[380px] overflow-y-auto pr-1">
+                        {sourceList.map((sub) => {
+                          const checked = selectedServiceTypeIds.includes(Number(sub.id));
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() => handleToggleServiceType(Number(sub.id))}
+                              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                                checked
+                                  ? "border-accent bg-accent-soft font-semibold shadow-xs ring-2 ring-accent/20"
+                                  : "border-border bg-card hover:border-accent/40"
+                              }`}
+                            >
+                              <div
+                                className={`grid size-4 shrink-0 place-items-center rounded-sm border text-[10px] transition-colors ${
+                                  checked
+                                    ? "border-accent bg-accent font-bold text-accent-foreground"
+                                    : "border-muted-foreground/40 bg-background"
+                                }`}
+                              >
+                                {checked && <Check size={11} />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-foreground truncate">{sub.name}</p>
+                                {searchTerm.trim() && sub.category_name && (
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {sub.category_name}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Not Listed — Add My Own Specialty Input (Only visible when 'Not Listed — Add My Own Specialty' category is selected) */}
+                {Boolean(selectedCategory?.name?.toLowerCase().includes("not listed")) && (
+                  <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/20 p-3.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="custom-specialty" className="text-xs font-bold text-foreground">
+                        Not Listed? Add Your Own Specialty
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">Custom Field</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Type your custom trade or specialty service and press Enter.
+                    </p>
+                    <div className="mt-2">
+                      <ServiceChipsInput
+                        value={
+                          customSpecialty.trim()
+                            ? customSpecialty.split(",").map((s) => s.trim()).filter(Boolean)
+                            : []
+                        }
+                        onChange={(chips) => setCustomSpecialty(chips.join(", "))}
+                        placeholder="Type specialty and press Enter (e.g. Yacht Detailing, Custom Pergola)..."
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -9,6 +9,7 @@ import {
   getProviderAvailabilityByProviderIdApi,
 } from "@/services/provider";
 import { bookingApi } from "@/services/booking/booking.service";
+import { getMyProfileApi } from "@/services/customer/customer.service";
 import { useAuthSession } from "@/hooks/useAuth";
 import type {
   OfferedService,
@@ -155,6 +156,32 @@ export function useBookService() {
                     };
                   })
                   .filter(Boolean) as OfferedService[];
+
+                // Add custom specialties as bookable services
+                if (provData.custom_specialty) {
+                  const customSpecs = typeof provData.custom_specialty === "string"
+                    ? provData.custom_specialty.split(",").map((s: string) => s.trim()).filter(Boolean)
+                    : [];
+                  customSpecs.forEach((spec: string, idx: number) => {
+                    const lower = spec.toLowerCase();
+                    if (!seen.has(lower)) {
+                      seen.add(lower);
+                      let cfg: any = pricingMap[spec];
+                      if (!cfg) {
+                        const found = Object.entries(pricingMap).find(([k]) => k.toLowerCase() === lower);
+                        if (found) cfg = found[1];
+                      }
+                      servicesList.push({
+                        id: `svc_custom_${idx + 1}`,
+                        name: spec,
+                        description: (cfg?.description as string) || `${spec} specialty service provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                        price: Number(cfg?.price) > 0 ? Number(cfg?.price) : Number(provData.starting_price || provData.hourly_rate || 0),
+                        unit: (cfg?.unit as string) || (provData.hourly_rate ? "per hour" : "flat rate"),
+                        partial_payment_percentage: cfg?.partial_payment_percentage != null ? Number(cfg?.partial_payment_percentage) : 100,
+                      });
+                    }
+                  });
+                }
               }
             } catch (e) {
               console.error("Error parsing service_pricing:", e);
@@ -169,22 +196,42 @@ export function useBookService() {
               } catch {}
             }
             if (Array.isArray(rawOffered)) {
-              servicesList = rawOffered.map((item: any, idx) => {
-                const name = typeof item === "string" ? item : item?.name || String(item);
-                const price = typeof item === "object" && item?.price ? Number(item.price) : Number(provData.starting_price || provData.hourly_rate || 0);
-                return {
-                  id: `svc_${idx + 1}`,
-                  name,
-                  description: (typeof item === "object" && item?.description) || `Service provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
-                  price,
-                  unit: (typeof item === "object" && item?.unit) || (provData.hourly_rate ? "per hour" : "flat rate"),
-                };
-              });
+              servicesList = rawOffered
+                .map((item: any, idx) => {
+                  const name = typeof item === "string" ? item : item?.name || String(item);
+                                    const price = typeof item === "object" && item?.price ? Number(item.price) : Number(provData.starting_price || provData.hourly_rate || 0);
+                  return {
+                    id: `svc_${idx + 1}`,
+                    name,
+                    description: (typeof item === "object" && item?.description) || `Service provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                    price,
+                    unit: (typeof item === "object" && item?.unit) || (provData.hourly_rate ? "per hour" : "flat rate"),
+                  };
+                })
+                .filter(Boolean) as OfferedService[];
             }
           }
 
+          // Fallback to custom specialties if servicesList is still empty
+          if (servicesList.length === 0 && provData.custom_specialty) {
+            const customSpecs = typeof provData.custom_specialty === "string"
+              ? provData.custom_specialty.split(",").map((s: string) => s.trim()).filter(Boolean)
+              : [];
+            servicesList = customSpecs
+              
+              .map((spec: string, idx: number) => ({
+                id: `svc_custom_${idx + 1}`,
+                name: spec,
+                description: `${spec} service provided by ${provData.business_name || provData.user?.full_name || "Provider"}.`,
+                price: Number(provData.starting_price || provData.hourly_rate || 0),
+                unit: provData.hourly_rate ? "per hour" : "flat rate",
+                partial_payment_percentage: 100,
+              }));
+          }
+
           if (servicesList.length === 0) {
-            const mainSvcName = provData.service_type?.name || provData.category?.name || "Professional Service";
+            let mainSvcName = provData.service_type?.name || provData.category?.name || "Professional Service";
+            if (mainSvcName.toLowerCase().includes("not listed")) mainSvcName = "Specialty Trade Service";
             const basePrice = Number(provData.starting_price || provData.hourly_rate || 0);
             servicesList = [
               {
@@ -196,6 +243,8 @@ export function useBookService() {
               },
             ];
           }
+
+          servicesList = servicesList.filter((s) => !s.name.toLowerCase().includes("not listed"));
 
           setOfferedServices(servicesList);
 

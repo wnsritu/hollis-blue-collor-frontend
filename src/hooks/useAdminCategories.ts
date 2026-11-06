@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { catalogApi } from "@/services/catalog";
+import { adminApi } from "@/services/admin";
 import type { Category, ServiceType } from "@/types/api/catalog";
 
 export function useAdminCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedParentId, setSelectedParentId] = useState<number | string>("all");
   const [loading, setLoading] = useState(true);
+
+  // Category Modal State
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryIsActive, setCategoryIsActive] = useState(true);
+  const [submittingCategory, setSubmittingCategory] = useState(false);
 
   // Subcategory Modal State
   const [isAddSubOpen, setIsAddSubOpen] = useState(false);
@@ -22,6 +30,11 @@ export function useAdminCategories() {
   const [editingServiceItem, setEditingServiceItem] = useState<{ id: number; name: string } | null>(null);
   const [svcNames, setSvcNames] = useState<string[]>([""]);
   const [submittingSvc, setSubmittingSvc] = useState(false);
+
+  // Provider-submitted custom specialties
+  const [customSpecialties, setCustomSpecialties] = useState<
+    Array<{ id: number; providerName: string; specialty: string; email?: string }>
+  >([]);
 
   // Fetch Category Tree
   const fetchCatalogData = async () => {
@@ -47,8 +60,100 @@ export function useAdminCategories() {
   }, []);
 
   // Active Parent Category
-  const activeCategory =
+  const activeCategory: Category | undefined =
     categories.find((c) => String(c.id) === String(selectedParentId)) || categories[0];
+
+  // Category Handlers
+  const handleOpenAddCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryName("");
+    setCategoryIsActive(true);
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleOpenEditCategoryModal = (cat: Category) => {
+    setEditingCategory(cat);
+    setCategoryName(cat.name);
+    setCategoryIsActive(cat.is_active !== undefined ? Boolean(cat.is_active) : true);
+    setIsAddCategoryOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryName.trim()) {
+      toast.error("Category name is required.");
+      return;
+    }
+    setSubmittingCategory(true);
+    try {
+      if (editingCategory) {
+        await catalogApi.updateCategory(editingCategory.id, {
+          name: categoryName.trim(),
+          is_active: categoryIsActive,
+        } as any);
+        toast.success(`Category "${categoryName.trim()}" updated.`);
+      } else {
+        await catalogApi.createCategory({
+          name: categoryName.trim(),
+          is_active: categoryIsActive,
+        } as any);
+        toast.success(`Category "${categoryName.trim()}" created successfully.`);
+      }
+      setIsAddCategoryOpen(false);
+      await fetchCatalogData();
+    } catch (err: any) {
+      console.error("Failed to save category", err);
+      const msg = err?.response?.data?.message || "Failed to save category.";
+      toast.error(msg);
+    } finally {
+      setSubmittingCategory(false);
+    }
+  };
+
+  const handleToggleCategoryStatus = async (cat: Category) => {
+    const current = cat.is_active !== undefined ? Boolean(cat.is_active) : true;
+    const nextStatus = !current;
+
+    // Optimistic UI update
+    setCategories((prev) =>
+      prev.map((c) => (c.id === cat.id ? { ...c, is_active: nextStatus } : c))
+    );
+
+    try {
+      await catalogApi.updateCategory(cat.id, { is_active: nextStatus } as any);
+      toast.success(`Category "${cat.name}" ${nextStatus ? "activated" : "deactivated"}.`);
+      await fetchCatalogData();
+    } catch (err: any) {
+      console.error("Failed to toggle category status", err);
+      const msg = err?.response?.data?.message || "Failed to update category status.";
+      toast.error(msg);
+      await fetchCatalogData();
+    }
+  };
+
+  const handleDeleteCategory = (cat: Category) => {
+    setConfirmModal({
+      open: true,
+      title: "Delete Category",
+      description: `Are you sure you want to delete category "${cat.name}" and all its subcategories? This action cannot be undone.`,
+      confirmText: "Delete Category",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          await catalogApi.deleteCategory(cat.id);
+          toast.success(`Category "${cat.name}" deleted successfully.`);
+          await fetchCatalogData();
+        } catch (err: any) {
+          console.error("Failed to delete category", err);
+          const msg = err?.response?.data?.message || "Failed to delete category.";
+          toast.error(msg);
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, open: false, loading: false }));
+        }
+      },
+    });
+  };
 
   // Subcategory Handlers
   const handleOpenAddSubModal = () => {
@@ -257,11 +362,33 @@ export function useAdminCategories() {
     }
   };
 
+  const handlePromoteSpecialty = (specialtyName: string) => {
+    setSubName(specialtyName);
+    setSubDesc(`Added from provider request: ${specialtyName}`);
+    setSubIsActive(true);
+    setEditingSub(null);
+    setIsAddSubOpen(true);
+  };
+
   return {
     categories,
     selectedParentId,
     setSelectedParentId,
     loading,
+    isAddCategoryOpen,
+    setIsAddCategoryOpen,
+    editingCategory,
+    setEditingCategory,
+    categoryName,
+    setCategoryName,
+    categoryIsActive,
+    setCategoryIsActive,
+    submittingCategory,
+    handleOpenAddCategoryModal,
+    handleOpenEditCategoryModal,
+    handleSaveCategory,
+    handleToggleCategoryStatus,
+    handleDeleteCategory,
     isAddSubOpen,
     setIsAddSubOpen,
     editingSub,
@@ -297,5 +424,7 @@ export function useAdminCategories() {
     handleSvcNameChange,
     handleSaveService,
     handleDeleteService,
+    customSpecialties,
+    handlePromoteSpecialty,
   };
 }

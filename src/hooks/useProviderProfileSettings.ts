@@ -97,9 +97,12 @@ export function useProviderProfileSettings() {
   const [savedBusinessName, setSavedBusinessName] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryId, setSubcategoryId] = useState<string>("");
+  const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([]);
+  const [subcategorySearchTerm, setSubcategorySearchTerm] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [years, setYears] = useState<string>("");
   const [about, setAbout] = useState("");
+  const [customSpecialty, setCustomSpecialty] = useState("");
 
   // Address
   const [address, setAddress] = useState("");
@@ -120,6 +123,9 @@ export function useProviderProfileSettings() {
 
   // Pricing
   const [servicePricing, setServicePricing] = useState<any>(null);
+  const [customPricing, setCustomPricing] = useState<
+    Record<string, { price: number; unit: string; partial_payment_percentage: number }>
+  >({});
   const [providerStartingPrice, setProviderStartingPrice] = useState<number | null>(null);
 
   // Bank
@@ -253,13 +259,79 @@ export function useProviderProfileSettings() {
     return selectedCategoryObj?.service_types || [];
   }, [selectedCategoryObj]);
 
+  const allSubcategories = useMemo(() => {
+    const list: Array<{ id: number; name: string; category_id?: number; category_name?: string; services?: any[] }> = [];
+    categories.forEach((cat) => {
+      if (Array.isArray(cat.service_types)) {
+        cat.service_types.forEach((st) => {
+          list.push({
+            id: Number(st.id),
+            name: st.name,
+            category_id: Number(cat.id),
+            category_name: cat.name,
+            services: st.services || [],
+          });
+        });
+      }
+    });
+    return list;
+  }, [categories]);
+
+  const selectedSubcategories = useMemo(() => {
+    return allSubcategories.filter((s) => selectedSubcategoryIds.includes(String(s.id)));
+  }, [allSubcategories, selectedSubcategoryIds]);
+
+  const selectedSubcategoryNames = useMemo(() => {
+    return selectedSubcategories.map((s) => s.name);
+  }, [selectedSubcategories]);
+
+  const updateCustomServicePricing = (
+    name: string,
+    patch: Partial<{ price: number; unit: string; partial_payment_percentage: number }>
+  ) => {
+    setCustomPricing((prev) => {
+      const current = prev[name] || { price: providerStartingPrice ? Number(providerStartingPrice) : 0, unit: "flat rate", partial_payment_percentage: 100 };
+      return {
+        ...prev,
+        [name]: { ...current, ...patch },
+      };
+    });
+  };
+
+  const handleToggleSubcategory = (id: string) => {
+    setSelectedSubcategoryIds((prev) => {
+      const exists = prev.includes(id);
+      const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
+      if (next.length > 0) {
+        setSubcategoryId(next[0]);
+        const found = allSubcategories.find((s) => String(s.id) === next[0]);
+        if (found?.category_id) setCategoryId(String(found.category_id));
+      }
+      return next;
+    });
+  };
+
   const selectedSubcategoryObj = useMemo(() => {
-    return availableSubcategories.find((s) => String(s.id) === subcategoryId);
-  }, [availableSubcategories, subcategoryId]);
+    return availableSubcategories.find((s) => String(s.id) === subcategoryId) ||
+      allSubcategories.find((s) => String(s.id) === subcategoryId);
+  }, [availableSubcategories, allSubcategories, subcategoryId]);
 
   const availableServiceItems = useMemo(() => {
-    return (selectedSubcategoryObj?.services || []).filter((s: any) => s.is_active !== false);
-  }, [selectedSubcategoryObj]);
+    const list: any[] = [];
+    const seen = new Set<string>();
+    selectedSubcategories.forEach((sub) => {
+      (sub.services || []).forEach((svc: any) => {
+        if (svc.is_active !== false && !seen.has(svc.name)) {
+          seen.add(svc.name);
+          list.push({ ...svc, subcategory_name: sub.name });
+        }
+      });
+    });
+    if (list.length === 0 && selectedSubcategoryObj?.services) {
+      return (selectedSubcategoryObj.services || []).filter((s: any) => s.is_active !== false);
+    }
+    return list;
+  }, [selectedSubcategories, selectedSubcategoryObj]);
 
   const categoryName = useMemo(() => {
     return selectedCategoryObj?.name || "";
@@ -293,6 +365,7 @@ export function useProviderProfileSettings() {
       setBusinessName(bName);
       setSavedBusinessName(bName);
       setAbout(provider?.service_description || "");
+      setCustomSpecialty(provider?.custom_specialty || "");
       setAddress(provider?.service_location_address || "");
       setCity(provider?.city || "");
       setState(provider?.state || "");
@@ -312,6 +385,14 @@ export function useProviderProfileSettings() {
           ? String(provider.service_types[0].id)
           : "";
       setSubcategoryId(subId);
+
+      let initialSubIds: string[] = [];
+      if (Array.isArray(provider?.service_types) && provider.service_types.length > 0) {
+        initialSubIds = provider.service_types.map((st: any) => String(st.id));
+      } else if (subId) {
+        initialSubIds = [subId];
+      }
+      setSelectedSubcategoryIds(initialSubIds);
 
       const resolvedCatId =
         provider?.category_id != null
@@ -344,6 +425,14 @@ export function useProviderProfileSettings() {
       setCertifications(parseCerts(provider?.certifications));
       setFaqs(parseFaqs(provider?.faqs));
       setServicePricing(provider?.service_pricing || provider?.pricing || null);
+        let parsedPr: Record<string, any> = {};
+        const rawPr = provider?.service_pricing || provider?.pricing;
+        if (rawPr && typeof rawPr === "object") {
+          parsedPr = { ...rawPr };
+        } else if (typeof rawPr === "string") {
+          try { parsedPr = JSON.parse(rawPr); } catch {}
+        }
+        setCustomPricing(parsedPr);
       setProviderStartingPrice(
         provider?.starting_price != null ? Number(provider.starting_price) : null
       );
@@ -475,9 +564,16 @@ export function useProviderProfileSettings() {
   };
 
   const buildProfilePayload = () => {
-    const chosenServiceNames = availableServiceItems
-      .filter((svc) => selectedServiceIds.includes(String(svc.id)) || selectedServiceIds.includes(svc.name))
-      .map((svc) => svc.name);
+    const customSpecs = customSpecialty
+      ? customSpecialty.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const chosenServiceNames = [
+      ...availableServiceItems
+        .filter((svc) => selectedServiceIds.includes(String(svc.id)) || selectedServiceIds.includes(svc.name))
+        .map((svc) => svc.name),
+      ...customSpecs,
+    ];
 
     const certList = Array.isArray(certifications)
       ? certifications
@@ -497,14 +593,27 @@ export function useProviderProfileSettings() {
       longitude: lng,
       years_of_experience: years === "" ? null : Number(years),
       category_id: categoryId ? Number(categoryId) : null,
-      service_type_id: subcategoryId ? Number(subcategoryId) : null,
+      service_type_id: selectedSubcategoryIds[0] ? Number(selectedSubcategoryIds[0]) : (subcategoryId ? Number(subcategoryId) : null),
+      service_type_ids: selectedSubcategoryIds.map(Number).filter(Boolean),
+      custom_specialty: customSpecialty.trim() || null,
       offered_services: chosenServiceNames,
-      service_categories: selectedSubcategoryObj ? [selectedSubcategoryObj.name] : [],
+      service_categories: [
+        ...selectedSubcategoryNames,
+        ...customSpecs,
+      ],
       services: chosenServiceNames,
       certifications: certList,
       faqs: faqs.map(({ question, answer }) => ({ question, answer })),
       license_number: licenseNumber.trim(),
       insurance_policy: insurancePolicy.trim(),
+      service_pricing: (() => {
+        let base: Record<string, any> = {};
+        if (servicePricing && typeof servicePricing === "object") base = { ...servicePricing };
+        else if (typeof servicePricing === "string") {
+          try { base = JSON.parse(servicePricing); } catch {}
+        }
+        return { ...base, ...customPricing };
+      })(),
     };
   };
 
@@ -829,6 +938,19 @@ export function useProviderProfileSettings() {
     saveFaqsOnly,
     selectedCategoryObj,
     availableSubcategories,
+    allSubcategories,
+    selectedSubcategories,
+    selectedSubcategoryIds,
+    setSelectedSubcategoryIds,
+    handleToggleSubcategory,
+    selectedSubcategoryNames,
+    subcategorySearchTerm,
+    setSubcategorySearchTerm,
+    customSpecialty,
+    setCustomSpecialty,
+    customPricing,
+    setCustomPricing,
+    updateCustomServicePricing,
     selectedSubcategoryObj,
     availableServiceItems,
     categoryName,
